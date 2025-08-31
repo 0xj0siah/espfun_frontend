@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
-import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown } from 'lucide-react';
+import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
@@ -56,6 +56,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [isLoading, setIsLoading] = useState(false);
   const [currencyTokenAddress, setCurrencyTokenAddress] = useState<string>('');
   const fetchedPlayerIds = useRef<Set<number>>(new Set());
+  const [transactionStatus, setTransactionStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [transactionHash, setTransactionHash] = useState('');
   
   const { user, ready, authenticated } = usePrivy();
   const { sendTransaction } = useSendTransaction();
@@ -150,6 +153,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Use Privy's sendTransaction hook
     const { hash } = await sendTransaction(transactionRequest, options);
+    setTransactionHash(hash);
 
     // Wait for transaction confirmation
     await publicClient.waitForTransactionReceipt({ hash });
@@ -202,6 +206,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Use Privy's sendTransaction hook
     const { hash } = await sendTransaction(transactionRequest, options);
+    setTransactionHash(hash);
 
     // Wait for transaction confirmation
     await publicClient.waitForTransactionReceipt({ hash });
@@ -237,6 +242,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Use Privy's sendTransaction hook
     const { hash } = await sendTransaction(transactionRequest, options);
+    setTransactionHash(hash);
 
     // Wait for transaction confirmation
     await publicClient.waitForTransactionReceipt({ hash });
@@ -316,16 +322,21 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   const handleConfirm = async () => {
     if (!usdcAmount || parseFloat(usdcAmount) <= 0) {
-      alert("Please enter a valid amount");
+      setTransactionStatus('error');
+      setStatusMessage('Please enter a valid amount');
       return;
     }
 
     if (!authenticated || !user?.wallet?.address) {
-      alert("Please connect your wallet first");
+      setTransactionStatus('error');
+      setStatusMessage('Please connect your wallet first');
       return;
     }
 
     setIsLoading(true);
+    setTransactionStatus('pending');
+    setStatusMessage(`${action === 'buy' ? 'Purchasing' : 'Selling'} ${player.name} tokens...`);
+    
     try {
       if (action === 'buy') {
         // Calculate token amount to buy (assuming 1:1 ratio for now, should use actual price calculation)
@@ -342,14 +353,24 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         await onPurchase(player, usdcAmount, action, slippage);
       }
       
-      setShowBuySellMenu(false);
-      setUsdcAmount('');
-      setAction('buy');
-      setSlippage(0.5);
-      onClose();
+      setTransactionStatus('success');
+      setStatusMessage(`Successfully ${action === 'buy' ? 'purchased' : 'sold'} ${player.name} tokens!`);
+      
+      // Reset form after successful transaction
+      setTimeout(() => {
+        setShowBuySellMenu(false);
+        setUsdcAmount('');
+        setAction('buy');
+        setSlippage(0.5);
+        setTransactionStatus('idle');
+        setStatusMessage('');
+        setTransactionHash('');
+        onClose();
+      }, 3000);
     } catch (error) {
       console.error('Transaction failed:', error);
-      alert(`Transaction failed: ${(error as any)?.message || 'Unknown error'}`);
+      setTransactionStatus('error');
+      setStatusMessage(`Transaction failed: ${(error as any)?.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -431,8 +452,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     onClick={() => {
                       setShowBuySellMenu(true);
                       setAction('buy');
+                      setTransactionStatus('idle');
+                      setStatusMessage('');
                     }}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg text-lg px-8 py-3"
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg text-lg px-8 py-3 transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95"
                   >
                     Purchase Player
                   </Button>
@@ -440,9 +463,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     onClick={() => {
                       setShowBuySellMenu(true);
                       setAction('sell');
+                      setTransactionStatus('idle');
+                      setStatusMessage('');
                     }}
                     variant="outline"
-                    className="text-lg px-8 py-3"
+                    className="text-lg px-8 py-3 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 hover:border-red-500 hover:text-red-500"
                   >
                     Sell Player
                   </Button>
@@ -664,23 +689,95 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                       setUsdcAmount('');
                       setAction('buy');
                       setSlippage(0.5);
+                      setTransactionStatus('idle');
+                      setStatusMessage('');
+                      setTransactionHash('');
                     }}
                     className="flex-1"
+                    disabled={isLoading}
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={handleConfirm}
-                    disabled={!usdcAmount || parseFloat(usdcAmount) <= 0}
-                    className={`flex-1 ${
+                    disabled={!usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading}
+                    className={`flex-1 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 ${
                       action === 'buy'
-                        ? 'bg-gradient-to-r from-green-600 to-emerald-600'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600'
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                     }`}
                   >
-                    Confirm {action === 'buy' ? 'Purchase' : 'Sale'}
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Processing...
+                      </div>
+                    ) : (
+                      `Confirm ${action === 'buy' ? 'Purchase' : 'Sale'}`
+                    )}
                   </Button>
                 </div>
+
+                {/* Transaction Status Tab */}
+                {transactionStatus !== 'idle' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="mt-4"
+                  >
+                    <Alert className={`border ${
+                      transactionStatus === 'pending' 
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' 
+                        : transactionStatus === 'success' 
+                        ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
+                        : 'border-red-500 bg-red-50 dark:bg-red-950/20'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {transactionStatus === 'pending' && (
+                          <Clock className="w-4 h-4 text-blue-500 animate-pulse" />
+                        )}
+                        {transactionStatus === 'success' && (
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        )}
+                        {transactionStatus === 'error' && (
+                          <XCircle className="w-4 h-4 text-red-500" />
+                        )}
+                        <AlertDescription className={`font-medium ${
+                          transactionStatus === 'pending' 
+                            ? 'text-blue-700 dark:text-blue-300' 
+                            : transactionStatus === 'success' 
+                            ? 'text-green-700 dark:text-green-300' 
+                            : 'text-red-700 dark:text-red-300'
+                        }`}>
+                          {statusMessage}
+                        </AlertDescription>
+                      </div>
+                      
+                      {transactionHash && (
+                        <div className="mt-2 pt-2 border-t border-current/20">
+                          <a 
+                            href={`${NETWORK_CONFIG.blockExplorer}/tx/${transactionHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-current/80 hover:text-current transition-colors underline"
+                          >
+                            View transaction: {transactionHash.slice(0, 10)}...{transactionHash.slice(-8)}
+                          </a>
+                        </div>
+                      )}
+                      
+                      {transactionStatus === 'success' && (
+                        <div className="mt-2 pt-2 border-t border-current/20">
+                          <p className="text-xs text-current/80">
+                            This modal will close automatically in a few seconds.
+                          </p>
+                        </div>
+                      )}
+                    </Alert>
+                  </motion.div>
+                )}
               </motion.div>
             </Card>
           )}
