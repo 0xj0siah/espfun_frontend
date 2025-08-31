@@ -1,0 +1,134 @@
+{
+
+"teamPlayers": [
+  
+  {
+    "id": 1,
+    "name": "PhoenixRising",
+    "game": "Valorant",
+    "position": "Initiator",
+    "price": "1.4 ETH",
+    "trend": "up",
+    "points": 298,
+    "rating": 94,
+    "stats": {
+      "kills": 18.5,
+      "deaths": 12.2,
+      "assists": 8.7,
+      "winRate": 75
+    },
+    "recentMatches": [
+      { "opponent": "Team Alpha", "result": "win", "score": "13-9", "performance": 320 },
+      { "opponent": "Beta Squad", "result": "win", "score": "13-11", "performance": 285 },
+      { "opponent": "Gamma Force", "result": "loss", "score": "9-13", "performance": 245 }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "IceBreaker",
+    "game": "CS2",
+    "position": "Entry Fragger",
+    "price": "1.0 ETH",
+    "trend": "down",
+    "points": 167,
+    "rating": 82,
+    "stats": {
+      "kills": 22.1,
+      "deaths": 15.8,
+      "assists": 5.3,
+      "winRate": 68
+    },
+    "recentMatches": [
+      { "opponent": "Delta Prime", "result": "loss", "score": "14-16", "performance": 180 },
+      { "opponent": "Echo Team", "result": "win", "score": "16-12", "performance": 195 },
+      { "opponent": "Foxtrot", "result": "loss", "score": "8-16", "performance": 125 }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "StormLord",
+    "game": "League of Legends",
+    "position": "Jungle",
+    "price": "1.3 ETH",
+    "trend": "up",
+    "points": 256,
+    "rating": 88,
+    "stats": {
+      "kills": 7.2,
+      "deaths": 3.8,
+      "assists": 12.5,
+      "winRate": 72
+    },
+    "recentMatches": [
+      { "opponent": "Hotel Six", "result": "win", "score": "2-1", "performance": 275 },
+      { "opponent": "India Seven", "result": "win", "score": "2-0", "performance": 290 },
+      { "opponent": "Juliet Eight", "result": "loss", "score": "1-2", "performance": 210 }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "GhostReaper",
+    "game": "Dota 2",
+    "position": "Support",
+    "price": "0.7 ETH",
+    "trend": "stable",
+    "points": 134,
+    "rating": 79,
+    "stats": {
+      "kills": 3.1,
+      "deaths": 5.2,
+      "assists": 15.8,
+      "winRate": 65
+    },
+    "recentMatches": [
+      { "opponent": "Kilo Nine", "result": "win", "score": "2-1", "performance": 145 },
+      { "opponent": "Lima Ten", "result": "loss", "score": "0-2", "performance": 98 },
+      { "opponent": "Mike Eleven", "result": "win", "score": "2-0", "performance": 167 }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "VoidMaster",
+    "game": "Valorant",
+    "position": "Duelist",
+    "price": "1.8 ETH",
+    "trend": "up",
+    "points": 342,
+    "rating": 96,
+    "stats": {
+      "kills": 24.3,
+      "deaths": 14.1,
+      "assists": 6.2,
+      "winRate": 78
+    },
+    "recentMatches": [
+      { "opponent": "November", "result": "win", "score": "13-7", "performance": 365 },
+      { "opponent": "Oscar", "result": "win", "score": "13-10", "performance": 340 },
+      { "opponent": "Papa", "result": "win", "score": "13-8", "performance": 321 }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "CyberSamurai",
+    "game": "CS2",
+    "position": "AWPer",
+    "price": "1.6 ETH",
+    "trend": "up",
+    "points": 287,
+    "rating": 91,
+    "stats": {
+      "kills": 19.7,
+      "deaths": 11.3,
+      "assists": 4.8,
+      "winRate": 74
+    },
+    "recentMatches": [
+      { "opponent": "Quebec", "result": "win", "score": "16-11", "performance": 305 },
+      { "opponent": "Romeo", "result": "win", "score": "16-13", "performance": 289 },
+      { "opponent": "Sierra", "result": "loss", "score": "12-16", "performance": 245 }
+    ]
+  }
+  
+]
+
+}
