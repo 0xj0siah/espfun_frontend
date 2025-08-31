@@ -73,10 +73,10 @@ export default function TeamSection() {
     // Use fake data and merge with contract prices
     const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => ({
       ...player,
-      // Add missing fields for interface compatibility
-      level: Math.floor(Math.random() * 10) + 1,
-      xp: Math.floor(Math.random() * 1000),
-      potential: Math.floor(Math.random() * 100) + 1,
+      // Add missing fields for interface compatibility (set to fixed values)
+      level: 1, // Fixed level
+      xp: 50, // Fixed XP value instead of random
+      potential: 50, // Fixed potential
       // Ensure types are properly cast
       trend: player.trend as "up" | "down" | "stable",
       recentMatches: player.recentMatches.map(match => ({
@@ -191,9 +191,6 @@ export default function TeamSection() {
                           alt={player.name}
                           className="w-14 h-14 rounded-xl object-cover shadow-md"
                         />
-                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
-                          {player.level}
-                        </div>
                       </div>
                       <div className="flex-1">
                         <h3 className="text-sm font-medium">{player.name}</h3>
@@ -201,18 +198,6 @@ export default function TeamSection() {
                         <div className="flex items-center justify-between mt-2">
                           <Badge variant="outline" className="text-xs">{player.price}</Badge>
                           <span className="text-sm text-primary font-medium">{player.points} pts</span>
-                        </div>
-                        <div className="mt-2">
-                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                            <span>XP Progress</span>
-                            <span>{player.xp}%</span>
-                          </div>
-                          <div className="w-full bg-accent rounded-full h-1.5">
-                            <div 
-                              className="bg-gradient-to-r from-blue-500 to-purple-600 h-1.5 rounded-full transition-all duration-300"
-                              style={{ width: `${player.xp}%` }}
-                            />
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -257,37 +242,6 @@ export default function TeamSection() {
               </div>
             </Card>
 
-            <Card className="p-6 border-0 shadow-lg">
-              <h3 className="mb-4 flex items-center">
-                <Target className="w-5 h-5 mr-2 text-green-500" />
-                Player Potential
-              </h3>
-              <div className="space-y-4">
-                {teamPlayers.slice(0, 3).map((player) => (
-                  <div key={player.id} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>{player.name}</span>
-                      <span className="text-primary">{player.potential}%</span>
-                    </div>
-                    <div className="w-full bg-accent rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full"
-                        style={{ width: `${player.potential}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Development Tips</h4>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>• Train players regularly to increase their potential</li>
-                  <li>• Focus on weaker stats for balanced growth</li>
-                  <li>• Team synergy training boosts all players</li>
-                </ul>
-              </div>
-            </Card>
           </div>
         </TabsContent>
 

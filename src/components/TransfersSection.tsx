@@ -54,10 +54,10 @@ export default function TransfersSection() {
     // Use fake data and merge with contract prices
     const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => ({
       ...player,
-      // Add missing fields for interface compatibility
-      level: Math.floor(Math.random() * 10) + 1,
-      xp: Math.floor(Math.random() * 1000),
-      potential: Math.floor(Math.random() * 100) + 1,
+      // Add missing fields for interface compatibility (set to fixed values)
+      level: 1, // Fixed level
+      xp: 50, // Fixed XP value instead of random
+      potential: 50, // Fixed potential
       // Ensure types are properly cast
       trend: player.trend as "up" | "down" | "stable",
       recentMatches: player.recentMatches.map(match => ({
