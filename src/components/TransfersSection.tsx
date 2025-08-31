@@ -8,6 +8,8 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
 import { motion } from 'motion/react';
 import { Search, Filter, TrendingUp, TrendingDown, ShoppingCart, DollarSign, Users, Star } from 'lucide-react';
+import { usePlayerPrices } from '../hooks/usePlayerPricing';
+import fakeData from '../fakedata.json';
 
 interface Player {
   id: number;
@@ -41,23 +43,34 @@ export default function TransfersSection() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('price');
   const [filterGame, setFilterGame] = useState('all');
-
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Get player IDs for pricing
+  const playerIds = fakeData.teamPlayers.map(player => player.id);
+  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
+
   useEffect(() => {
-    // Use the same API endpoint as TeamSection
-    fetch('https://ivory-noisy-chameleon-139.mypinata.cloud/ipfs/bafkreicjb2k5z2ks2exttmd4qnoepgeodrb6sjcuybj63pgey33sy5fo7e')
-      .then(res => res.json())
-      .then(data => {
-        setAvailablePlayers(data.teamPlayers); // using the same data structure
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching players:', error);
-        setLoading(false);
-      });
-  }, []);
+    // Use fake data and merge with contract prices
+    const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => ({
+      ...player,
+      // Add missing fields for interface compatibility
+      level: Math.floor(Math.random() * 10) + 1,
+      xp: Math.floor(Math.random() * 1000),
+      potential: Math.floor(Math.random() * 100) + 1,
+      // Ensure types are properly cast
+      trend: player.trend as "up" | "down" | "stable",
+      recentMatches: player.recentMatches.map(match => ({
+        ...match,
+        result: match.result as "win" | "loss"
+      })),
+      // Price will be updated when contract prices load
+      price: playerPrices[player.id] || player.price
+    }));
+    
+    setAvailablePlayers(playersWithPricing);
+    setLoading(pricesLoading);
+  }, [playerPrices, pricesLoading]);
 
   const recentTransfers = [
     { player: 'CyberNinja', action: 'Bought', price: '0.8 ETH', time: '2 hours ago', buyer: 'CryptoGamer23' },

@@ -10,6 +10,8 @@ import { motion } from 'motion/react';
 import { Users, TrendingUp, Zap, Star, Trophy, Target, Activity } from 'lucide-react';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
 import { toast } from "sonner";
+import { usePlayerPrices } from '../hooks/usePlayerPricing';
+import fakeData from '../fakedata.json';
 
 interface PlayerStats {
   kills: number;
@@ -57,22 +59,37 @@ interface PrivyWallet extends SmartWallet {
 
 export default function TeamSection() {
   const [activeTab, setActiveTab] = useState('squad');
-  const [teamPlayers, setTeamPlayers] = useState<Player[]>([]); // <-- now dynamic
+  const [teamPlayers, setTeamPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { user, authenticated } = usePrivy();
 
+  // Get player IDs for pricing
+  const playerIds = fakeData.teamPlayers.map(player => player.id);
+  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
+
   useEffect(() => {
-    // Replace with your actual API endpoint
-    fetch('https://ivory-noisy-chameleon-139.mypinata.cloud/ipfs/bafkreicjb2k5z2ks2exttmd4qnoepgeodrb6sjcuybj63pgey33sy5fo7e')
-      .then(res => res.json())
-      .then(data => {
-        setTeamPlayers(data.teamPlayers); // adjust property as needed
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+    // Use fake data and merge with contract prices
+    const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => ({
+      ...player,
+      // Add missing fields for interface compatibility
+      level: Math.floor(Math.random() * 10) + 1,
+      xp: Math.floor(Math.random() * 1000),
+      potential: Math.floor(Math.random() * 100) + 1,
+      // Ensure types are properly cast
+      trend: player.trend as "up" | "down" | "stable",
+      recentMatches: player.recentMatches.map(match => ({
+        ...match,
+        result: match.result as "win" | "loss"
+      })),
+      // Price will be updated when contract prices load
+      price: playerPrices[player.id] || player.price
+    }));
+    
+    setTeamPlayers(playersWithPricing);
+    setLoading(pricesLoading);
+  }, [playerPrices, pricesLoading]);
 
   const trainingPrograms = [
     { id: 1, name: 'Aim Training', duration: '2 hours', cost: '0.05 ETH', boost: '+5 Accuracy' },
