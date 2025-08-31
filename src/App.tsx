@@ -6,6 +6,9 @@ import LiveScoresSection from './components/LiveScoresSection';
 import LeaderboardSection from './components/LeaderboardSection';
 import PackOpeningSection from './components/PackOpeningSection';
 
+// Import debug utility
+import './utils/contractDebug';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('Team');
 

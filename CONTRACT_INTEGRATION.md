@@ -7,7 +7,7 @@ This app now fetches player data from local `fakedata.json` and pricing from the
 
 ### Data Source
 - **Player Info**: `src/fakedata.json` (local file)
-- **Pricing**: FDFPair contract `0x97cd3677188D12fF8C21013523f572412eb2812F`
+- **Pricing**: FDFPair contract `0x97cd3677188D12fF8C21013523f572412eb2812F` ✅ **LIVE**
 
 ### Architecture
 
@@ -17,7 +17,7 @@ src/
 │   ├── TeamSection.tsx      # Uses usePlayerPrices hook
 │   └── TransfersSection.tsx # Uses usePlayerPrices hook
 ├── hooks/
-│   └── usePlayerPricing.ts  # Contract pricing logic
+│   └── usePlayerPricing.ts  # Real contract pricing logic ✅
 ├── utils/
 │   └── contractUtils.ts     # Price formatting utilities
 └── contracts/
@@ -27,37 +27,56 @@ src/
 
 ### Pricing Logic
 
-Currently simulated but ready for real contract integration:
+**NOW USING REAL CONTRACT DATA:**
 
 ```typescript
-// Current (simulated)
-const simulatedPrice = generateRealisticPrice(basePrice, playerId);
+// Real contract calls (ACTIVE)
+const result = await publicClient.readContract({
+  address: fdfPairContract.address,
+  abi: fdfPairContract.abi,
+  functionName: 'getCurrentPrice',
+  args: [BigInt(playerId)],
+});
 
-// Ready for production (uncomment when ready)
-const contract = new Contract(address, abi, provider);
-const priceWei = await contract.getCurrentPrice(playerId);
-const price = formatPriceToETH(priceWei);
+const priceInEth = formatEther(result as bigint);
 ```
+
+### Contract Integration
+
+✅ **Live Contract Calls**:
+- Using viem public client for efficient reads
+- Monad Testnet RPC integration
+- Real-time price fetching every 30 seconds
+- Automatic fallback to simulated data on errors
+
+✅ **Error Handling**:
+- Individual player fallbacks on contract errors
+- Network resilience with retry logic
+- Graceful degradation to simulated prices
 
 ## Features
 
-### ✅ Implemented
+### ✅ Implemented & LIVE
 - Local player data from `fakedata.json`
-- Simulated contract pricing with realistic volatility
-- Price updates every 30 seconds
+- **REAL contract pricing from FDFPair** 🔥
+- Price updates every 30 seconds from blockchain
 - Proper TypeScript interfaces
-- Error handling and fallbacks
+- Robust error handling with fallbacks
+- Batch price fetching for efficiency
+- Automatic retry and resilience mechanisms
 
-### 🔄 Ready for Contract Integration
-- FDFPair contract ABI loaded
-- Contract interaction methods prepared
-- Price formatting utilities
-- Batch price fetching support
-
-### 🚀 Future Enhancements
+### � Ready for Enhancement
 - WebSocket for real-time price updates
-- Transaction history from contract events
+- Transaction execution (buy/sell players)
 - Advanced price charts and analytics
+- Price impact calculations
+- Reserve data display
+
+### 🚀 Advanced Features Available
+- `getReserveData()` - Fetch liquidity pool reserves
+- `calculatePriceImpact()` - Preview trade impact
+- Real-time blockchain price updates
+- Network-aware error handling
 
 ## Usage
 

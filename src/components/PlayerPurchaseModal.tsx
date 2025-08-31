@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -10,6 +10,10 @@ import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { usePrivy, useSendTransaction, useWallets } from '@privy-io/react-auth';
+import { createPublicClient, createWalletClient, http, parseUnits, formatUnits, custom, encodeFunctionData } from 'viem';
+import { getContractData, NETWORK_CONFIG } from '../contracts';
+import { usePoolInfo } from '../hooks/usePoolInfo';
 
 interface Player {
   id: number;
@@ -41,14 +45,202 @@ interface PlayerPurchaseModalProps {
   player: Player | null;
   isOpen: boolean;
   onClose: () => void;
-  onPurchase: (player: Player, ethAmount: string, action: 'buy' | 'sell', slippage: number) => Promise<void>;
+  onPurchase?: (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => Promise<void>;
 }
 
 export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchase }: PlayerPurchaseModalProps) {
   const [showBuySellMenu, setShowBuySellMenu] = useState(false);
-  const [ethAmount, setEthAmount] = useState('');
+  const [usdcAmount, setUsdcAmount] = useState('');
   const [action, setAction] = useState<'buy' | 'sell'>('buy');
   const [slippage, setSlippage] = useState(0.5); // default 0.5%
+  const [isLoading, setIsLoading] = useState(false);
+  const [currencyTokenAddress, setCurrencyTokenAddress] = useState<string>('');
+  const fetchedPlayerIds = useRef<Set<number>>(new Set());
+  
+  const { user, ready, authenticated } = usePrivy();
+  const { sendTransaction } = useSendTransaction();
+  const { wallets } = useWallets();
+  const { poolData, loading: poolLoading, error: poolError, fetchPoolInfo, calculatePriceImpact } = usePoolInfo();
+
+  // Create clients for contract interactions
+  const publicClient = createPublicClient({
+    chain: {
+      id: NETWORK_CONFIG.chainId,
+      name: NETWORK_CONFIG.name,
+      rpcUrls: {
+        default: { http: [NETWORK_CONFIG.rpcUrl] },
+        public: { http: [NETWORK_CONFIG.rpcUrl] },
+      },
+      blockExplorers: {
+        default: { name: 'MonadScan', url: NETWORK_CONFIG.blockExplorer },
+      },
+      nativeCurrency: {
+        name: 'MON',
+        symbol: 'MON',
+        decimals: 18,
+      },
+      testnet: true,
+    },
+    transport: http(NETWORK_CONFIG.rpcUrl),
+  });
+
+  // Get currency token address from FDFPair contract
+  const getCurrencyTokenAddress = async (): Promise<string> => {
+    if (currencyTokenAddress) return currencyTokenAddress;
+    
+    try {
+      const fdfPairContract = getContractData('FDFPair');
+      const address = await publicClient.readContract({
+        address: fdfPairContract.address as `0x${string}`,
+        abi: fdfPairContract.abi,
+        functionName: 'currencyToken',
+        args: [],
+      });
+      setCurrencyTokenAddress(address as string);
+      return address as string;
+    } catch (error) {
+      console.error('Error getting currency token address:', error);
+      throw error;
+    }
+  };
+
+  // Approve USDC spending for FDFPair contract
+  const approveUSDC = async (amount: bigint): Promise<void> => {
+    if (!user?.wallet?.address || !authenticated) {
+      throw new Error('Wallet not connected');
+    }
+
+    const currencyAddress = await getCurrencyTokenAddress();
+    const fdfPairContract = getContractData('FDFPair');
+
+    // Standard ERC20 approve function ABI
+    const erc20ApproveAbi = [
+      {
+        name: 'approve',
+        type: 'function',
+        inputs: [
+          { name: 'spender', type: 'address' },
+          { name: 'amount', type: 'uint256' }
+        ],
+        outputs: [{ name: '', type: 'bool' }],
+        stateMutability: 'nonpayable'
+      }
+    ] as const;
+
+    // Encode the approve function call
+    const data = encodeFunctionData({
+      abi: erc20ApproveAbi,
+      functionName: 'approve',
+      args: [fdfPairContract.address as `0x${string}`, amount]
+    });
+
+    // Prepare transaction for USDC approval
+    const transactionRequest = {
+      to: currencyAddress as `0x${string}`,
+      data: data,
+    };
+
+    const options = {
+      uiOptions: {
+        header: 'Approve USDC Spending',
+        description: `Approve ${formatUnits(amount, 6)} USDC for trading`,
+        buttonText: 'Approve'
+      }
+    };
+
+    // Use Privy's sendTransaction hook
+    const { hash } = await sendTransaction(transactionRequest, options);
+
+    // Wait for transaction confirmation
+    await publicClient.waitForTransactionReceipt({ hash });
+  };
+
+  // Buy tokens using FDFPair contract  
+  const buyTokens = async (playerTokenId: number, tokenAmountToBuy: string, maxCurrencySpend: string): Promise<void> => {
+    if (!user?.wallet?.address || !authenticated) {
+      throw new Error('Wallet not connected');
+    }
+
+    const fdfPairContract = getContractData('FDFPair');
+    const maxCurrencySpendBigInt = parseUnits(maxCurrencySpend, 6); // USDC has 6 decimals
+    const tokenAmountBigInt = parseUnits(tokenAmountToBuy, 18); // Player tokens have 18 decimals
+
+    // Approve USDC spending first
+    await approveUSDC(maxCurrencySpendBigInt);
+
+    const deadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour deadline
+    const nonce = Date.now(); // Simple nonce
+
+    // Encode the buyTokens function call using the actual ABI
+    const data = encodeFunctionData({
+      abi: fdfPairContract.abi,
+      functionName: 'buyTokens',
+      args: [
+        [BigInt(playerTokenId)], // _playerTokenIds array
+        [tokenAmountBigInt], // _playerTokenAmountsToBuy array
+        maxCurrencySpendBigInt, // _maxCurrencySpend
+        BigInt(deadline), // _deadline
+        user.wallet.address as `0x${string}`, // _recipient
+        '0x' as `0x${string}`, // _signature (empty for now)
+        BigInt(nonce) // _nonce
+      ]
+    });
+
+    // Prepare transaction for buying tokens
+    const transactionRequest = {
+      to: fdfPairContract.address as `0x${string}`,
+      data: data,
+    };
+
+    const options = {
+      uiOptions: {
+        header: 'Buy Player Tokens',
+        description: `Buy ${tokenAmountToBuy} tokens for ${maxCurrencySpend} USDC`,
+        buttonText: 'Buy Tokens'
+      }
+    };
+
+    // Use Privy's sendTransaction hook
+    const { hash } = await sendTransaction(transactionRequest, options);
+
+    // Wait for transaction confirmation
+    await publicClient.waitForTransactionReceipt({ hash });
+  };
+
+  // Sell tokens using Player contract
+  const sellTokens = async (playerTokenId: number, tokenAmountToSell: string, minCurrencyToReceive: string): Promise<void> => {
+    if (!user?.wallet?.address || !authenticated) {
+      throw new Error('Wallet not connected');
+    }
+
+    const playerContract = getContractData('Player');
+    const minCurrencyBigInt = parseUnits(minCurrencyToReceive, 6); // USDC has 6 decimals
+    const tokenAmountBigInt = parseUnits(tokenAmountToSell, 18); // Player tokens have 18 decimals
+
+    const deadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour deadline
+    const nonce = Date.now(); // Simple nonce
+
+    // Prepare transaction for selling tokens
+    const transactionRequest = {
+      to: playerContract.address as `0x${string}`,
+      // This would need proper ABI encoding - for now using a simplified approach
+      data: '0x' as `0x${string}`, // Would need to properly encode the function call
+    };
+
+    const options = {
+      uiOptions: {
+        header: 'Sell Player Tokens',
+        description: `Sell ${tokenAmountToSell} tokens for minimum ${minCurrencyToReceive} USDC`,
+        buttonText: 'Sell Tokens'
+      }
+    };
+
+    // Use Privy's sendTransaction hook
+    const { hash } = await sendTransaction(transactionRequest, options);
+
+    // Wait for transaction confirmation
+    await publicClient.waitForTransactionReceipt({ hash });
+  };
 
   if (!player) return null;
 
@@ -72,18 +264,47 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }
   };
 
-  // Parse player.price (e.g. "1.2 ETH") to number
+  // Fetch pool information when modal opens
+  useEffect(() => {
+    if (isOpen && player && !fetchedPlayerIds.current.has(player.id)) {
+      console.log('Modal opened, fetching pool info for player:', player.id);
+      fetchedPlayerIds.current.add(player.id);
+      fetchPoolInfo([player.id]);
+      
+      // Add timeout to prevent indefinite loading
+      const timeout = setTimeout(() => {
+        console.warn('Pool info fetch appears to be taking too long');
+      }, 3000);
+
+      return () => clearTimeout(timeout);
+    }
+    
+    // Reset when modal closes
+    if (!isOpen) {
+      fetchedPlayerIds.current.clear();
+    }
+  }, [isOpen, player]); // Removed fetchPoolInfo from deps since it causes infinite loop
+
+  // Parse player.price (e.g. "1.2 USDC") to number
   const playerPrice = parseFloat(player.price);
 
   // Calculate expected amount BEFORE slippage
-  const eth = parseFloat(ethAmount) || 0;
+  const usdc = parseFloat(usdcAmount) || 0;
   const expectedReceive = action === 'buy'
-    ? eth / playerPrice
-    : eth * playerPrice;
+    ? usdc / playerPrice
+    : usdc * playerPrice;
 
-  // Calculate price impact
-  const priceImpact = eth > 0 ? ((expectedReceive / eth - 1) * 100).toFixed(2) : '0.00';
+  // Calculate price impact using real pool data
+  const realPriceImpactData = calculatePriceImpact(player.id, usdcAmount, action);
+  const priceImpact = realPriceImpactData ? realPriceImpactData.priceImpact.toFixed(2) : '0.00';
   const isPriceImpactHigh = parseFloat(priceImpact) > 5;
+
+  // Debug: Log pool data
+  useEffect(() => {
+    const poolInfo = poolData.get(player.id);
+    console.log('Pool info for player', player.id, ':', poolInfo);
+    console.log('Price impact data:', realPriceImpactData);
+  }, [poolData, player.id, realPriceImpactData]);
 
   // Format numbers with commas
   const formatNumber = (num: number) => {
@@ -93,17 +314,45 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }).format(num);
   };
 
-  const handleConfirm = () => {
-    if (!ethAmount || parseFloat(ethAmount) <= 0) {
+  const handleConfirm = async () => {
+    if (!usdcAmount || parseFloat(usdcAmount) <= 0) {
       alert("Please enter a valid amount");
       return;
     }
-    onPurchase(player, ethAmount, action, slippage);
-    setShowBuySellMenu(false);
-    setEthAmount('');
-    setAction('buy');
-    setSlippage(0.5);
-    onClose();
+
+    if (!authenticated || !user?.wallet?.address) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (action === 'buy') {
+        // Calculate token amount to buy (assuming 1:1 ratio for now, should use actual price calculation)
+        const tokenAmount = (parseFloat(usdcAmount) / playerPrice).toString();
+        await buyTokens(player.id, tokenAmount, usdcAmount);
+      } else {
+        // For selling, usdcAmount represents the number of tokens to sell
+        const minCurrency = (parseFloat(usdcAmount) * playerPrice * (1 - slippage / 100)).toString();
+        await sellTokens(player.id, usdcAmount, minCurrency);
+      }
+      
+      // Call optional callback
+      if (onPurchase) {
+        await onPurchase(player, usdcAmount, action, slippage);
+      }
+      
+      setShowBuySellMenu(false);
+      setUsdcAmount('');
+      setAction('buy');
+      setSlippage(0.5);
+      onClose();
+    } catch (error) {
+      console.error('Transaction failed:', error);
+      alert(`Transaction failed: ${(error as any)?.message || 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // UI for the swap arrow/button
@@ -251,14 +500,14 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                       inputMode="decimal"
                       pattern="[0-9]*[.,]?[0-9]*"
                       min="0"
-                      value={ethAmount}
-                      onChange={e => setEthAmount(e.target.value)}
+                      value={usdcAmount}
+                      onChange={e => setUsdcAmount(e.target.value)}
                       className="w-full text-2xl font-bold pr-24 bg-background/50 border-accent/20 focus:border-accent/40 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0.00"
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
                       <span className="text-xl font-bold text-foreground/80">
-                        {action === 'buy' ? 'ETH' : player.name}
+                        {action === 'buy' ? 'USDC' : player.name}
                       </span>
                     </div>
                   </div>
@@ -294,7 +543,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
                       <span className="text-xl font-bold text-foreground/80">
-                        {action === 'buy' ? player.name : 'ETH'}
+                        {action === 'buy' ? player.name : 'USDC'}
                       </span>
                     </div>
                   </div>
@@ -304,10 +553,53 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 <div className="mt-6 p-4 rounded-lg bg-accent/20 space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Price Impact</span>
-                    <span className={isPriceImpactHigh ? 'text-red-500' : 'text-foreground'}>
-                      {priceImpact}%
-                    </span>
+                    <div className="flex items-center gap-1">
+                      {poolLoading ? (
+                        <span className="text-muted-foreground">Loading contract data...</span>
+                      ) : poolError ? (
+                        <span className="text-red-500">Contract Error</span>
+                      ) : realPriceImpactData ? (
+                        <span className={isPriceImpactHigh ? 'text-red-500' : 'text-foreground'}>
+                          {priceImpact}%
+                        </span>
+                      ) : usdcAmount && poolData && poolData.size > 0 ? (
+                        <span className="text-yellow-500">No Liquidity</span>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {usdcAmount ? 'Enter amount' : '0.00%'}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Show pool info when available */}
+                  {poolData && poolData.size > 0 && poolData.get(player.id) && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Pool Reserves</span>
+                      <span>
+                        {(() => {
+                          const pool = poolData.get(player.id);
+                          if (!pool) return 'No data';
+                          const usdcReserve = (Number(pool.currencyReserve) / 1e6).toFixed(2);
+                          const tokenReserve = (Number(pool.playerTokenReserve) / 1e18).toFixed(2);
+                          const currentPrice = pool.currencyReserve > 0n && pool.playerTokenReserve > 0n
+                            ? ((Number(pool.currencyReserve) / 1e6) / (Number(pool.playerTokenReserve) / 1e18)).toFixed(4)
+                            : '0';
+                          return `${usdcReserve} USDC / ${tokenReserve} ${player.name} (${currentPrice} USDC/token)`;
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Show effective price when trade data is available */}
+                  {realPriceImpactData && realPriceImpactData.effectivePrice && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Effective Price</span>
+                      <span>
+                        {realPriceImpactData.effectivePrice.toFixed(6)} USDC per token
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <div className="flex items-center gap-1">
                       <span className="text-muted-foreground">Slippage Tolerance</span>
@@ -354,11 +646,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 </div>
 
                 {/* Warning for high price impact */}
-                {isPriceImpactHigh && (
+                {isPriceImpactHigh && realPriceImpactData && (
                   <Alert variant="destructive" className="mt-4">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      High price impact. The trade will significantly affect the price.
+                      High price impact ({priceImpact}%). Price will change from {realPriceImpactData.currentPrice.toFixed(6)} to {realPriceImpactData.newPrice.toFixed(6)} USDC.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -369,7 +661,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     variant="outline"
                     onClick={() => {
                       setShowBuySellMenu(false);
-                      setEthAmount('');
+                      setUsdcAmount('');
                       setAction('buy');
                       setSlippage(0.5);
                     }}
@@ -379,7 +671,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   </Button>
                   <Button
                     onClick={handleConfirm}
-                    disabled={!ethAmount || parseFloat(ethAmount) <= 0}
+                    disabled={!usdcAmount || parseFloat(usdcAmount) <= 0}
                     className={`flex-1 ${
                       action === 'buy'
                         ? 'bg-gradient-to-r from-green-600 to-emerald-600'

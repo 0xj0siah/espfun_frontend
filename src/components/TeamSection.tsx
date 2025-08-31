@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePrivy } from "@privy-io/react-auth";
 import type { SmartWallet } from "@privy-io/react-auth";
 import { Card } from './ui/card';
@@ -65,8 +65,8 @@ export default function TeamSection() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { user, authenticated } = usePrivy();
 
-  // Get player IDs for pricing
-  const playerIds = fakeData.teamPlayers.map(player => player.id);
+  // Get player IDs for pricing - use useMemo to prevent recreation
+  const playerIds = useMemo(() => fakeData.teamPlayers.map(player => player.id), []);
   const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
 
   useEffect(() => {
@@ -88,17 +88,17 @@ export default function TeamSection() {
     }));
     
     setTeamPlayers(playersWithPricing);
-    setLoading(pricesLoading);
-  }, [playerPrices, pricesLoading]);
+    setLoading(false); // Set loading to false regardless of pricesLoading
+  }, [playerPrices]); // Remove pricesLoading from dependencies
 
   const trainingPrograms = [
-    { id: 1, name: 'Aim Training', duration: '2 hours', cost: '0.05 ETH', boost: '+5 Accuracy' },
-    { id: 2, name: 'Strategy Workshop', duration: '4 hours', cost: '0.1 ETH', boost: '+8 Game IQ' },
-    { id: 3, name: 'Team Synergy', duration: '6 hours', cost: '0.15 ETH', boost: '+10 Teamwork' },
-    { id: 4, name: 'Mental Coaching', duration: '3 hours', cost: '0.08 ETH', boost: '+6 Focus' }
+    { id: 1, name: 'Aim Training', duration: '2 hours', cost: '50 USDC', boost: '+5 Accuracy' },
+    { id: 2, name: 'Strategy Workshop', duration: '4 hours', cost: '100 USDC', boost: '+8 Game IQ' },
+    { id: 3, name: 'Team Synergy', duration: '6 hours', cost: '150 USDC', boost: '+10 Teamwork' },
+    { id: 4, name: 'Mental Coaching', duration: '3 hours', cost: '80 USDC', boost: '+6 Focus' }
   ];
 
-  const handlePurchase = async (player: Player, ethAmount: string, action: 'buy' | 'sell', slippage: number) => {
+  const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => {
     if (!authenticated || !user?.wallet?.address) {
       toast.error("Please connect your wallet first");
       return;
@@ -111,7 +111,7 @@ export default function TeamSection() {
       // Send transaction using embedded wallet methods
       const tx = await wallet.sendTransaction({
         to: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS,
-        value: BigInt(parseFloat(ethAmount) * 1e18),
+        value: BigInt(parseFloat(usdcAmount) * 1e6), // USDC has 6 decimals
       });
 
       // Update local state to reflect purchase
@@ -146,7 +146,7 @@ export default function TeamSection() {
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-          Total Value: 5.5 ETH
+          Total Value: 550 USDC
         </Badge>
       </div>
 
@@ -212,7 +212,7 @@ export default function TeamSection() {
               player={selectedPlayer}
               isOpen={isModalOpen}
               onClose={() => setIsModalOpen(false)}
-              onPurchase={handlePurchase} // This will now receive both player and ethAmount
+              onPurchase={handlePurchase} // This will now receive both player and usdcAmount
             />
           )}
         </TabsContent>
@@ -278,14 +278,14 @@ export default function TeamSection() {
             <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">2.3 ETH</p>
+                  <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">230 USDC</p>
                   <p className="text-sm text-muted-foreground">Rewards Earned</p>
                 </div>
                 <Zap className="w-8 h-8 text-green-500" />
               </div>
               <div className="mt-4 flex items-center text-sm">
                 <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                <span className="text-green-600">+0.4 ETH this month</span>
+                <span className="text-green-600">+40 USDC this month</span>
               </div>
             </Card>
           </div>

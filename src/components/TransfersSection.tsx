@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -46,8 +46,8 @@ export default function TransfersSection() {
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Get player IDs for pricing
-  const playerIds = fakeData.teamPlayers.map(player => player.id);
+  // Get player IDs for pricing - use useMemo to prevent recreation
+  const playerIds = useMemo(() => fakeData.teamPlayers.map(player => player.id), []);
   const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
 
   useEffect(() => {
@@ -69,13 +69,13 @@ export default function TransfersSection() {
     }));
     
     setAvailablePlayers(playersWithPricing);
-    setLoading(pricesLoading);
-  }, [playerPrices, pricesLoading]);
+    setLoading(false); // Set loading to false regardless of pricesLoading
+  }, [playerPrices]); // Remove pricesLoading from dependencies
 
   const recentTransfers = [
-    { player: 'CyberNinja', action: 'Bought', price: '0.8 ETH', time: '2 hours ago', buyer: 'CryptoGamer23' },
-    { player: 'VoidWalker', action: 'Sold', price: '0.9 ETH', time: '1 day ago', buyer: 'ProPlayer99' },
-    { player: 'QuantumFlash', action: 'Bought', price: '1.5 ETH', time: '3 days ago', buyer: 'EliteStrat' }
+    { player: 'CyberNinja', action: 'Bought', price: '80 USDC', time: '2 hours ago', buyer: 'CryptoGamer23' },
+    { player: 'VoidWalker', action: 'Sold', price: '90 USDC', time: '1 day ago', buyer: 'ProPlayer99' },
+    { player: 'QuantumFlash', action: 'Bought', price: '150 USDC', time: '3 days ago', buyer: 'EliteStrat' }
   ];
 
   const filteredPlayers = availablePlayers
@@ -84,7 +84,7 @@ export default function TransfersSection() {
       (filterGame === 'all' || player.game === filterGame)
     )
     .sort((a, b) => {
-      if (sortBy === 'price') return parseFloat(a.price.replace(' ETH', '')) - parseFloat(b.price.replace(' ETH', ''));
+      if (sortBy === 'price') return parseFloat(a.price.replace(' USDC', '')) - parseFloat(b.price.replace(' USDC', ''));
       if (sortBy === 'points') return b.points - a.points;
       if (sortBy === 'rating') return b.rating - a.rating;
       return 0;
@@ -95,9 +95,9 @@ export default function TransfersSection() {
     setIsModalOpen(true);
   };
 
-  const handlePurchase = async (player: Player, ethAmount: string, action: 'buy' | 'sell', slippage: number): Promise<void> => {
-    // Handle purchase logic here
-    console.log('Purchasing player:', player.name, ethAmount, action, slippage);
+    const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number): Promise<void> => {
+    // Handle the purchase/sale logic here
+    console.log('Purchasing player:', player.name, usdcAmount, action, slippage);
     setIsModalOpen(false);
     setSelectedPlayer(null);
   };
@@ -121,7 +121,7 @@ export default function TransfersSection() {
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-          Balance: 2.1 ETH
+          Balance: 210 USDC
         </Badge>
       </div>
 
@@ -253,7 +253,7 @@ export default function TransfersSection() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Avg Player Price</span>
-                <span className="text-sm font-medium text-primary">1.3 ETH</span>
+                <span className="text-sm font-medium text-primary">130 USDC</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Most Wanted Position</span>

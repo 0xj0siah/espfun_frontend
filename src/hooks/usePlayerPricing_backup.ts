@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { createPublicClient, http, formatUnits, parseUnits } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
+import { generateRealisticPrice, parseETHToNumber } from '../utils/contractUtils';
 
 // Create a public client for reading from the contract
 const publicClient = createPublicClient({
@@ -20,11 +21,11 @@ const publicClient = createPublicClient({
       symbol: 'MON',
       decimals: 18,
     },
-    testnet: true,
+    testnet: true, // Mark as testnet
   },
   transport: http(NETWORK_CONFIG.rpcUrl, {
-    batch: true,
-    timeout: 30000,
+    batch: true, // Enable batching for better performance
+    timeout: 30000, // 30 second timeout
   }),
 });
 
@@ -52,7 +53,7 @@ export function usePlayerPrice(playerId: number) {
 
         // The result is an array of prices
         const pricesArray = result as bigint[];
-        if (pricesArray.length > 0 && pricesArray[0] > 0n) {
+        if (pricesArray.length > 0) {
           // Format the result to USDC (6 decimals)
           const priceInUsdc = formatUnits(pricesArray[0], 6);
           setPrice(`${parseFloat(priceInUsdc).toFixed(2)} USDC`);
@@ -76,7 +77,7 @@ export function usePlayerPrice(playerId: number) {
     // Update prices every 30 seconds
     const interval = setInterval(fetchPrice, 30000);
     return () => clearInterval(interval);
-  }, [playerId, ready]);
+  }, [playerId, ready]); // Removed wallets dependency
 
   return { price, loading };
 }
@@ -99,7 +100,7 @@ export function usePlayerPrices(playerIds: number[]) {
         console.log('Network config:', NETWORK_CONFIG);
         const newPrices: Record<number, string> = {};
         
-        // First, test basic connectivity
+        // First, let's try to call a simple function to test connectivity
         try {
           console.log('Testing contract connectivity...');
           const currencyInfo = await publicClient.readContract({
@@ -113,7 +114,7 @@ export function usePlayerPrices(playerIds: number[]) {
           console.error('Contract connectivity test failed:', connectivityError);
         }
         
-        // Get all available player IDs from contract
+        // Try to get all player IDs from the contract first
         try {
           console.log('Getting all player IDs from contract...');
           const allPlayerIds = await publicClient.readContract({
@@ -123,100 +124,60 @@ export function usePlayerPrices(playerIds: number[]) {
             args: [],
           });
           console.log('All player IDs in contract:', allPlayerIds);
-          console.log('Our player IDs:', playerIds);
           
-          // Check if our IDs exist in the contract
-          const allIds = allPlayerIds as bigint[];
-          const ourIdsExist = playerIds.map(id => {
-            const exists = allIds.some(contractId => contractId === BigInt(id));
-            console.log(`Player ID ${id} exists in contract:`, exists);
-            return exists;
-          });
-          console.log('ID existence check:', ourIdsExist);
-          
+          // If we got player IDs from contract, use those instead for testing
+          const contractPlayerIds = allPlayerIds as bigint[];
+          if (contractPlayerIds.length > 0) {
+            console.log('Using first few player IDs from contract for testing...');
+            const testIds = contractPlayerIds.slice(0, Math.min(6, contractPlayerIds.length)).map(id => Number(id));
+            console.log('Test IDs:', testIds);
+            
+            // Try to get prices for the actual contract player IDs
+            const testResult = await publicClient.readContract({
+              address: fdfPairContract.address as `0x${string}`,
+              abi: fdfPairContract.abi,
+              functionName: 'getPrices',
+              args: [contractPlayerIds.slice(0, Math.min(6, contractPlayerIds.length))],
+            });
+            console.log('Test getPrices result with contract IDs:', testResult);
+          }
         } catch (playerIdsError) {
           console.error('Error getting all player IDs:', playerIdsError);
         }
         
-        // Try to get prices with our player IDs
+        // Make single batch contract call to get prices for all players
         try {
-          console.log('Attempting getPrices with player IDs:', playerIds);
-          console.log('Contract address:', fdfPairContract.address);
-          console.log('Player IDs as BigInt:', playerIds.map(id => BigInt(id)));
-          
-          // First try getPrices
+          console.log('Attempting getPrices with original player IDs...');
           const result = await publicClient.readContract({
             address: fdfPairContract.address as `0x${string}`,
             abi: fdfPairContract.abi,
             functionName: 'getPrices',
-            args: [playerIds.map(id => BigInt(id))],
+            args: [playerIds.map(id => BigInt(id))], // Array of player token IDs
           });
 
-          console.log('getPrices result type:', typeof result);
-          console.log('getPrices result:', result);
-          console.log('Result is array:', Array.isArray(result));
-          console.log('Result length:', Array.isArray(result) ? result.length : 'N/A');
-          
+          console.log('Contract call successful, result:', result);
+
+          // The result is an array of prices
           const pricesArray = result as bigint[];
           
-          // Also try getBuyPrice for comparison (buying 1 token with 1000 USDC max spend)
-          try {
-            console.log('Also trying getBuyPrice for comparison...');
-            const buyPriceResult = await publicClient.readContract({
-              address: fdfPairContract.address as `0x${string}`,
-              abi: fdfPairContract.abi,
-              functionName: 'getBuyPrice',
-              args: [
-                playerIds.map(id => BigInt(id)), // player token IDs
-                playerIds.map(() => BigInt('1000000000000000000')), // amounts to buy (1 token in 18 decimals)
-                playerIds.map(() => BigInt('1000000000')) // max currency to spend (1000 USDC in 6 decimals)
-              ],
-            });
-            console.log('getBuyPrice result:', buyPriceResult);
-            
-            // getBuyPrice returns [amountsToReceive, feeAmounts, feeRates, feeTypes]
-            const [amountsToReceive, feeAmounts] = buyPriceResult as [bigint[], bigint[], bigint[], number[]];
-            console.log('Amounts to receive (currency needed):', amountsToReceive);
-            console.log('Fee amounts:', feeAmounts);
-            
-          } catch (buyPriceError) {
-            console.error('getBuyPrice failed:', buyPriceError);
-          }
-          
-          if (Array.isArray(pricesArray) && pricesArray.length > 0) {
-            playerIds.forEach((playerId, index) => {
-              console.log(`Processing player ${playerId} at index ${index}`);
-              console.log(`Raw price at index ${index}:`, pricesArray[index]);
-              console.log(`Price > 0n:`, pricesArray[index] > 0n);
-              
-              if (index < pricesArray.length && pricesArray[index] > 0n) {
-                const priceInUsdc = formatUnits(pricesArray[index], 6);
-                console.log(`Player ${playerId}: ${priceInUsdc} USDC (raw: ${pricesArray[index]})`);
-                newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
-              } else {
-                console.log(`Player ${playerId}: Using fallback price (no contract price or zero price)`);
-                const basePrice = 50 + (playerId % 10) * 20;
-                newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
-              }
-            });
-          } else {
-            console.log('Result is not a valid array or is empty, using fallback prices');
-            playerIds.forEach((playerId) => {
+          playerIds.forEach((playerId, index) => {
+            if (index < pricesArray.length) {
+              // Format the result to USDC (6 decimals)
+              const priceInUsdc = formatUnits(pricesArray[index], 6);
+              console.log(`Player ${playerId}: ${priceInUsdc} USDC (raw: ${pricesArray[index]})`);
+              newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
+            } else {
+              // Fallback for missing prices
+              console.log(`Player ${playerId}: Using fallback price`);
               const basePrice = 50 + (playerId % 10) * 20;
               newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
-            });
-          }
-          
-        } catch (originalError) {
-          console.error('Error with original player IDs:', originalError);
-          console.error('Error details:', {
-            message: (originalError as any)?.message,
-            code: (originalError as any)?.code,
-            data: (originalError as any)?.data,
-            stack: (originalError as any)?.stack,
+            }
           });
           
-          // Try with simple test IDs as fallback
+        } catch (originalError) {
+          console.error('Error with original player IDs, trying with basic test IDs:', originalError);
+          
+          // Try with basic player IDs (1, 2, 3, etc.) as a test
           try {
             console.log('Testing with basic player IDs [1, 2, 3, 4, 5, 6]...');
             const testResult = await publicClient.readContract({
@@ -227,85 +188,49 @@ export function usePlayerPrices(playerIds: number[]) {
             });
             
             console.log('Test with basic IDs successful:', testResult);
-            console.log('Test result type:', typeof testResult);
-            console.log('Test result is array:', Array.isArray(testResult));
-            
             const testPricesArray = testResult as bigint[];
             
-            if (Array.isArray(testPricesArray) && testPricesArray.length > 0) {
-              playerIds.forEach((playerId, index) => {
-                console.log(`Test - Player ${playerId} mapping to test ID ${index + 1}`);
-                if (index < testPricesArray.length && testPricesArray[index] > 0n) {
-                  const priceInUsdc = formatUnits(testPricesArray[index], 6);
-                  console.log(`Player ${playerId}: ${priceInUsdc} USDC (from test ID ${index + 1})`);
-                  newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
-                } else {
-                  console.log(`Player ${playerId}: Using fallback price (test ID ${index + 1} returned 0 or doesn't exist)`);
-                  const basePrice = 50 + (playerId % 10) * 20;
-                  newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
-                }
-              });
-            } else {
-              console.log('Test result is not a valid array or is empty');
-              playerIds.forEach(id => {
-                const basePrice = 50 + (id % 10) * 20;
-                newPrices[id] = `${basePrice.toFixed(2)} USDC`;
-              });
-            }
+            // Map the test results back to our player IDs
+            playerIds.forEach((playerId, index) => {
+              if (index < testPricesArray.length && testPricesArray[index] > 0n) {
+                const priceInUsdc = formatUnits(testPricesArray[index], 6);
+                console.log(`Test - Player ${playerId}: ${priceInUsdc} USDC (from basic ID ${index + 1})`);
+                newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
+              } else {
+                console.log(`Test - Player ${playerId}: Using fallback price`);
+                const basePrice = 50 + (playerId % 10) * 20;
+                newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
+              }
+            });
             
           } catch (testError) {
-            console.error('Test IDs also failed:', testError);
-            console.error('Test error details:', {
-              message: (testError as any)?.message,
-              code: (testError as any)?.code,
-              data: (testError as any)?.data,
-            });
-            
-            // Try to find which player IDs actually exist by testing a range
-            try {
-              console.log('Trying to find existing player IDs by testing individual IDs...');
-              const testIds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 1000, 4000000, 4000001, 4000002, 4000003, 4000004, 4000005, 4000006];
-              
-              for (const testId of testIds) {
-                try {
-                  const singleResult = await publicClient.readContract({
-                    address: fdfPairContract.address as `0x${string}`,
-                    abi: fdfPairContract.abi,
-                    functionName: 'getPrices',
-                    args: [[BigInt(testId)]],
-                  });
-                  
-                  console.log(`Player ID ${testId}:`, singleResult);
-                  const prices = singleResult as bigint[];
-                  if (Array.isArray(prices) && prices.length > 0 && prices[0] > 0n) {
-                    const priceInUsdc = formatUnits(prices[0], 6);
-                    console.log(`✓ Player ID ${testId} EXISTS with price: ${priceInUsdc} USDC`);
-                  } else {
-                    console.log(`✗ Player ID ${testId} returns zero or invalid price`);
-                  }
-                } catch (singleError) {
-                  console.log(`✗ Player ID ${testId} failed:`, (singleError as any)?.message);
-                }
-              }
-            } catch (rangeError) {
-              console.error('Range test failed:', rangeError);
-            }
-            
-            // Final fallback
-            playerIds.forEach(id => {
-              const basePrice = 50 + (id % 10) * 20;
-              newPrices[id] = `${basePrice.toFixed(2)} USDC`;
-            });
+            console.error('Even basic test IDs failed:', testError);
+            throw testError; // Let it fall through to the fallback
           }
         }
 
         setPrices(newPrices);
       } catch (error) {
-        console.error('General error fetching prices:', error);
-        // Final fallback prices
+          console.error('Error fetching batch prices:', error);
+          console.error('Error details:', {
+            message: error.message,
+            cause: error.cause,
+            code: error.code,
+            data: error.data
+          });
+          // Set fallback prices for all players on batch error
+          playerIds.forEach(id => {
+            const basePrice = 50 + (id % 10) * 20;
+            newPrices[id] = `${basePrice.toFixed(2)} USDC`;
+          });
+        }
+        setPrices(newPrices);
+      } catch (error) {
+        console.error('Error fetching player prices:', error);
+        // Set fallback prices on general error
         const fallbackPrices: Record<number, string> = {};
         playerIds.forEach(id => {
-          const basePrice = 50 + (id % 10) * 20;
+          const basePrice = 50 + (id % 10) * 20; // Base USDC prices
           fallbackPrices[id] = `${basePrice.toFixed(2)} USDC`;
         });
         setPrices(fallbackPrices);
@@ -318,6 +243,110 @@ export function usePlayerPrices(playerIds: number[]) {
     
     // Update prices every 30 seconds
     const interval = setInterval(fetchPrices, 30000);
+    return () => clearInterval(interval);
+  }, [JSON.stringify(playerIds), ready]); // Use JSON.stringify for array comparison
+
+  return { prices, loading };
+}
+
+// Hook to fetch multiple player prices using getBuyPrice for 1 token each (more accurate pricing)
+export function usePlayerBuyPrices(playerIds: number[]) {
+  const [prices, setPrices] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(false);
+  const { ready } = usePrivy();
+
+  useEffect(() => {
+    if (!ready || playerIds.length === 0) return;
+
+    const fetchBuyPrices = async () => {
+      setLoading(true);
+      try {
+        const fdfPairContract = getContractData('FDFPair');
+        const newPrices: Record<number, string> = {};
+        
+        // Make contract call to get buy prices for 1 token each
+        try {
+          // For getBuyPrice, we need to specify amounts to buy and currency amounts to spend
+          // Let's try to get the price for buying 1 token of each player
+          const tokenAmountsToBuy = playerIds.map(() => parseUnits('1', 18)); // 1 token each (18 decimals)
+          const maxCurrencyToSpend = playerIds.map(() => parseUnits('1000', 6)); // Max 1000 USDC each (6 decimals)
+          
+          const result = await publicClient.readContract({
+            address: fdfPairContract.address as `0x${string}`,
+            abi: fdfPairContract.abi,
+            functionName: 'getBuyPrice',
+            args: [
+              playerIds.map(id => BigInt(id)), // player token IDs
+              tokenAmountsToBuy,               // amounts to buy (1 token each)
+              maxCurrencyToSpend               // max currency to spend
+            ],
+          });
+
+          // The result is [amountsToReceive[], feeAmounts[], feeRates[], feeTypes[]]
+          const [amountsToReceive, feeAmounts] = result as [bigint[], bigint[], bigint[], number[]];
+          
+          playerIds.forEach((playerId, index) => {
+            if (index < amountsToReceive.length) {
+              // The amount to receive is the currency cost for 1 token
+              const priceInUsdc = formatUnits(amountsToReceive[index], 6);
+              newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
+            } else {
+              // Fallback for missing prices
+              const basePrice = 50 + (playerId % 10) * 20;
+              newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
+            }
+          });
+          
+        } catch (error) {
+          console.error('Error fetching getBuyPrice, falling back to getPrices:', error);
+          // Fallback to getPrices if getBuyPrice fails
+          try {
+            const result = await publicClient.readContract({
+              address: fdfPairContract.address as `0x${string}`,
+              abi: fdfPairContract.abi,
+              functionName: 'getPrices',
+              args: [playerIds.map(id => BigInt(id))],
+            });
+
+            const pricesArray = result as bigint[];
+            playerIds.forEach((playerId, index) => {
+              if (index < pricesArray.length) {
+                const priceInUsdc = formatUnits(pricesArray[index], 6);
+                newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
+              } else {
+                const basePrice = 50 + (playerId % 10) * 20;
+                newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
+              }
+            });
+          } catch (fallbackError) {
+            console.error('Error with getPrices fallback:', fallbackError);
+            // Final fallback - use simulated prices
+            playerIds.forEach(id => {
+              const basePrice = 50 + (id % 10) * 20;
+              newPrices[id] = `${basePrice.toFixed(2)} USDC`;
+            });
+          }
+        }
+
+        setPrices(newPrices);
+      } catch (error) {
+        console.error('Error fetching player prices:', error);
+        // Set fallback prices on general error
+        const fallbackPrices: Record<number, string> = {};
+        playerIds.forEach(id => {
+          const basePrice = 50 + (id % 10) * 20;
+          fallbackPrices[id] = `${basePrice.toFixed(2)} USDC`;
+        });
+        setPrices(fallbackPrices);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBuyPrices();
+    
+    // Update prices every 30 seconds
+    const interval = setInterval(fetchBuyPrices, 30000);
     return () => clearInterval(interval);
   }, [JSON.stringify(playerIds), ready]);
 

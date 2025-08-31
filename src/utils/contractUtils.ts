@@ -29,9 +29,17 @@ export function parseETHToNumber(ethString: string): number {
 
 // Contract method signatures for FDFPair
 export const FDF_PAIR_METHODS = {
-  getCurrentPrice: '0x...', // Replace with actual method signature
-  getReserves: '0x...', // Replace with actual method signature
-  calculatePrice: '0x...', // Replace with actual method signature
+  getCurrentPrice: 'getCurrentPrice', // Method name for getting current price
+  getReserves: 'getReserves', // Method name for getting reserves
+  calculatePrice: 'calculatePrice', // Method name for price calculation
+} as const;
+
+// Common contract error types
+export const CONTRACT_ERRORS = {
+  NETWORK_ERROR: 'Network connection failed',
+  CONTRACT_ERROR: 'Contract call failed',
+  INVALID_PLAYER: 'Player ID not found',
+  INSUFFICIENT_LIQUIDITY: 'Insufficient liquidity',
 } as const;
 
 // Simulate price volatility for realistic demo
