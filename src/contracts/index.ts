@@ -1,4 +1,4 @@
-// Contract ABIs and addresses for the Crypto Fantasy Esports App
+// Contract ABIs and addresses for ESP.fun
 // All contracts deployed on Monad Testnet
 
 // Import ABIs (these are raw ABI arrays)
