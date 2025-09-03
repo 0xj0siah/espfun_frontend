@@ -91,13 +91,6 @@ export default function TeamSection() {
     setLoading(false); // Set loading to false regardless of pricesLoading
   }, [playerPrices]); // Remove pricesLoading from dependencies
 
-  const trainingPrograms = [
-    { id: 1, name: 'Aim Training', duration: '2 hours', cost: '50 USDC', boost: '+5 Accuracy' },
-    { id: 2, name: 'Strategy Workshop', duration: '4 hours', cost: '100 USDC', boost: '+8 Game IQ' },
-    { id: 3, name: 'Team Synergy', duration: '6 hours', cost: '150 USDC', boost: '+10 Teamwork' },
-    { id: 4, name: 'Mental Coaching', duration: '3 hours', cost: '80 USDC', boost: '+6 Focus' }
-  ];
-
   const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => {
     if (!authenticated || !user?.wallet?.address) {
       toast.error("Please connect your wallet first");
@@ -222,23 +215,19 @@ export default function TeamSection() {
             <Card className="p-6 border-0 shadow-lg">
               <h3 className="mb-4 flex items-center">
                 <Zap className="w-5 h-5 mr-2 text-yellow-500" />
-                Training Programs
+                Player Development
               </h3>
-              <div className="space-y-4">
-                {trainingPrograms.map((program) => (
-                  <div key={program.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                    <div>
-                      <h4 className="text-sm font-medium">{program.name}</h4>
-                      <p className="text-xs text-muted-foreground">{program.duration} • {program.boost}</p>
-                    </div>
-                    <div className="text-right space-y-2">
-                      <Badge variant="outline">{program.cost}</Badge>
-                      <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0">
-                        Start
-                      </Button>
-                    </div>
+              <div className="bg-accent/30 border border-border/50 rounded-lg p-6 text-center">
+                <div className="space-y-3">
+                  <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-full flex items-center justify-center mx-auto">
+                    <Zap className="w-6 h-6 text-yellow-600" />
                   </div>
-                ))}
+                  <h4 className="text-sm font-medium">Development Tools</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Player development and training features will be available here soon.
+                  </p>
+                  <Badge variant="outline" className="mt-3">Coming Soon</Badge>
+                </div>
               </div>
             </Card>
 
