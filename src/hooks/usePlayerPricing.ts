@@ -159,30 +159,6 @@ export function usePlayerPrices(playerIds: number[]) {
           
           const pricesArray = result as bigint[];
           
-          // Also try getBuyPrice for comparison (buying 1 token with 1000 USDC max spend)
-          try {
-            console.log('Also trying getBuyPrice for comparison...');
-            const buyPriceResult = await publicClient.readContract({
-              address: fdfPairContract.address as `0x${string}`,
-              abi: fdfPairContract.abi,
-              functionName: 'getBuyPrice',
-              args: [
-                playerIds.map(id => BigInt(id)), // player token IDs
-                playerIds.map(() => BigInt('1000000000000000000')), // amounts to buy (1 token in 18 decimals)
-                playerIds.map(() => BigInt('1000000000')) // max currency to spend (1000 USDC in 6 decimals)
-              ],
-            });
-            console.log('getBuyPrice result:', buyPriceResult);
-            
-            // getBuyPrice returns [amountsToReceive, feeAmounts, feeRates, feeTypes]
-            const [amountsToReceive, feeAmounts] = buyPriceResult as [bigint[], bigint[], bigint[], number[]];
-            console.log('Amounts to receive (currency needed):', amountsToReceive);
-            console.log('Fee amounts:', feeAmounts);
-            
-          } catch (buyPriceError) {
-            console.error('getBuyPrice failed:', buyPriceError);
-          }
-          
           if (Array.isArray(pricesArray) && pricesArray.length > 0) {
             playerIds.forEach((playerId, index) => {
               console.log(`Processing player ${playerId} at index ${index}`);
@@ -264,7 +240,7 @@ export function usePlayerPrices(playerIds: number[]) {
             // Try to find which player IDs actually exist by testing a range
             try {
               console.log('Trying to find existing player IDs by testing individual IDs...');
-              const testIds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 1000, 4000000, 4000001, 4000002, 4000003, 4000004, 4000005, 4000006];
+              const testIds = [1, 2, 3, 4, 5]; // Active player IDs confirmed from contract
               
               for (const testId of testIds) {
                 try {

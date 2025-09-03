@@ -3,7 +3,7 @@
 "teamPlayers": [
   
   {
-    "id": 4000000,
+    "id": 1,
     "name": "PhoenixRising",
     "game": "Valorant",
     "position": "Initiator",
@@ -24,7 +24,7 @@
     ]
   },
   {
-    "id": 4000002,
+    "id": 2,
     "name": "IceBreaker",
     "game": "CS2",
     "position": "Entry Fragger",
@@ -45,7 +45,7 @@
     ]
   },
   {
-    "id": 4000003,
+    "id": 3,
     "name": "StormLord",
     "game": "League of Legends",
     "position": "Jungle",
@@ -66,7 +66,7 @@
     ]
   },
   {
-    "id": 4000004,
+    "id": 4,
     "name": "GhostReaper",
     "game": "Dota 2",
     "position": "Support",
@@ -87,7 +87,7 @@
     ]
   },
   {
-    "id": 4000005,
+    "id": 5,
     "name": "VoidMaster",
     "game": "Valorant",
     "position": "Duelist",
@@ -105,27 +105,6 @@
       { "opponent": "November", "result": "win", "score": "13-7", "performance": 365 },
       { "opponent": "Oscar", "result": "win", "score": "13-10", "performance": 340 },
       { "opponent": "Papa", "result": "win", "score": "13-8", "performance": 321 }
-    ]
-  },
-  {
-    "id": 4000006,
-    "name": "CyberSamurai",
-    "game": "CS2",
-    "position": "AWPer",
-    "price": "125 USDC",
-    "trend": "up",
-    "points": 287,
-    "rating": 91,
-    "stats": {
-      "kills": 19.7,
-      "deaths": 11.3,
-      "assists": 4.8,
-      "winRate": 74
-    },
-    "recentMatches": [
-      { "opponent": "Quebec", "result": "win", "score": "16-11", "performance": 305 },
-      { "opponent": "Romeo", "result": "win", "score": "16-13", "performance": 289 },
-      { "opponent": "Sierra", "result": "loss", "score": "12-16", "performance": 245 }
     ]
   }
   

@@ -10,10 +10,11 @@ import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { usePrivy, useSendTransaction, useWallets } from '@privy-io/react-auth';
+import { usePrivy, useSendTransaction, useWallets, useSignTypedData } from '@privy-io/react-auth';
 import { createPublicClient, createWalletClient, http, parseUnits, formatUnits, custom, encodeFunctionData } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { usePoolInfo } from '../hooks/usePoolInfo';
+import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams } from '../utils/signatures';
 
 interface Player {
   id: number;
@@ -59,10 +60,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [transactionStatus, setTransactionStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [transactionHash, setTransactionHash] = useState('');
+  const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
   
   const { user, ready, authenticated } = usePrivy();
   const { sendTransaction } = useSendTransaction();
   const { wallets } = useWallets();
+  const { signTypedData } = useSignTypedData();
   const { poolData, loading: poolLoading, error: poolError, fetchPoolInfo, calculatePriceImpact } = usePoolInfo();
 
   // Create clients for contract interactions
@@ -93,17 +96,93 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     
     try {
       const fdfPairContract = getContractData('FDFPair');
-      const address = await publicClient.readContract({
-        address: fdfPairContract.address as `0x${string}`,
-        abi: fdfPairContract.abi,
-        functionName: 'currencyToken',
-        args: [],
-      });
-      setCurrencyTokenAddress(address as string);
-      return address as string;
+      
+      // Try currencyToken function first (more likely to be correct)
+      try {
+        const address = await publicClient.readContract({
+          address: fdfPairContract.address as `0x${string}`,
+          abi: fdfPairContract.abi as any,
+          functionName: 'currencyToken',
+          args: [],
+        });
+        console.log('✅ Currency token address from currencyToken():', address);
+        setCurrencyTokenAddress(address as string);
+        return address as string;
+      } catch (currencyTokenError) {
+        console.warn('currencyToken() failed, trying getCurrencyInfo():', currencyTokenError);
+        
+        // Fallback to getCurrencyInfo
+        const address = await publicClient.readContract({
+          address: fdfPairContract.address as `0x${string}`,
+          abi: fdfPairContract.abi as any,
+          functionName: 'getCurrencyInfo',
+          args: [],
+        });
+        console.log('✅ Currency token address from getCurrencyInfo():', address);
+        setCurrencyTokenAddress(address as string);
+        return address as string;
+      }
     } catch (error) {
       console.error('Error getting currency token address:', error);
-      throw error;
+      // Fallback to hardcoded TUSDC address from contracts
+      const tusdcContract = getContractData('TUSDC');
+      console.log('🔄 Using hardcoded TUSDC address as fallback:', tusdcContract.address);
+      setCurrencyTokenAddress(tusdcContract.address);
+      return tusdcContract.address;
+    }
+  };
+
+  // Get current nonce for user
+  const getCurrentNonce = async (userAddress: string): Promise<number> => {
+    try {
+      const fdfPairContract = getContractData('FDFPair');
+      
+      // 🎯 CRITICAL: Use usedNonces + 1 (as per setup.md best practice)
+      const usedNonce = await publicClient.readContract({
+        address: fdfPairContract.address as `0x${string}`,
+        abi: fdfPairContract.abi as any,
+        functionName: 'usedNonces',
+        args: [userAddress],
+      });
+      
+      const nextNonce = Number(usedNonce) + 1; // Next nonce to use
+      console.log('✅ Current nonce for', userAddress, ':', Number(usedNonce), '-> Using:', nextNonce);
+      return nextNonce;
+    } catch (error) {
+      console.error('Error getting current nonce:', error);
+      // More conservative fallback - start from 1 if we can't get the nonce
+      console.log('🔄 Using fallback nonce: 1');
+      return 1;
+    }
+  };
+
+  // Check user's USDC balance
+  const checkUserUsdcBalance = async (): Promise<void> => {
+    if (!user?.wallet?.address || !authenticated) return;
+    
+    try {
+      const currencyAddress = await getCurrencyTokenAddress();
+      const balance = await publicClient.readContract({
+        address: currencyAddress as `0x${string}`,
+        abi: [
+          {
+            name: 'balanceOf',
+            type: 'function',
+            inputs: [{ name: 'account', type: 'address' }],
+            outputs: [{ name: '', type: 'uint256' }],
+            stateMutability: 'view'
+          }
+        ],
+        functionName: 'balanceOf',
+        args: [user.wallet.address as `0x${string}`],
+      });
+      
+      const formattedBalance = formatUnits(balance as bigint, 6);
+      setUserUsdcBalance(formattedBalance);
+      console.log('💰 User USDC balance:', formattedBalance);
+    } catch (error) {
+      console.error('Error checking USDC balance:', error);
+      setUserUsdcBalance('0');
     }
   };
 
@@ -115,6 +194,42 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     const currencyAddress = await getCurrencyTokenAddress();
     const fdfPairContract = getContractData('FDFPair');
+
+    console.log('💰 Approving USDC spending:', {
+      currencyAddress,
+      spender: fdfPairContract.address,
+      amount: amount.toString()
+    });
+
+    // Check current allowance first
+    try {
+      const currentAllowance = await publicClient.readContract({
+        address: currencyAddress as `0x${string}`,
+        abi: [
+          {
+            name: 'allowance',
+            type: 'function',
+            inputs: [
+              { name: 'owner', type: 'address' },
+              { name: 'spender', type: 'address' }
+            ],
+            outputs: [{ name: '', type: 'uint256' }],
+            stateMutability: 'view'
+          }
+        ],
+        functionName: 'allowance',
+        args: [user.wallet.address as `0x${string}`, fdfPairContract.address as `0x${string}`],
+      });
+
+      console.log('Current allowance:', (currentAllowance as bigint).toString());
+      
+      if ((currentAllowance as bigint) >= amount) {
+        console.log('✅ Sufficient allowance already exists, skipping approval');
+        return;
+      }
+    } catch (allowanceError) {
+      console.warn('Could not check current allowance:', allowanceError);
+    }
 
     // Standard ERC20 approve function ABI
     const erc20ApproveAbi = [
@@ -152,14 +267,17 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     };
 
     // Use Privy's sendTransaction hook
+    console.log('📤 Sending USDC approval transaction...');
     const { hash } = await sendTransaction(transactionRequest, options);
     setTransactionHash(hash);
 
+    console.log('⏳ Waiting for approval confirmation...');
     // Wait for transaction confirmation
-    await publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    console.log('✅ USDC approval confirmed:', receipt.transactionHash);
   };
 
-  // Buy tokens using FDFPair contract  
+  // Buy tokens using FDFPair contract with proper EIP-712 signature
   const buyTokens = async (playerTokenId: number, tokenAmountToBuy: string, maxCurrencySpend: string): Promise<void> => {
     if (!user?.wallet?.address || !authenticated) {
       throw new Error('Wallet not connected');
@@ -169,13 +287,153 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     const maxCurrencySpendBigInt = parseUnits(maxCurrencySpend, 6); // USDC has 6 decimals
     const tokenAmountBigInt = parseUnits(tokenAmountToBuy, 18); // Player tokens have 18 decimals
 
-    // Approve USDC spending first
+    console.log('🔄 Starting buyTokens transaction...');
+    console.log('🎯 Buy Tokens Parameters:');
+    console.log('- Player IDs:', [playerTokenId]);
+    console.log('- Amounts (tokens):', [tokenAmountToBuy]);
+    console.log('- Amounts (wei):', [tokenAmountBigInt.toString()]);
+    console.log('- Max spend (USDC):', maxCurrencySpend);
+    console.log('- Max spend (wei):', maxCurrencySpendBigInt.toString());
+
+    // Validate minimum amounts
+    if (maxCurrencySpendBigInt <= 0n) {
+      throw new Error('Currency spend amount must be greater than 0');
+    }
+    if (tokenAmountBigInt <= 0n) {
+      throw new Error('Token amount must be greater than 0');
+    }
+
+    // Check if player token pool exists
+    try {
+      const poolInfo = await publicClient.readContract({
+        address: fdfPairContract.address as `0x${string}`,
+        abi: fdfPairContract.abi as any,
+        functionName: 'getPoolInfo',
+        args: [[BigInt(playerTokenId)]],
+      });
+      
+      const [currencyReserves, playerTokenReserves] = poolInfo as [bigint[], bigint[]];
+      console.log('Pool reserves:', {
+        currency: currencyReserves[0]?.toString(),
+        playerToken: playerTokenReserves[0]?.toString()
+      });
+      
+      if (!currencyReserves[0] || currencyReserves[0] === 0n) {
+        throw new Error(`No liquidity pool found for player ${playerTokenId}`);
+      }
+    } catch (poolError) {
+      console.error('Pool validation error:', poolError);
+      throw new Error(`Player ${playerTokenId} is not available for trading`);
+    }
+
+    // First approve USDC spending
+    console.log('💰 Approving USDC spending...');
     await approveUSDC(maxCurrencySpendBigInt);
 
-    const deadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour deadline
-    const nonce = Date.now(); // Simple nonce
+    // Get current nonce for signature (CRITICAL for transaction ordering)
+    const nonce = await getCurrentNonce(user.wallet.address);
+    console.log('🔢 Current nonce:', nonce);
 
-    // Encode the buyTokens function call using the actual ABI
+    // Set deadline (recommended: 5-15 minutes as per setup.md)
+    const deadline = Math.floor(Date.now() / 1000) + 300; // 5 minutes
+    console.log('⏰ Transaction deadline:', new Date(deadline * 1000).toLocaleString());
+    console.log('- Deadline:', deadline);
+    console.log('- Nonce:', nonce);
+    
+    // Prepare signature data
+    const signatureData = {
+      buyer: user.wallet.address,
+      playerTokenIds: [playerTokenId], // Array with actual number
+      amounts: [tokenAmountBigInt.toString()], // Array with BigInt string
+      maxCurrencySpend: maxCurrencySpendBigInt.toString(), // BigInt string, not decimal
+      deadline,
+      nonce
+    };
+
+    console.log('📝 Preparing EIP712 signature with data:', signatureData);
+    console.log('🔍 Array debugging:');
+    console.log('   playerTokenIds:', signatureData.playerTokenIds, 'type:', typeof signatureData.playerTokenIds[0]);
+    console.log('   amounts:', signatureData.amounts, 'type:', typeof signatureData.amounts[0]);
+    console.log('   amounts[0] value:', signatureData.amounts[0]);
+    console.log('   maxCurrencySpend:', signatureData.maxCurrencySpend, 'type:', typeof signatureData.maxCurrencySpend);
+    console.log('   deadline:', signatureData.deadline, 'type:', typeof signatureData.deadline);
+    console.log('   nonce:', signatureData.nonce, 'type:', typeof signatureData.nonce);
+
+    // Validate all values are safe for JSON serialization
+    const testData = {
+      playerTokenIds: signatureData.playerTokenIds,
+      amounts: signatureData.amounts,
+      maxCurrencySpend: signatureData.maxCurrencySpend,
+      deadline: signatureData.deadline,
+      nonce: signatureData.nonce
+    };
+    
+    try {
+      JSON.stringify(testData);
+      console.log('✅ Pre-signature data serialization test passed');
+    } catch (preSerializationError) {
+      console.error('❌ Pre-signature data serialization failed:', preSerializationError);
+      throw new Error(`Invalid data types before signature: ${preSerializationError.message}`);
+    }
+
+    // Generate EIP-712 signature using Privy's useSignTypedData hook
+    const domain = createEIP712Domain(fdfPairContract.address);
+    const typedData = createBuyTokensTypedData(domain, signatureData);
+    
+    // Validate signature parameters
+    validateSignatureParams(signatureData);
+
+    console.log('🔐 Creating EIP712 signature... (requires txSigner wallet)');
+    
+    console.log('🔐 Generating EIP712 signature with domain:', domain);
+    console.log('📋 Typed data structure:', {
+      domain: typedData.domain,
+      types: typedData.types,
+      primaryType: typedData.primaryType
+    });
+    console.log('📋 Message data (should be JSON serializable):', typedData.message);
+    
+    // Test JSON serialization before passing to Privy
+    try {
+      const testSerialization = JSON.stringify(typedData);
+      console.log('✅ JSON serialization test passed, data length:', testSerialization.length);
+    } catch (serializationError) {
+      console.error('❌ JSON serialization failed:', serializationError);
+      throw new Error(`Cannot serialize typed data for signing: ${serializationError.message}`);
+    }
+
+    // Use Privy's signTypedData hook
+    const signResult = await signTypedData(typedData, {
+      uiOptions: {
+        title: 'Sign Transaction',
+        description: 'Please sign this message to complete your token purchase',
+        buttonText: 'Sign Message'
+      }
+    });
+
+    // Extract signature from result (handles various response formats)
+    let signature: string;
+    if (typeof signResult === 'string') {
+      signature = signResult;
+    } else if (signResult && typeof signResult === 'object') {
+      // Try various possible signature fields
+      signature = (signResult as any).signature || 
+                 (signResult as any).sig || 
+                 (signResult as any).data || 
+                 signResult.toString();
+    } else {
+      throw new Error('Invalid signature response format');
+    }
+    
+    if (!signature || !signature.startsWith('0x')) {
+      throw new Error(`Invalid signature format: ${signature}`);
+    }
+    
+    console.log('✅ EIP712 signature extracted:', signature.slice(0, 10) + '...');
+    
+    console.log('🚀 Executing buyTokens transaction...');
+
+    // Encode the buyTokens function call with signature
     const data = encodeFunctionData({
       abi: fdfPairContract.abi,
       functionName: 'buyTokens',
@@ -185,10 +443,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         maxCurrencySpendBigInt, // _maxCurrencySpend
         BigInt(deadline), // _deadline
         user.wallet.address as `0x${string}`, // _recipient
-        '0x' as `0x${string}`, // _signature (empty for now)
+        signature as `0x${string}`, // _signature
         BigInt(nonce) // _nonce
       ]
     });
+
+    console.log('🔧 Encoded transaction data');
 
     // Prepare transaction for buying tokens
     const transactionRequest = {
@@ -204,12 +464,27 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       }
     };
 
+    console.log('📤 Sending buyTokens transaction...');
+
     // Use Privy's sendTransaction hook
     const { hash } = await sendTransaction(transactionRequest, options);
     setTransactionHash(hash);
 
+    console.log('⏳ Transaction sent, hash:', hash);
+
     // Wait for transaction confirmation
-    await publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    
+    // Parse transaction results (as per setup.md best practices)
+    console.log('✅ Transaction confirmed!');
+    console.log('- Transaction Hash:', receipt.transactionHash);
+    console.log('- Block Number:', receipt.blockNumber);
+    console.log('- Gas Used:', receipt.gasUsed.toString());
+    console.log('🎯 PlayerTokensPurchase event should be emitted in logs');
+    
+    // Set success status with detailed info
+    setTransactionStatus('success');
+    setStatusMessage(`✅ Successfully bought player tokens! Gas used: ${receipt.gasUsed.toString()}`);
   };
 
   // Sell tokens using Player contract
@@ -248,8 +523,6 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     await publicClient.waitForTransactionReceipt({ hash });
   };
 
-  if (!player) return null;
-
   const getRatingColor = (rating: number) => {
     if (rating >= 90) return 'from-green-500 to-emerald-600';
     if (rating >= 80) return 'from-blue-500 to-cyan-600';
@@ -270,12 +543,20 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }
   };
 
+  // Early return if no player - prevents hooks from being called in different orders
+  if (!player) return null;
+
   // Fetch pool information when modal opens
   useEffect(() => {
     if (isOpen && player && !fetchedPlayerIds.current.has(player.id)) {
       console.log('Modal opened, fetching pool info for player:', player.id);
       fetchedPlayerIds.current.add(player.id);
       fetchPoolInfo([player.id]);
+      
+      // Check user's USDC balance
+      if (authenticated && user?.wallet?.address) {
+        checkUserUsdcBalance();
+      }
       
       // Add timeout to prevent indefinite loading
       const timeout = setTimeout(() => {
@@ -289,16 +570,54 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     if (!isOpen) {
       fetchedPlayerIds.current.clear();
     }
-  }, [isOpen, player]); // Removed fetchPoolInfo from deps since it causes infinite loop
+  }, [isOpen, player, authenticated, user?.wallet?.address]); // Added auth dependencies
 
-  // Parse player.price (e.g. "1.2 USDC") to number
-  const playerPrice = parseFloat(player.price);
+  // Parse player.price (e.g. "1.2 USDC") to number - but prefer real pool price
+  const playerPrice = player ? parseFloat(player.price) : 0;
+  
+  // Helper function to format price display with 5 significant digits
+  const formatPriceDisplay = (price: number): string => {
+    if (price === 0) return '0.00000';
+    
+    // Get the number of digits before decimal point
+    const beforeDecimal = Math.floor(Math.log10(Math.abs(price))) + 1;
+    
+    if (beforeDecimal >= 5) {
+      // If 5+ digits before decimal, show no decimal places
+      return price.toFixed(0);
+    } else if (beforeDecimal > 0) {
+      // Show enough decimal places to get 5 total digits
+      const decimalPlaces = Math.max(0, 5 - beforeDecimal);
+      return price.toFixed(decimalPlaces);
+    } else {
+      // For very small numbers (0.00xxx), show 5 significant digits after leading zeros
+      const leadingZeros = Math.floor(-Math.log10(Math.abs(price)));
+      return price.toFixed(leadingZeros + 4); // 4 more digits after the first significant digit
+    }
+  };
+  
+  // Get real price from pool data if available, otherwise fallback to player.price
+  const getRealPrice = () => {
+    const poolInfo = poolData.get(player.id);
+    if (poolInfo && poolInfo.currencyReserve > 0n && poolInfo.playerTokenReserve > 0n) {
+      // Calculate real price from pool reserves: USDC reserve / token reserve
+      const usdcReserve = Number(poolInfo.currencyReserve) / 1e6; // USDC has 6 decimals
+      const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18; // Tokens have 18 decimals
+      const realPrice = usdcReserve / tokenReserve;
+      console.log(`🔄 Using real pool price: ${realPrice.toFixed(8)} USDC per token (was ${playerPrice})`);
+      return realPrice;
+    }
+    console.log(`⚠️ No pool data, using fallback price: ${playerPrice} USDC per token`);
+    return playerPrice;
+  };
+  
+  const currentPrice = getRealPrice();
 
-  // Calculate expected amount BEFORE slippage
+  // Calculate expected amount BEFORE slippage using real pool price
   const usdc = parseFloat(usdcAmount) || 0;
   const expectedReceive = action === 'buy'
-    ? usdc / playerPrice
-    : usdc * playerPrice;
+    ? usdc / currentPrice
+    : usdc * currentPrice;
 
   // Calculate price impact using real pool data
   const realPriceImpactData = calculatePriceImpact(player.id, usdcAmount, action);
@@ -307,10 +626,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   // Debug: Log pool data
   useEffect(() => {
-    const poolInfo = poolData.get(player.id);
-    console.log('Pool info for player', player.id, ':', poolInfo);
-    console.log('Price impact data:', realPriceImpactData);
-  }, [poolData, player.id, realPriceImpactData]);
+    if (player) {
+      const poolInfo = poolData.get(player.id);
+      console.log('Pool info for player', player.id, ':', poolInfo);
+      console.log('Price impact data:', realPriceImpactData);
+    }
+  }, [poolData, player?.id, realPriceImpactData, player]);
 
   // Format numbers with commas
   const formatNumber = (num: number) => {
@@ -333,18 +654,50 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       return;
     }
 
+    // Check if user has sufficient USDC balance
+    const userBalance = parseFloat(userUsdcBalance);
+    const requiredAmount = parseFloat(usdcAmount);
+    if (action === 'buy' && userBalance < requiredAmount) {
+      setTransactionStatus('error');
+      setStatusMessage(`Insufficient USDC balance. You have ${userBalance.toFixed(2)} USDC but need ${requiredAmount.toFixed(2)} USDC`);
+      return;
+    }
+
     setIsLoading(true);
     setTransactionStatus('pending');
     setStatusMessage(`${action === 'buy' ? 'Purchasing' : 'Selling'} ${player.name} tokens...`);
     
     try {
+      console.log('🔄 UPDATED CODE RUNNING - handleConfirm function with slippage fix');
+      
       if (action === 'buy') {
-        // Calculate token amount to buy (assuming 1:1 ratio for now, should use actual price calculation)
-        const tokenAmount = (parseFloat(usdcAmount) / playerPrice).toString();
-        await buyTokens(player.id, tokenAmount, usdcAmount);
+        // Calculate token amount to buy using real pool price
+        const tokenAmount = (parseFloat(usdcAmount) / currentPrice).toString();
+        
+        // Calculate max currency spend with slippage protection
+        // User wants to spend 'usdcAmount', but due to slippage, they might need to spend more
+        const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
+        
+        console.log(`💰 Buy calculation: ${usdcAmount} USDC / ${currentPrice.toFixed(8)} price = ${tokenAmount} tokens`);
+        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage = ${maxCurrencyWithSlippage} USDC max spend`);
+        console.log(`📊 Price check: Current pool price ${currentPrice.toFixed(8)} USDC/token`);
+        console.log(`⚠️  Warning: AMM price impact may require more than ${maxCurrencyWithSlippage} USDC for ${tokenAmount} tokens`);
+        
+        // Check if user has sufficient balance for the slippage-adjusted amount
+        const userBalance = parseFloat(userUsdcBalance);
+        const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
+        if (userBalance < maxSpendAmount) {
+          setTransactionStatus('error');
+          setStatusMessage(`Insufficient USDC balance for slippage. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage`);
+          return;
+        }
+        
+        console.log(`🚀 CALLING buyTokens with maxCurrencyWithSlippage: ${maxCurrencyWithSlippage}`);
+        await buyTokens(player.id, tokenAmount, maxCurrencyWithSlippage);
       } else {
         // For selling, usdcAmount represents the number of tokens to sell
-        const minCurrency = (parseFloat(usdcAmount) * playerPrice * (1 - slippage / 100)).toString();
+        const minCurrency = (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
+        console.log(`💰 Sell calculation: ${usdcAmount} tokens * ${currentPrice.toFixed(8)} price * ${1 - slippage / 100} slippage = ${minCurrency} USDC`);
         await sellTokens(player.id, usdcAmount, minCurrency);
       }
       
@@ -368,9 +721,38 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         onClose();
       }, 3000);
     } catch (error) {
-      console.error('Transaction failed:', error);
+      console.error('❌ Buy tokens failed:', error);
+      
+      // Enhanced error handling (as per setup.md best practices)
+      let errorMessage = 'Unknown error occurred';
+      if (error instanceof Error) {
+        if (error.message.includes('InvalidSignature')) {
+          errorMessage = 'Invalid signature - ensure txSigner wallet is used';
+        } else if (error.message.includes('InvalidNonce')) {
+          errorMessage = 'Invalid nonce - transaction may be out of order';
+        } else if (error.message.includes('DEADLINE_EXCEEDED')) {
+          errorMessage = 'Transaction deadline exceeded';
+        } else if (error.message.includes('MAX_CURRENCY_AMOUNT_EXCEEDED')) {
+          errorMessage = 'Price increased beyond max spend limit';
+        } else if (error.message.includes('PlayerNotBuyable')) {
+          errorMessage = 'One or more players are not buyable';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = 'Insufficient TUSDC balance';
+        } else if (error.message.includes('INSUFFICIENT_CURRENCY_AMOUNT')) {
+          errorMessage = 'Insufficient USDC balance for this purchase';
+        } else if (error.message.includes('INSUFFICIENT_LIQUIDITY')) {
+          errorMessage = 'Insufficient liquidity in the pool for this trade';
+        } else if (error.message.includes('User rejected')) {
+          errorMessage = 'Transaction was cancelled by user';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = 'Insufficient ETH balance to pay for gas fees';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setTransactionStatus('error');
-      setStatusMessage(`Transaction failed: ${(error as any)?.message || 'Unknown error'}`);
+      setStatusMessage(`Transaction failed: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -439,13 +821,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         <div className="space-y-6">
           {/* Price and Purchase */}
           <Card className="p-6 bg-gradient-to-r from-accent/30 to-accent/10 border-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium">Purchase Price</h3>
-                <p className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                  {player.price}
-                </p>
-              </div>
+            <div className="text-center">
+              <h3 className="text-lg font-medium mb-2">Purchase Price</h3>
+              <p className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent mb-4">
+                {formatPriceDisplay(currentPrice)} USDC
+              </p>
+            </div>
+            <div className="flex items-center justify-center">
               {!showBuySellMenu && (
                 <div className="flex gap-2">
                   <Button 
@@ -506,8 +888,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
                 {/* Input Amount */}
                 <div className="space-y-2">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">You {action === 'buy' ? 'pay' : 'sell'}</span>
+                    {action === 'buy' && userUsdcBalance !== '0' && (
+                      <span className="text-xs text-muted-foreground">
+                        Balance: {parseFloat(userUsdcBalance).toFixed(2)} USDC
+                      </span>
+                    )}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
@@ -608,9 +995,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                           const usdcReserve = (Number(pool.currencyReserve) / 1e6).toFixed(2);
                           const tokenReserve = (Number(pool.playerTokenReserve) / 1e18).toFixed(2);
                           const currentPrice = pool.currencyReserve > 0n && pool.playerTokenReserve > 0n
-                            ? ((Number(pool.currencyReserve) / 1e6) / (Number(pool.playerTokenReserve) / 1e18)).toFixed(4)
-                            : '0';
-                          return `${usdcReserve} USDC / ${tokenReserve} ${player.name} (${currentPrice} USDC/token)`;
+                            ? (Number(pool.currencyReserve) / 1e6) / (Number(pool.playerTokenReserve) / 1e18)
+                            : 0;
+                          return `${usdcReserve} USDC / ${tokenReserve} ${player.name} (${formatPriceDisplay(currentPrice)} USDC/token)`;
                         })()}
                       </span>
                     </div>
@@ -621,7 +1008,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Effective Price</span>
                       <span>
-                        {realPriceImpactData.effectivePrice.toFixed(6)} USDC per token
+                        {formatPriceDisplay(realPriceImpactData.effectivePrice)} USDC per token
                       </span>
                     </div>
                   )}
@@ -675,7 +1062,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   <Alert variant="destructive" className="mt-4">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      High price impact ({priceImpact}%). Price will change from {realPriceImpactData.currentPrice.toFixed(6)} to {realPriceImpactData.newPrice.toFixed(6)} USDC.
+                      High price impact ({priceImpact}%). Price will change from {formatPriceDisplay(realPriceImpactData.currentPrice)} to {formatPriceDisplay(realPriceImpactData.newPrice)} USDC.
                     </AlertDescription>
                   </Alert>
                 )}

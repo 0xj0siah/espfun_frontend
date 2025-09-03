@@ -282,12 +282,25 @@ export default function TransfersSection() {
         </div>
       </div>
       
-      <PlayerPurchaseModal
-        player={selectedPlayer}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onPurchase={handlePurchase}
-      />
+      {/* Debug info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-4 right-4 bg-black text-white p-2 text-xs z-50">
+          isModalOpen: {isModalOpen.toString()}<br/>
+          selectedPlayer: {selectedPlayer?.name || 'null'}
+        </div>
+      )}
+      
+      {selectedPlayer && (
+        <PlayerPurchaseModal
+          player={selectedPlayer}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedPlayer(null);
+          }}
+          onPurchase={handlePurchase}
+        />
+      )}
     </div>
   );
 }

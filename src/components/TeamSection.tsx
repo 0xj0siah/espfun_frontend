@@ -105,25 +105,25 @@ export default function TeamSection() {
     }
 
     try {
-      // Cast wallet to any to access internal methods
-      const wallet = user.wallet as any;
+      // Transaction is already handled by PlayerPurchaseModal
+      // This callback is only for UI state updates
       
-      // Send transaction using embedded wallet methods
-      const tx = await wallet.sendTransaction({
-        to: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS,
-        value: BigInt(parseFloat(usdcAmount) * 1e6), // USDC has 6 decimals
-      });
-
-      // Update local state to reflect purchase
-      setTeamPlayers(prevPlayers => [...prevPlayers, player]);
+      if (action === 'buy') {
+        // Update local state to reflect purchase
+        setTeamPlayers(prevPlayers => [...prevPlayers, player]);
+        toast.success(`Successfully purchased ${player.name}!`);
+      } else {
+        // For sell action, remove from team or update state as needed
+        setTeamPlayers(prevPlayers => prevPlayers.filter(p => p.id !== player.id));
+        toast.success(`Successfully sold ${player.name}!`);
+      }
       
-      // Close modal and show success message
+      // Close modal
       setIsModalOpen(false);
-      toast.success(`Successfully purchased ${player.name}!`);
 
     } catch (error) {
-      console.error("Purchase failed:", error);
-      toast.error("Failed to purchase player. Please try again.");
+      console.error("Purchase state update failed:", error);
+      toast.error("Failed to update player state. Please refresh the page.");
     }
   };
 

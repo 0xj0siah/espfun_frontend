@@ -19,14 +19,15 @@ export {
   FDFPairABI,
 };
 
-// Contract addresses
+// Contract addresses (Updated from setup.md - ESP Fun System Fully Operational!)
 export const CONTRACT_ADDRESSES = {
-  FeeManager: '0x80B4DF38Cf27Fff956ff2f4225503128a08d3E75',
-  Player: '0xc94CfCDF0c8217aE2E1E48DAa8765C937b4B3f82',
-  DevelopmentPlayers: '0x2fA1B919c967040E184dDd038B13783829A5dEfd',
-  PlayerContracts: '0x58cD9139a60732FBD57D46E66d26a18F43B8B9Ab',
-  PlayerPack: '0x5E94655B1AeF4d55c31A83cDb1e86CB5977a196e',
-  FDFPair: '0x97cd3677188D12fF8C21013523f572412eb2812F',
+  FeeManager: '0x419297541e3Da2493f77ADd65216F1431A890b78',
+  Player: '0x35163e4FA25c05E756aA8012a33827bE60aC0D52',
+  DevelopmentPlayers: '0xCEa8bC8F79C3af4Db7D4c7b09C851FAc6128F202',
+  PlayerContracts: '0x3f87a9376ec29426d0367fa6eA2E39bD12e1A1aA',
+  PlayerPack: '0x482E69701c96E600e524d55ae15904142f63691b',
+  FDFPair: '0xA160B769d12A0F3B932113BB4F181544Af5Ee68d',
+  TUSDC: '0xbAa8EF1B3e1384F1F67e208eEE64c01b42D8aB0E',
 } as const;
 
 // Type definitions for the contracts
@@ -57,6 +58,46 @@ export const CONTRACTS = {
   FDFPair: {
     address: CONTRACT_ADDRESSES.FDFPair,
     abi: FDFPairABI,
+  },
+  TUSDC: {
+    address: CONTRACT_ADDRESSES.TUSDC,
+    abi: [
+      {
+        "name": "decimals",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint8"}],
+        "stateMutability": "view"
+      },
+      {
+        "name": "balanceOf",
+        "type": "function",
+        "inputs": [{"name": "account", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+      },
+      {
+        "name": "allowance",
+        "type": "function",
+        "inputs": [{"name": "owner", "type": "address"}, {"name": "spender", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+      },
+      {
+        "name": "approve",
+        "type": "function",
+        "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}],
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "nonpayable"
+      },
+      {
+        "name": "mint",
+        "type": "function",
+        "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      }
+    ],
   },
 } as const;
 

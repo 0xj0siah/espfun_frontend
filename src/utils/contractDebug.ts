@@ -55,7 +55,7 @@ export async function debugContractConnection() {
     try {
       const currencyInfo = await debugClient.readContract({
         address: fdfPairContract.address as `0x${string}`,
-        abi: fdfPairContract.abi,
+        abi: fdfPairContract.abi as any,
         functionName: 'getCurrencyInfo',
         args: [],
       });
@@ -67,46 +67,106 @@ export async function debugContractConnection() {
     try {
       const allPlayerIds = await debugClient.readContract({
         address: fdfPairContract.address as `0x${string}`,
-        abi: fdfPairContract.abi,
+        abi: fdfPairContract.abi as any,
         functionName: 'getAllPlayerIds',
         args: [],
-      });
+      }) as bigint[];
       console.log('getAllPlayerIds success:', allPlayerIds);
+      
+      // Test 4: Try getPrices with actual active player IDs
+      console.log('\n4. Testing getPrices function with active players...');
+      
+      if (allPlayerIds.length > 0) {
+        // Test with actual active players
+        const testCases = [
+          [allPlayerIds[0]], // First player
+          allPlayerIds.slice(0, Math.min(3, allPlayerIds.length)), // First 3 players
+          [allPlayerIds[allPlayerIds.length - 1]], // Last player
+          allPlayerIds, // All players
+        ];
+        
+        for (const testIds of testCases) {
+          try {
+            console.log(`Testing getPrices with IDs: [${testIds.join(', ')}]`);
+            const result = await debugClient.readContract({
+              address: fdfPairContract.address as `0x${string}`,
+              abi: fdfPairContract.abi as any,
+              functionName: 'getPrices',
+              args: [testIds],
+            }) as bigint[];
+            console.log('Result:', result);
+            console.log('Is array:', Array.isArray(result));
+            if (Array.isArray(result)) {
+              console.log('Array length:', result.length);
+              result.forEach((price, i) => {
+                const priceInUsdc = Number(price) / 1e6;
+                console.log(`  Player ${testIds[i]}: ${price} wei (${priceInUsdc.toFixed(6)} USDC)`);
+              });
+            }
+          } catch (error) {
+            console.error(`getPrices failed for [${testIds.join(', ')}]:`, error);
+          }
+        }
+      } else {
+        console.log('No active players found, testing with known working IDs (1-5)...');
+        const testCases = [
+          [1n], [2n], [3n], [4n], [5n], // Individual players
+          [1n, 2n, 3n], // Multiple players
+          [1n, 2n, 3n, 4n, 5n], // All known active players
+        ];
+        
+        for (const testIds of testCases) {
+          try {
+            console.log(`Testing getPrices with IDs: [${testIds.join(', ')}]`);
+            const result = await debugClient.readContract({
+              address: fdfPairContract.address as `0x${string}`,
+              abi: fdfPairContract.abi as any,
+              functionName: 'getPrices',
+              args: [testIds],
+            }) as bigint[];
+            console.log('Result:', result);
+            if (Array.isArray(result)) {
+              result.forEach((price, i) => {
+                const priceInUsdc = Number(price) / 1e6;
+                console.log(`  Player ${testIds[i]}: ${price} wei (${priceInUsdc.toFixed(6)} USDC)`);
+              });
+            }
+          } catch (error) {
+            console.error(`getPrices failed for [${testIds.join(', ')}]:`, error);
+          }
+        }
+      }
+      
     } catch (error) {
       console.error('getAllPlayerIds failed:', error);
-    }
-    
-    // Test 4: Try getPrices with simple IDs
-    console.log('\n4. Testing getPrices function...');
-    
-    const testCases = [
-      [1n],
-      [1n, 2n, 3n],
-      [0n],
-      [BigInt(4000000)],
-      [BigInt(4000001), BigInt(4000002)],
-    ];
-    
-    for (const testIds of testCases) {
-      try {
-        console.log(`Testing getPrices with IDs: [${testIds.join(', ')}]`);
-        const result = await debugClient.readContract({
-          address: fdfPairContract.address as `0x${string}`,
-          abi: fdfPairContract.abi,
-          functionName: 'getPrices',
-          args: [testIds],
-        });
-        console.log('Result:', result);
-        console.log('Result type:', typeof result);
-        console.log('Is array:', Array.isArray(result));
-        if (Array.isArray(result)) {
-          console.log('Array length:', result.length);
-          result.forEach((price, i) => {
-            console.log(`  [${i}]: ${price} (${price > 0n ? 'non-zero' : 'zero'})`);
-          });
+      
+      // Fallback: Test with known working player IDs from our earlier test
+      console.log('\n4. Testing getPrices with known working IDs (1-5)...');
+      const testCases = [
+        [1n], [2n], [3n], [4n], [5n], // Individual players  
+        [1n, 2n, 3n], // Multiple players
+        [1n, 2n, 3n, 4n, 5n], // All known active players
+      ];
+      
+      for (const testIds of testCases) {
+        try {
+          console.log(`Testing getPrices with IDs: [${testIds.join(', ')}]`);
+          const result = await debugClient.readContract({
+            address: fdfPairContract.address as `0x${string}`,
+            abi: fdfPairContract.abi as any,
+            functionName: 'getPrices',
+            args: [testIds],
+          }) as bigint[];
+          console.log('Result:', result);
+          if (Array.isArray(result)) {
+            result.forEach((price, i) => {
+              const priceInUsdc = Number(price) / 1e6;
+              console.log(`  Player ${testIds[i]}: ${price} wei (${priceInUsdc.toFixed(6)} USDC)`);
+            });
+          }
+        } catch (error) {
+          console.error(`getPrices failed for [${testIds.join(', ')}]:`, error);
         }
-      } catch (error) {
-        console.error(`getPrices failed for [${testIds.join(', ')}]:`, error);
       }
     }
     
