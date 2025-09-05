@@ -15,6 +15,8 @@ import { createPublicClient, createWalletClient, http, parseUnits, formatUnits, 
 import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { usePoolInfo } from '../hooks/usePoolInfo';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams } from '../utils/signatures';
+import { apiService } from '../services/apiService';
+import { AuthenticationStatus } from './AuthenticationStatus';
 
 interface Player {
   id: number;
@@ -330,106 +332,145 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     console.log('💰 Approving USDC spending...');
     await approveUSDC(maxCurrencySpendBigInt);
 
-    // Get current nonce for signature (CRITICAL for transaction ordering)
-    const nonce = await getCurrentNonce(user.wallet.address);
-    console.log('🔢 Current nonce:', nonce);
-
     // Set deadline (recommended: 5-15 minutes as per setup.md)
     const deadline = Math.floor(Date.now() / 1000) + 300; // 5 minutes
     console.log('⏰ Transaction deadline:', new Date(deadline * 1000).toLocaleString());
-    console.log('- Deadline:', deadline);
-    console.log('- Nonce:', nonce);
-    
-    // Prepare signature data
-    const signatureData = {
-      buyer: user.wallet.address,
-      playerTokenIds: [playerTokenId], // Array with actual number
-      amounts: [tokenAmountBigInt.toString()], // Array with BigInt string
-      maxCurrencySpend: maxCurrencySpendBigInt.toString(), // BigInt string, not decimal
-      deadline,
-      nonce
-    };
 
-    console.log('📝 Preparing EIP712 signature with data:', signatureData);
-    console.log('🔍 Array debugging:');
-    console.log('   playerTokenIds:', signatureData.playerTokenIds, 'type:', typeof signatureData.playerTokenIds[0]);
-    console.log('   amounts:', signatureData.amounts, 'type:', typeof signatureData.amounts[0]);
-    console.log('   amounts[0] value:', signatureData.amounts[0]);
-    console.log('   maxCurrencySpend:', signatureData.maxCurrencySpend, 'type:', typeof signatureData.maxCurrencySpend);
-    console.log('   deadline:', signatureData.deadline, 'type:', typeof signatureData.deadline);
-    console.log('   nonce:', signatureData.nonce, 'type:', typeof signatureData.nonce);
-
-    // Validate all values are safe for JSON serialization
-    const testData = {
-      playerTokenIds: signatureData.playerTokenIds,
-      amounts: signatureData.amounts,
-      maxCurrencySpend: signatureData.maxCurrencySpend,
-      deadline: signatureData.deadline,
-      nonce: signatureData.nonce
-    };
-    
-    try {
-      JSON.stringify(testData);
-      console.log('✅ Pre-signature data serialization test passed');
-    } catch (preSerializationError) {
-      console.error('❌ Pre-signature data serialization failed:', preSerializationError);
-      throw new Error(`Invalid data types before signature: ${preSerializationError.message}`);
-    }
-
-    // Generate EIP-712 signature using Privy's useSignTypedData hook
-    const domain = createEIP712Domain(fdfPairContract.address);
-    const typedData = createBuyTokensTypedData(domain, signatureData);
-    
-    // Validate signature parameters
-    validateSignatureParams(signatureData);
-
-    console.log('🔐 Creating EIP712 signature... (requires txSigner wallet)');
-    
-    console.log('🔐 Generating EIP712 signature with domain:', domain);
-    console.log('📋 Typed data structure:', {
-      domain: typedData.domain,
-      types: typedData.types,
-      primaryType: typedData.primaryType
-    });
-    console.log('📋 Message data (should be JSON serializable):', typedData.message);
-    
-    // Test JSON serialization before passing to Privy
-    try {
-      const testSerialization = JSON.stringify(typedData);
-      console.log('✅ JSON serialization test passed, data length:', testSerialization.length);
-    } catch (serializationError) {
-      console.error('❌ JSON serialization failed:', serializationError);
-      throw new Error(`Cannot serialize typed data for signing: ${serializationError.message}`);
-    }
-
-    // Use Privy's signTypedData hook
-    const signResult = await signTypedData(typedData, {
-      uiOptions: {
-        title: 'Sign Transaction',
-        description: 'Please sign this message to complete your token purchase',
-        buttonText: 'Sign Message'
-      }
-    });
-
-    // Extract signature from result (handles various response formats)
+    // Try backend signature generation first, fallback to local if unavailable
     let signature: string;
-    if (typeof signResult === 'string') {
-      signature = signResult;
-    } else if (signResult && typeof signResult === 'object') {
-      // Try various possible signature fields
-      signature = (signResult as any).signature || 
-                 (signResult as any).sig || 
-                 (signResult as any).data || 
-                 signResult.toString();
-    } else {
-      throw new Error('Invalid signature response format');
+    let nonce: number;
+    let transactionId: string | null = null;
+
+    try {
+      // Check if we have authentication for backend API
+      const hasAuthToken = localStorage.getItem('authToken');
+      if (!hasAuthToken) {
+        throw new Error('No authentication token found - backend signatures require authentication');
+      }
+
+      console.log('🌐 Attempting backend signature generation...');
+      
+      // Prepare request data for backend signature generation
+      const signatureRequest = {
+        playerTokenIds: [playerTokenId.toString()], // Convert to string array
+        amounts: [tokenAmountBigInt.toString()], // BigInt as string
+        maxCurrencySpend: maxCurrencySpendBigInt.toString(), // BigInt as string
+        deadline
+      };
+
+      console.log('� Requesting EIP712 signature from backend API:', signatureRequest);
+
+      // Get signature from backend API
+      const signatureResponse = await apiService.prepareSignature(signatureRequest);
+      
+      console.log('✅ Backend signature response received:', {
+        transactionId: signatureResponse.transactionId,
+        signatureLength: signatureResponse.signature.length,
+        nonce: signatureResponse.txData.nonce
+      });
+
+      // Extract signature and transaction data from backend response
+      signature = signatureResponse.signature;
+      nonce = signatureResponse.txData.nonce;
+      transactionId = signatureResponse.transactionId;
+      
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format from backend: ${signature}`);
+      }
+      
+      console.log('✅ Using backend-generated EIP712 signature:', signature.slice(0, 10) + '...');
+
+    } catch (backendError) {
+      console.warn('⚠️ Backend signature generation failed, falling back to local generation:', backendError);
+
+      // If error mentions authentication, inform user
+      if (backendError.message.includes('Authentication') || backendError.message.includes('token')) {
+        console.log('🔐 Authentication issue detected - user may need to re-authenticate for backend features');
+        setStatusMessage('Backend authentication required - using local signature generation');
+      }
+
+      // Fallback to local signature generation
+      console.log('🔄 Falling back to local EIP712 signature generation...');
+
+      // Get current nonce for signature (CRITICAL for transaction ordering)
+      nonce = await getCurrentNonce(user.wallet.address);
+      console.log('🔢 Current nonce (local):', nonce);
+      
+      // Prepare signature data for local generation
+      const signatureData = {
+        buyer: user.wallet.address,
+        playerTokenIds: [playerTokenId], // Array with actual number
+        amounts: [tokenAmountBigInt.toString()], // Array with BigInt string
+        maxCurrencySpend: maxCurrencySpendBigInt.toString(), // BigInt string, not decimal
+        deadline,
+        nonce
+      };
+
+      console.log('📝 Preparing local EIP712 signature with data:', signatureData);
+
+      // Validate all values are safe for JSON serialization
+      const testData = {
+        playerTokenIds: signatureData.playerTokenIds,
+        amounts: signatureData.amounts,
+        maxCurrencySpend: signatureData.maxCurrencySpend,
+        deadline: signatureData.deadline,
+        nonce: signatureData.nonce
+      };
+      
+      try {
+        JSON.stringify(testData);
+        console.log('✅ Pre-signature data serialization test passed');
+      } catch (preSerializationError) {
+        console.error('❌ Pre-signature data serialization failed:', preSerializationError);
+        throw new Error(`Invalid data types before signature: ${preSerializationError.message}`);
+      }
+
+      // Generate EIP-712 signature using Privy's useSignTypedData hook
+      const domain = createEIP712Domain(fdfPairContract.address);
+      const typedData = createBuyTokensTypedData(domain, signatureData);
+      
+      // Validate signature parameters
+      validateSignatureParams(signatureData);
+
+      console.log('🔐 Creating local EIP712 signature... (requires txSigner wallet)');
+      
+      // Test JSON serialization before passing to Privy
+      try {
+        const testSerialization = JSON.stringify(typedData);
+        console.log('✅ JSON serialization test passed, data length:', testSerialization.length);
+      } catch (serializationError) {
+        console.error('❌ JSON serialization failed:', serializationError);
+        throw new Error(`Cannot serialize typed data for signing: ${serializationError.message}`);
+      }
+
+      // Use Privy's signTypedData hook
+      const signResult = await signTypedData(typedData, {
+        uiOptions: {
+          title: 'Sign Transaction',
+          description: 'Please sign this message to complete your token purchase',
+          buttonText: 'Sign Message'
+        }
+      });
+
+      // Extract signature from result (handles various response formats)
+      if (typeof signResult === 'string') {
+        signature = signResult;
+      } else if (signResult && typeof signResult === 'object') {
+        // Try various possible signature fields
+        signature = (signResult as any).signature || 
+                   (signResult as any).sig || 
+                   (signResult as any).data || 
+                   signResult.toString();
+      } else {
+        throw new Error('Invalid signature response format');
+      }
+      
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format: ${signature}`);
+      }
+      
+      console.log('✅ Local EIP712 signature generated:', signature.slice(0, 10) + '...');
     }
-    
-    if (!signature || !signature.startsWith('0x')) {
-      throw new Error(`Invalid signature format: ${signature}`);
-    }
-    
-    console.log('✅ EIP712 signature extracted:', signature.slice(0, 10) + '...');
     
     console.log('🚀 Executing buyTokens transaction...');
 
@@ -481,6 +522,20 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     console.log('- Block Number:', receipt.blockNumber);
     console.log('- Gas Used:', receipt.gasUsed.toString());
     console.log('🎯 PlayerTokensPurchase event should be emitted in logs');
+
+    // Confirm transaction with backend if we used backend signature generation
+    if (transactionId) {
+      try {
+        console.log('📤 Confirming transaction with backend...');
+        await apiService.confirmTransaction(transactionId, hash);
+        console.log('✅ Transaction confirmed with backend');
+      } catch (confirmError) {
+        console.error('⚠️ Failed to confirm transaction with backend:', confirmError);
+        // Don't throw error here as the transaction itself was successful
+      }
+    } else {
+      console.log('ℹ️ Using local signature generation, skipping backend confirmation');
+    }
     
     // Set success status with detailed info
     setTransactionStatus('success');
@@ -817,6 +872,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             </div>
           </div>
         </DialogHeader>
+
+        {/* Authentication Status */}
+        <div className="px-1">
+          <AuthenticationStatus />
+        </div>
 
         <div className="space-y-6">
           {/* Price and Purchase */}

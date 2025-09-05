@@ -17,7 +17,7 @@ interface HeaderProps {
 }
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
-  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'];
+  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Auth Test'];
   const [selectedGame, setSelectedGame] = useState('CS2');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -124,13 +124,14 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
             <div className="flex items-center">
               <div className="relative">
                 <ImageWithFallback
-                  src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
-                  alt="ESP.fun Logo"
-                  className="h-16 w-16 rounded-xl object-contain"
+                  src="https://images.unsplash.com/photo-1558744059-a9e737085db7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlc3BvcnRzJTIwZ2FtaW5nJTIwbG9nb3xlbnwxfHx8fDE3NTYzOTI2ODR8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+                  alt="Crypto Esports Fantasy Logo"
+                  className="h-10 w-10 rounded-xl object-cover shadow-lg"
                 />
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse"></div>
               </div>
               <div className="ml-3">
-                <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">ESP.fun</h1>
+                <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">CryptoESports</h1>
                 <p className="text-xs text-muted-foreground">Fantasy League</p>
               </div>
             </div>

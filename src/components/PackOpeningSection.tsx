@@ -90,6 +90,7 @@ export default function PackOpeningSection() {
     setTimeout(() => {
       const newPlayers = mockPlayers.slice(0, 5).map(player => ({
         ...player,
+        id: Math.random(),
         rarity: Math.random() > 0.7 ? 'rare' : Math.random() > 0.9 ? 'epic' : Math.random() > 0.95 ? 'legendary' : 'common'
       })) as Player[];
       
