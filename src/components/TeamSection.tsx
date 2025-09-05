@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import { createPublicClient, http } from 'viem';
 import { CONTRACTS, NETWORK_CONFIG } from '../contracts';
-import { ContractDebugger } from './ContractDebugger';
 import fakeData from '../fakedata.json';
 
 interface PlayerStats {
@@ -194,13 +193,6 @@ export default function TeamSection() {
     console.log('🎮 Filtered owned players:', ownedPlayers.length, 'out of', fakeData.teamPlayers.length);
     setTeamPlayers(ownedPlayers);
   }, [ownedPlayerIds, playerPrices, loading]);
-
-  const trainingPrograms = [
-    { id: 1, name: 'Aim Training', duration: '2 hours', cost: '50 USDC', boost: '+5 Accuracy' },
-    { id: 2, name: 'Strategy Workshop', duration: '4 hours', cost: '100 USDC', boost: '+8 Game IQ' },
-    { id: 3, name: 'Team Synergy', duration: '6 hours', cost: '150 USDC', boost: '+10 Teamwork' },
-    { id: 4, name: 'Mental Coaching', duration: '3 hours', cost: '80 USDC', boost: '+6 Focus' }
-  ];
 
   const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => {
     if (!authenticated || !user?.wallet?.address) {
@@ -390,37 +382,18 @@ export default function TeamSection() {
         </TabsContent>
 
         <TabsContent value="development" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="p-6 border-0 shadow-lg">
-              <h3 className="mb-4 flex items-center">
-                <Zap className="w-5 h-5 mr-2 text-yellow-500" />
-                Training Programs
-              </h3>
-              <div className="space-y-4">
-                {trainingPrograms.map((program) => (
-                  <div key={program.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                    <div>
-                      <h4 className="text-sm font-medium">{program.name}</h4>
-                      <p className="text-xs text-muted-foreground">{program.duration} • {program.boost}</p>
-                    </div>
-                    <div className="text-right space-y-2">
-                      <Badge variant="outline">{program.cost}</Badge>
-                      <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0">
-                        Start
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center space-y-4">
+              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto" />
+              <div>
+                <h3 className="text-lg font-semibold">Development Features Coming Soon</h3>
+                <p className="text-muted-foreground">Player development and training features will be available here.</p>
               </div>
-            </Card>
-
+            </div>
           </div>
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          {/* Debug Section */}
-          <ContractDebugger />
-          
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
               <div className="flex items-center justify-between">
