@@ -1,159 +1,439 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Star, Zap, Trophy, Gift } from 'lucide-react';
+import { Sparkles, Star, Zap, Trophy, Gift, Package, Gamepad2 } from 'lucide-react';
+import { usePrivy } from '@privy-io/react-auth';
+import { apiService, PackInfo, PackPurchaseResponse, UserPoints } from '../services/apiService';
+import { toast } from 'sonner';
 
 interface Player {
   id: number;
   name: string;
   game: string;
   position: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
   rating: number;
-  price: string;
+  shares: number;
 }
 
 export default function PackOpeningSection() {
+  const [selectedPack, setSelectedPack] = useState<PackInfo | null>(null);
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
-  const [openedPacks, setOpenedPacks] = useState<Player[]>([]);
-  const [showRewards, setShowRewards] = useState(false);
+  const [openedCards, setOpenedCards] = useState<Player[]>([]);
+  const [showCards, setShowCards] = useState(false);
+  const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
+  const [availablePacks, setAvailablePacks] = useState<PackInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userPoints, setUserPoints] = useState<UserPoints | null>(null);
 
-  const packs = [
-    {
-      id: 1,
-      name: 'Standard Pack',
-      price: '0.1 ETH',
-      description: '5 random players',
-      rarity: 'common',
-      gradient: 'from-blue-500 to-cyan-500'
-    },
-    {
-      id: 2,
-      name: 'Premium Pack',
-      price: '0.25 ETH',
-      description: '5 players, 1 guaranteed rare+',
-      rarity: 'rare',
-      gradient: 'from-purple-500 to-pink-500'
-    },
-    {
-      id: 3,
-      name: 'Elite Pack',
-      price: '0.5 ETH',
-      description: '7 players, 1 guaranteed epic+',
-      rarity: 'epic',
-      gradient: 'from-orange-500 to-red-500'
-    },
-    {
-      id: 4,
-      name: 'Legendary Pack',
-      price: '1.0 ETH',
-      description: '10 players, 1 guaranteed legendary',
-      rarity: 'legendary',
-      gradient: 'from-yellow-400 to-orange-500'
+  const { user, authenticated } = usePrivy();
+
+  // Load available packs and user profile on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      console.log('🎁 Loading packs and user profile...');
+      try {
+        setLoading(true);
+        
+        // Load packs and user points in parallel
+        const [packsResponse, pointsResponse] = await Promise.allSettled([
+          apiService.getAvailablePacks(),
+          apiService.getUserPoints().catch(() => null) // Don't fail if points fetch fails
+        ]);
+        
+        // Handle packs
+        if (packsResponse.status === 'fulfilled') {
+          console.log('✅ API Response:', packsResponse.value);
+
+          // Handle different response formats
+          let packs: PackInfo[] = [];
+          const response = packsResponse.value;
+          if (Array.isArray(response)) {
+            packs = response;
+          } else if (response && typeof response === 'object' && 'packs' in response && Array.isArray((response as any).packs)) {
+            packs = (response as any).packs;
+          }
+
+          console.log('📦 Parsed packs:', packs);
+
+          // If no packs returned, use mock data
+          if (!packs || packs.length === 0) {
+            console.log('🔄 No packs from API, using mock data');
+            packs = [
+              {
+                id: 'PRO', // Backend expects uppercase pack types
+                name: 'Pro Pack',
+                type: 'bronze',
+                price: 100, // Correct pricing: 100 tournament points
+                description: '5 Players',
+                isActive: true
+              },
+              {
+                id: 'EPIC', // Backend expects uppercase pack types
+                name: 'Epic Pack',
+                type: 'silver',
+                price: 250, // Correct pricing: 250 tournament points
+                description: '5 Players',
+                isActive: true
+              },
+              {
+                id: 'LEGENDARY', // Backend expects uppercase pack types
+                name: 'Legendary Pack',
+                type: 'gold',
+                price: 500, // Correct pricing: 500 tournament points
+                description: '5 Players',
+                isActive: true
+              }
+            ];
+          }
+          
+          setAvailablePacks(packs);
+        } else {
+          console.error('❌ Failed to load packs:', packsResponse.reason);
+          // Use mock data as fallback
+          setAvailablePacks([
+            {
+              id: 'PRO',
+              name: 'Bronze Pack',
+              type: 'bronze',
+              price: 50,
+              description: '5 Players',
+              isActive: true
+            },
+            {
+              id: 'EPIC',
+              name: 'Silver Pack',
+              type: 'silver',
+              price: 150,
+              description: '5 Players',
+              isActive: true
+            },
+            {
+              id: 'LEGENDARY',
+              name: 'Gold Pack',
+              type: 'gold',
+              price: 300,
+              description: '5 Players',
+              isActive: true
+            }
+          ]);
+        }
+        
+        // Handle user points
+        if (pointsResponse.status === 'fulfilled' && pointsResponse.value) {
+          console.log('✅ User points loaded:', pointsResponse.value);
+          setUserPoints(pointsResponse.value);
+        } else {
+          console.log('ℹ️ User points not available (not authenticated or API error)');
+          setUserPoints(null);
+        }
+        
+        setError(null);
+      } catch (err) {
+        console.error('❌ Failed to load data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load data');
+        // Always fallback to mock data if API fails
+        setAvailablePacks([
+          {
+            id: 'PRO',
+            name: 'Pro Pack',
+            type: 'bronze',
+            price: 100, // Correct pricing: 100 tournament points
+            description: '5 Players',
+            isActive: true
+          },
+          {
+            id: 'EPIC',
+            name: 'Epic Pack',
+            type: 'silver',
+            price: 250, // Correct pricing: 250 tournament points
+            description: '5 Players',
+            isActive: true
+          },
+          {
+            id: 'LEGENDARY',
+            name: 'Legendary Pack',
+            type: 'gold',
+            price: 500, // Correct pricing: 500 tournament points
+            description: '5 Players',
+            isActive: true
+          }
+        ]);
+      } finally {
+        setLoading(false);
+        console.log('🎁 Data loading complete');
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const openPack = async (pack: PackInfo) => {
+    if (!authenticated || !user?.wallet?.address) {
+      toast.error('Please connect your wallet first');
+      return;
     }
-  ];
 
-  const mockPlayers = [
-    { id: 1, name: 'ShadowStrike', game: 'Valorant', position: 'Duelist', rarity: 'legendary', rating: 98, price: '2.5 ETH' },
-    { id: 2, name: 'CyberNinja', game: 'CS2', position: 'AWPer', rarity: 'epic', rating: 92, price: '1.2 ETH' },
-    { id: 3, name: 'FlashBang', game: 'Valorant', position: 'Initiator', rarity: 'rare', rating: 85, price: '0.8 ETH' },
-    { id: 4, name: 'StormBreaker', game: 'League of Legends', position: 'Mid', rarity: 'epic', rating: 90, price: '1.0 ETH' },
-    { id: 5, name: 'IceKing', game: 'Dota 2', position: 'Support', rarity: 'common', rating: 78, price: '0.3 ETH' }
-  ];
-
-  const getRarityIcon = (rarity: string) => {
-    switch (rarity) {
-      case 'legendary': return <Trophy className="w-4 h-4" />;
-      case 'epic': return <Zap className="w-4 h-4" />;
-      case 'rare': return <Star className="w-4 h-4" />;
-      default: return <Sparkles className="w-4 h-4" />;
+    if (isPurchasing) {
+      return; // Prevent multiple clicks
     }
-  };
 
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'legendary': return 'from-yellow-400 to-orange-500';
-      case 'epic': return 'from-purple-500 to-pink-500';
-      case 'rare': return 'from-blue-500 to-cyan-500';
-      default: return 'from-gray-400 to-gray-500';
-    }
-  };
+    setIsPurchasing(true);
 
-  const openPack = async () => {
-    setIsOpening(true);
-    setShowRewards(false);
+    try {
+      // Refresh user points before checking to ensure we have the latest balance
+      console.log('🔄 Refreshing user points before purchase...');
+      const latestPoints = await apiService.getUserPoints();
+      setUserPoints(latestPoints);
+      console.log('✅ Latest points from API:', latestPoints.tournamentPoints);
+      console.log('🎯 Pack price:', pack.price);
+      console.log('📊 Has enough points?', latestPoints.tournamentPoints >= pack.price);
 
-    // Simulate pack opening delay
-    setTimeout(() => {
-      const newPlayers = mockPlayers.slice(0, 5).map(player => ({
-        ...player,
-        id: Math.random(),
-        rarity: Math.random() > 0.7 ? 'rare' : Math.random() > 0.9 ? 'epic' : Math.random() > 0.95 ? 'legendary' : 'common'
-      })) as Player[];
-      
-      setOpenedPacks(newPlayers);
+      // Check if user has enough points with the latest data
+      if (latestPoints.tournamentPoints < pack.price) {
+        console.log('❌ Insufficient points - blocking purchase');
+        toast.error(`Insufficient points! You need ${pack.price} points but only have ${latestPoints.tournamentPoints}.`);
+        return;
+      }
+
+      console.log('✅ Points check passed - proceeding with purchase');
+
+      setSelectedPack(pack);
+      setIsOpening(true);
+      setShowCards(false);
+      setFlippedCards(new Set());
+      setError(null);
+
+      // Purchase pack via backend API
+      console.log('🎁 Purchasing pack:', { packId: pack.id, packType: pack.type, packName: pack.name });
+      const response: PackPurchaseResponse = await apiService.purchasePack({
+        packType: pack.id // Only send pack type - backend handles payment method
+      });
+
+      console.log('🎉 Pack opened successfully:', response);
+
+      // Transform API response to Player format using the new response structure
+      const players: Player[] = response.transaction.playerIds.map((playerId, index) => ({
+        id: playerId,
+        name: `Player ${playerId}`,
+        game: 'Esports',
+        position: 'Unknown',
+        rating: Math.floor(Math.random() * 40) + 60, // Random rating 60-99
+        shares: parseInt(response.transaction.shares[index] || '1')
+      }));
+
+      setOpenedCards(players);
       setIsOpening(false);
-      setShowRewards(true);
-    }, 3000);
+      setShowCards(true);
+
+      // Refresh user points to show updated points
+      try {
+        const updatedPoints = await apiService.getUserPoints();
+        setUserPoints(updatedPoints);
+        console.log('✅ User points updated after purchase:', updatedPoints);
+      } catch (pointsError) {
+        console.log('ℹ️ Could not refresh user points, but purchase was successful');
+      }
+
+      toast.success(response.message || `Successfully opened ${pack.name}!`);
+    } catch (err) {
+      console.error('Failed to open pack:', err);
+      setIsOpening(false);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to open pack';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  const flipCard = (cardId: number) => {
+    setFlippedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
+      } else {
+        newSet.add(cardId);
+      }
+      return newSet;
+    });
   };
 
   return (
     <div className="space-y-8">
+      {/* Header */}
       <div className="text-center space-y-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-full"
         >
-          <Gift className="w-5 h-5" />
+          <Package className="w-5 h-5" />
           <span className="text-lg">Pack Opening</span>
         </motion.div>
         <h2 className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-          Open packs to discover legendary players
+          Choose Your Pack
         </h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Each pack contains a randomized selection of players from different rarities. The higher the pack tier, the better your chances of getting rare players!
+          Select a pack to reveal 5 esports player cards!
         </p>
+        
+        {/* User Points Display */}
+        {userPoints && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="inline-flex items-center space-x-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-6 py-2 rounded-full shadow-lg"
+          >
+            <Trophy className="w-5 h-5" />
+            <span className="font-bold">
+              Tournament Points: {userPoints.tournamentPoints.toLocaleString()}
+            </span>
+          </motion.div>
+        )}
+        
+        {/* Authentication Prompt */}
+        {!userPoints && authenticated && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-sm text-muted-foreground"
+          >
+            Connect your wallet to view your points and purchase packs
+          </motion.div>
+        )}
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground">Loading available packs...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
+              <Package className="w-6 h-6 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Failed to Load Packs</h3>
+              <p className="text-muted-foreground">{error}</p>
+            </div>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Pack Selection */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {packs.map((pack) => (
-          <motion.div
-            key={pack.id}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className={`absolute inset-0 bg-gradient-to-br ${pack.gradient} opacity-10`}></div>
-              <div className="relative p-6 text-center space-y-4">
-                <div className={`mx-auto w-16 h-16 rounded-full bg-gradient-to-br ${pack.gradient} flex items-center justify-center`}>
-                  {getRarityIcon(pack.rarity)}
-                </div>
-                <div>
-                  <h3 className="text-lg">{pack.name}</h3>
-                  <p className="text-sm text-muted-foreground">{pack.description}</p>
-                </div>
-                <div className="space-y-3">
-                  <Badge variant="outline" className="text-lg px-4 py-1">
-                    {pack.price}
-                  </Badge>
-                  <Button 
-                    onClick={openPack}
-                    disabled={isOpening}
-                    className={`w-full bg-gradient-to-r ${pack.gradient} hover:opacity-90 text-white border-0`}
-                  >
-                    {isOpening ? 'Opening...' : 'Open Pack'}
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+      {!loading && !error && availablePacks.length > 0 && (
+        <div className="flex justify-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl">
+            {availablePacks.map((pack, index) => (
+              <motion.div
+                key={pack.id}
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.2 }}
+                whileHover={{ scale: 1.05, rotateY: 5 }}
+                className="perspective-1000"
+              >
+                <Card className={`relative overflow-hidden border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer group ${isPurchasing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => !isPurchasing && openPack(pack)}
+                      style={{ width: '200px', height: '280px' }}>
+                  {/* Realistic Pack Design - Box Style */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-purple-600 opacity-95"></div>
+
+                  {/* Pack Box Structure */}
+                  <div className="relative h-full flex flex-col">
+                    {/* Top Flap with Seal */}
+                    <div className="h-20 bg-gradient-to-b from-white/40 to-white/20 border-b-2 border-white/50 relative">
+                      {/* Flap Shadow */}
+                      <div className="absolute bottom-0 left-0 right-0 h-2 bg-black/20 transform skew-x-1"></div>
+                    </div>
+
+                    {/* Main Pack Body */}
+                    <div className="flex-1 flex items-center justify-center p-3">
+                      <div className="text-center space-y-2">
+                        {/* Pack Logo/Icon */}
+                        <div className="w-12 h-12 mx-auto bg-white/20 rounded-lg flex items-center justify-center border border-white/40 backdrop-blur-sm">
+                          <img
+                            src="/oglogonobg.png"
+                            alt="ESP.FUN Logo"
+                            className="w-8 h-8 object-contain"
+                          />
+                        </div>
+
+                        {/* Pack Name */}
+                        <h3 className="text-white font-bold text-sm drop-shadow-lg">{pack.name}</h3>
+                        <p className="text-white/90 text-xs drop-shadow">{pack.description}</p>
+
+                        {/* Price Tag */}
+                        <div className="bg-white/20 backdrop-blur-sm rounded px-3 py-1 border border-white/30">
+                          <p className="text-white font-bold text-sm drop-shadow">{pack.price} Points</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Section with Card Preview */}
+                    <div className="h-16 bg-gradient-to-t from-black/30 to-transparent border-t border-white/20 relative">
+                      {/* Card Stack Preview */}
+                      <div className="absolute bottom-2 left-2 right-2 flex justify-center space-x-1">
+                        {[0, 1, 2].map((i) => (
+                          <div
+                            key={i}
+                            className="w-6 h-10 bg-white/60 rounded border border-white/80 shadow-md"
+                            style={{
+                              transform: `rotate(${i * 3}deg) translateY(${i * 2}px)`,
+                              zIndex: 3 - i
+                            }}
+                          ></div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hover Effects */}
+                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                  {/* Loading Overlay */}
+                  {isPurchasing && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    </div>
+                  )}
+
+                  {/* Shine Effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+
+                  {/* 3D Depth Lines */}
+                  <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+                    <div className="absolute top-2 left-2 w-full h-full border border-white/20 rounded transform translate-x-1 translate-y-1 opacity-50"></div>
+                    <div className="absolute top-1 left-1 w-full h-full border border-white/30 rounded transform translate-x-0.5 translate-y-0.5 opacity-30"></div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Pack Opening Animation */}
       <AnimatePresence>
@@ -162,133 +442,165 @@ export default function PackOpeningSection() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/90 backdrop-blur-sm z-50 flex items-center justify-center"
+            className="fixed inset-0 bg-background/95 backdrop-blur-md z-50 flex items-center justify-center"
           >
             <div className="text-center space-y-8">
               <motion.div
-                animate={{ 
-                  rotate: 360,
-                  scale: [1, 1.2, 1]
-                }}
-                transition={{ 
-                  rotate: { duration: 2, repeat: Infinity, ease: "linear" },
-                  scale: { duration: 1, repeat: Infinity }
-                }}
-                className="w-32 h-32 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center"
+                initial={{ scale: 1 }}
+                className="relative"
               >
-                <Gift className="w-16 h-16 text-white" />
+                <div className="w-48 h-64 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg shadow-2xl flex items-center justify-center border-2 border-blue-500 relative overflow-hidden">
+                  <img
+                    src="/oglogonobg.png"
+                    alt="ESP.FUN Logo"
+                    className="w-8 h-8 object-contain"
+                  />
+                </div>
               </motion.div>
+
               <motion.h3
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
-                className="text-2xl"
+                className="text-2xl font-bold"
               >
-                Opening your pack...
+                Opening Pack...
               </motion.h3>
-              <div className="flex justify-center space-x-2">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    animate={{ y: [0, -20, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                    className="w-3 h-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
-                  />
-                ))}
-              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Opened Pack Results */}
+      {/* Card Reveal */}
       <AnimatePresence>
-        {showRewards && openedPacks.length > 0 && (
+        {showCards && openedCards.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
             className="space-y-6"
           >
             <div className="text-center">
-              <h3 className="text-xl mb-2">Pack Opened Successfully! 🎉</h3>
-              <p className="text-muted-foreground">Here are your new players:</p>
-            </div>
-            
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-              {openedPacks.map((player, index) => (
-                <motion.div
-                  key={player.id}
-                  initial={{ opacity: 0, scale: 0.8, rotateY: 180 }}
-                  animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-                  transition={{ delay: index * 0.2 }}
-                >
-                  <Card className="relative overflow-hidden border-0 shadow-lg">
-                    <div className={`absolute inset-0 bg-gradient-to-br ${getRarityColor(player.rarity)} opacity-20`}></div>
-                    <div className="relative p-4 text-center space-y-3">
-                      <ImageWithFallback
-                        src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id + index}`}
-                        alt={player.name}
-                        className="w-16 h-16 rounded-full mx-auto object-cover"
-                      />
-                      <div>
-                        <h4 className="text-sm">{player.name}</h4>
-                        <p className="text-xs text-muted-foreground">{player.game}</p>
-                        <div className="flex items-center justify-center space-x-1 mt-2">
-                          {getRarityIcon(player.rarity)}
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {player.rarity}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-primary mt-2">{player.price}</p>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-            
-            <div className="text-center">
-              <Button 
-                onClick={() => setShowRewards(false)}
-                variant="outline"
-                className="mr-4"
+              <motion.h3
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent"
               >
-                Close
-              </Button>
-              <Button className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
-                Add to Collection
-              </Button>
+                🎉 Pack Opened! 🎉
+              </motion.h3>
+              <p className="text-muted-foreground">Click on cards to reveal your players!</p>
+            </div>
+
+            <div className="flex justify-center">
+              <div className="flex gap-6 px-4">
+                {openedCards.map((card, index) => {
+                  const isFlipped = flippedCards.has(card.id);
+
+                  return (
+                    <motion.div
+                      key={card.id}
+                      initial={{ opacity: 0, scale: 0, y: 100 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{
+                        delay: index * 0.15,
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 20
+                      }}
+                      className="perspective-1000"
+                    >
+                      <div
+                        className="relative cursor-pointer"
+                        onClick={() => flipCard(card.id)}
+                        style={{ width: '180px', height: '260px' }}
+                      >
+                        <motion.div
+                          className="relative w-full h-full"
+                          animate={{ rotateY: isFlipped ? 180 : 0 }}
+                          transition={{ duration: 0.6, ease: "easeInOut" }}
+                          style={{ transformStyle: 'preserve-3d' }}
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          {/* Card Back */}
+                          <div
+                            className="absolute inset-0 w-full h-full backface-hidden rounded-lg border-2 border-gray-400 bg-gradient-to-br from-gray-50 to-gray-200 shadow-xl flex items-center justify-center relative overflow-hidden group"
+                            style={{ backfaceVisibility: 'hidden' }}
+                          >
+                            <img
+                              src="/oglogonobg.png"
+                              alt="ESP.FUN Logo"
+                              className="w-20 h-20 object-contain filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
+                            />
+                          </div>
+
+                          {/* Card Front */}
+                          <div
+                            className="absolute inset-0 w-full h-full backface-hidden rounded-lg border-2 border-blue-400 bg-gradient-to-br from-slate-600 via-blue-600 to-slate-700 shadow-xl transition-all duration-300"
+                            style={{
+                              backfaceVisibility: 'hidden',
+                              transform: 'rotateY(180deg)'
+                            }}
+                          >
+                            <div className="h-14 bg-gradient-to-r from-white/10 to-white/5 border-b border-white/20 flex items-center px-3">
+                              <div className="bg-white/20 rounded-full px-4 py-1 border border-white/30 mr-3 flex items-center justify-center">
+                                <span className="text-white font-bold text-xs">{card.name}</span>
+                              </div>
+                            </div>
+
+                            <div className="p-3">
+                              <div className="relative">
+                                <ImageWithFallback
+                                  src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=120&h=120&fit=crop&crop=face&random=${card.id + index}`}
+                                  alt={card.name}
+                                  className="w-full h-24 object-cover rounded border-2 border-white/50"
+                                />
+                                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center border-2 border-white">
+                                  <span className="text-white font-bold text-xs">{card.rating}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="px-3 pb-3 space-y-1">
+                              <p className="text-white/90 text-xs text-center drop-shadow">{card.game}</p>
+                              <p className="text-white/80 text-xs text-center drop-shadow">{card.position}</p>
+                              <div className="bg-white/20 backdrop-blur-sm rounded px-2 py-1 mt-2">
+                                <p className="text-white font-semibold text-xs text-center drop-shadow">{card.shares} Shares</p>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="text-center space-y-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.5 }}
+              >
+                <Button
+                  onClick={() => {
+                    setShowCards(false);
+                    setSelectedPack(null);
+                    setOpenedCards([]);
+                    setFlippedCards(new Set());
+                  }}
+                  variant="outline"
+                  className="mr-4"
+                >
+                  Close
+                </Button>
+                <Button className="bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700">
+                  Add to Collection
+                </Button>
+              </motion.div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Recent Pack Openings */}
-      <Card className="p-6">
-        <h3 className="mb-4">Recent Community Openings</h3>
-        <div className="space-y-3">
-          {[
-            { user: 'CryptoGamer23', player: 'ShadowStrike', rarity: 'legendary', time: '2 minutes ago' },
-            { user: 'ProPlayer99', player: 'CyberNinja', rarity: 'epic', time: '5 minutes ago' },
-            { user: 'EliteStrat', player: 'FlashBang', rarity: 'rare', time: '8 minutes ago' }
-          ].map((opening, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getRarityColor(opening.rarity)}`}></div>
-                <div>
-                  <p className="text-sm">
-                    <span className="text-primary">{opening.user}</span> opened{' '}
-                    <span className="text-primary">{opening.player}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">{opening.time}</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="capitalize">
-                {opening.rarity}
-              </Badge>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }

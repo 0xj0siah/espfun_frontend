@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { usePrivy } from "@privy-io/react-auth";
 import type { SmartWallet } from "@privy-io/react-auth";
+import { formatEther } from 'viem';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -9,11 +10,11 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
 import { Users, TrendingUp, Zap, Star, Trophy, Target, Activity } from 'lucide-react';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
+import { PromotionMenu } from './PromotionMenu';
 import { toast } from "sonner";
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
-import { createPublicClient, http } from 'viem';
-import { CONTRACTS, NETWORK_CONFIG } from '../contracts';
 import fakeData from '../fakedata.json';
+import { getDevelopmentPlayersData, testDevelopmentPlayersContract } from '../utils/contractInteractions';
 
 interface PlayerStats {
   kills: number;
@@ -43,6 +44,7 @@ interface Player {
   level: number;
   xp: number;
   potential: number;
+  lockedShares?: string; // Optional property for development players
 }
 
 // Type for Privy's wallet
@@ -62,137 +64,179 @@ interface PrivyWallet extends SmartWallet {
 export default function TeamSection() {
   const [activeTab, setActiveTab] = useState('squad');
   const [teamPlayers, setTeamPlayers] = useState<Player[]>([]);
-  const [ownedPlayerIds, setOwnedPlayerIds] = useState<number[]>([]);
-  const [playerBalances, setPlayerBalances] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPromotionMenuOpen, setIsPromotionMenuOpen] = useState(false);
+  const [selectedPromotionPlayer, setSelectedPromotionPlayer] = useState<any | null>(null);
+  const [developmentPlayers, setDevelopmentPlayers] = useState<{
+    playerIds: bigint[];
+    lockedBalances: bigint[];
+    totalPlayers: number;
+  }>({
+    playerIds: [],
+    lockedBalances: [],
+    totalPlayers: 0
+  });
+  const [developmentLoading, setDevelopmentLoading] = useState(false);
   const { user, authenticated } = usePrivy();
+  const [testResults, setTestResults] = useState<{
+    contractAddress: string;
+    isConnected: boolean;
+    userPlayerIds: bigint[];
+    sampleLockedBalance?: bigint;
+    error?: string;
+  } | null>(null);
 
-  // Create public client for contract interactions
-  const publicClient = useMemo(() => createPublicClient({
-    chain: {
-      id: NETWORK_CONFIG.chainId,
-      name: NETWORK_CONFIG.name,
-      rpcUrls: {
-        default: { http: [NETWORK_CONFIG.rpcUrl] },
-        public: { http: [NETWORK_CONFIG.rpcUrl] },
-      },
-      blockExplorers: {
-        default: { name: 'MonadScan', url: NETWORK_CONFIG.blockExplorer },
-      },
-      nativeCurrency: {
-        name: 'MON',
-        symbol: 'MON',
-        decimals: 18,
-      },
-      testnet: true,
-    },
-    transport: http(NETWORK_CONFIG.rpcUrl),
-  }), []);
+  // Helper function to format shares from wei to readable number
+  const formatShares = (wei: bigint): string => {
+    try {
+      // If the value is in wei (18 decimals), convert to ether and round to whole number
+      const etherValue = formatEther(wei);
+      const numValue = parseFloat(etherValue);
+      return Math.round(numValue).toString();
+    } catch (error) {
+      console.error('Error formatting shares:', error);
+      return '0';
+    }
+  };
 
-  // Fetch owned player IDs from Player contract (ERC-1155 NFT contract)
+  // Test contract function
+  const testContract = async () => {
+    if (!authenticated || !user?.wallet?.address) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    try {
+      const results = await testDevelopmentPlayersContract(user.wallet.address);
+      setTestResults(results);
+      console.log('Contract test results:', results);
+
+      if (results.isConnected) {
+        toast.success(`Contract connected! Found ${results.userPlayerIds.length} players`);
+      } else {
+        toast.error(`Contract test failed: ${results.error}`);
+      }
+    } catch (error) {
+      console.error('Test failed:', error);
+      toast.error('Contract test failed');
+    }
+  };
+
+  // Get player IDs for pricing - use useMemo to prevent recreation
+  const playerIds = useMemo(() => fakeData.teamPlayers.map(player => player.id), []);
+  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
+
+  // Create development player objects from contract data and fake data
+  const developmentPlayersWithData = useMemo(() => {
+    return developmentPlayers.playerIds.map((playerId, index) => {
+      const playerIdNum = Number(playerId);
+      // Find matching player data from fakeData, or create a default one
+      const basePlayerData = fakeData.teamPlayers.find(p => p.id === playerIdNum) || {
+        id: playerIdNum,
+        name: `Player ${playerIdNum}`,
+        game: "Unknown",
+        position: "Development",
+        price: "0 USDC",
+        trend: "stable" as const,
+        points: 0,
+        rating: 50,
+        stats: {
+          kills: 0,
+          deaths: 0,
+          assists: 0,
+          winRate: 0
+        },
+        recentMatches: []
+      };
+
+      return {
+        ...basePlayerData,
+        // Add missing fields for interface compatibility
+        level: 1,
+        xp: 50,
+        potential: 75, // Higher potential for development players
+        // Update with contract data
+        price: playerPrices[playerIdNum] || basePlayerData.price,
+        // Add development-specific info with formatted shares
+        lockedShares: formatShares(developmentPlayers.lockedBalances[index] || BigInt(0)),
+        // Ensure types are properly cast
+        trend: basePlayerData.trend as "up" | "down" | "stable",
+        recentMatches: basePlayerData.recentMatches.map(match => ({
+          ...match,
+          result: match.result as "win" | "loss"
+        }))
+      };
+    });
+  }, [developmentPlayers.playerIds, developmentPlayers.lockedBalances, playerPrices]);
+
+  const handleDevelopmentPlayerClick = (player: any) => {
+    // Convert the development player to promotion menu format
+    const promotionPlayer = {
+      id: player.id.toString(),
+      name: player.name,
+      position: player.position,
+      team: player.game, // Using game as team for esports context
+      image: `https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`,
+      tier: 'rookie' as const, // All development players start as rookie
+      price: parseFloat(player.price.replace(/[^\d.-]/g, '')) || 0,
+      change: 0,
+      canPromote: true, // All development players can be promoted
+      canCut: true, // Allow cutting development players too
+      lockedShares: player.lockedShares // Pass through the formatted locked shares
+    };
+    
+    setSelectedPromotionPlayer(promotionPlayer);
+    setIsPromotionMenuOpen(true);
+  };
+
   useEffect(() => {
-    const fetchOwnedPlayers = async () => {
+    // Use fake data and merge with contract prices
+    const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => ({
+      ...player,
+      // Add missing fields for interface compatibility (set to fixed values)
+      level: 1, // Fixed level
+      xp: 50, // Fixed XP value instead of random
+      potential: 50, // Fixed potential
+      // Ensure types are properly cast
+      trend: player.trend as "up" | "down" | "stable",
+      recentMatches: player.recentMatches.map(match => ({
+        ...match,
+        result: match.result as "win" | "loss"
+      })),
+      // Price will be updated when contract prices load
+      price: playerPrices[player.id] || player.price
+    }));
+    
+    setTeamPlayers(playersWithPricing);
+    setLoading(false); // Set loading to false regardless of pricesLoading
+  }, [playerPrices]); // Remove pricesLoading from dependencies
+
+  // Fetch development players data
+  useEffect(() => {
+    const fetchDevelopmentPlayers = async () => {
       if (!authenticated || !user?.wallet?.address) {
-        console.log('User not authenticated or no wallet address available');
-        setOwnedPlayerIds([]);
-        setPlayerBalances({});
-        setLoading(false);
+        console.log('User not authenticated or no wallet address:', { authenticated, walletAddress: user?.wallet?.address });
         return;
       }
 
+      console.log('Fetching development players for address:', user.wallet.address);
+      setDevelopmentLoading(true);
       try {
-        console.log('🔍 Fetching owned players for address:', user.wallet.address);
-        console.log('🔍 Player contract:', CONTRACTS.Player.address);
-
-        // First, get all active player IDs from the Player contract
-        const activePlayerIds = await publicClient.readContract({
-          address: CONTRACTS.Player.address as `0x${string}`,
-          abi: CONTRACTS.Player.abi,
-          functionName: 'getActivePlayerIds',
-          args: [],
-        });
-
-        console.log('✅ Active player IDs:', activePlayerIds);
-
-        // Then check the user's balance for each active player
-        const ownedIds: number[] = [];
-        const balances: Record<number, number> = {};
-        
-        for (const playerId of activePlayerIds as bigint[]) {
-          try {
-            const balance = await publicClient.readContract({
-              address: CONTRACTS.Player.address as `0x${string}`,
-              abi: CONTRACTS.Player.abi,
-              functionName: 'balanceOf',
-              args: [user.wallet.address as `0x${string}`, playerId],
-            });
-
-            const balanceNum = Number(balance) / 1e18; // Convert from wei to normal units
-            if (balanceNum > 0) {
-              ownedIds.push(Number(playerId));
-              balances[Number(playerId)] = balanceNum;
-              console.log(`✅ Player ${playerId}: owns ${balanceNum} shares`);
-            }
-          } catch (balanceError) {
-            console.error(`❌ Failed to check balance for player ${playerId}:`, balanceError);
-          }
-        }
-
-        console.log('✅ Final owned player IDs:', ownedIds);
-        console.log('✅ Player balances:', balances);
-        setOwnedPlayerIds(ownedIds);
-        setPlayerBalances(balances);
-        
-        if (ownedIds.length === 0) {
-          console.log('ℹ️ No players owned by this address');
-        }
+        const data = await getDevelopmentPlayersData(user.wallet.address);
+        console.log('Development players data received:', data);
+        setDevelopmentPlayers(data);
       } catch (error) {
-        console.error('❌ Failed to fetch owned players:', error);
-        // Set empty array on error
-        setOwnedPlayerIds([]);
-        setPlayerBalances({});
+        console.error('Error fetching development players:', error);
+        toast.error('Failed to load development players data');
       } finally {
-        setLoading(false);
+        setDevelopmentLoading(false);
       }
     };
 
-    fetchOwnedPlayers();
-  }, [authenticated, user?.wallet?.address, publicClient]);
-
-  // Get player IDs for pricing - use owned player IDs if available, otherwise empty array
-  const playerIds = useMemo(() => {
-    return ownedPlayerIds.length > 0 ? ownedPlayerIds : [];
-  }, [ownedPlayerIds]);
-  
-  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
-
-  useEffect(() => {
-    if (loading) return; // Wait for owned players to load first
-
-    // Filter fake data to only show players that the user owns
-    const ownedPlayers: Player[] = fakeData.teamPlayers
-      .filter(player => ownedPlayerIds.includes(player.id))
-      .map(player => ({
-        ...player,
-        // Add missing fields for interface compatibility (set to fixed values)
-        level: 1, // Fixed level
-        xp: 50, // Fixed XP value instead of random
-        potential: 50, // Fixed potential
-        // Ensure types are properly cast
-        trend: player.trend as "up" | "down" | "stable",
-        recentMatches: player.recentMatches.map(match => ({
-          ...match,
-          result: match.result as "win" | "loss"
-        })),
-        // Price will be updated when contract prices load
-        price: playerPrices[player.id] || player.price
-      }));
-    
-    console.log('🎮 Filtered owned players:', ownedPlayers.length, 'out of', fakeData.teamPlayers.length);
-    setTeamPlayers(ownedPlayers);
-  }, [ownedPlayerIds, playerPrices, loading]);
+    fetchDevelopmentPlayers();
+  }, [authenticated, user?.wallet?.address]);
 
   const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => {
     if (!authenticated || !user?.wallet?.address) {
@@ -242,10 +286,7 @@ export default function TeamSection() {
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-          {authenticated && ownedPlayerIds.length > 0 
-            ? `${ownedPlayerIds.length} Player${ownedPlayerIds.length !== 1 ? 's' : ''} Owned` 
-            : 'Total Value: 550 USDC'
-          }
+          Total Value: 550 USDC
         </Badge>
       </div>
 
@@ -267,109 +308,44 @@ export default function TeamSection() {
 
         <TabsContent value="squad" className="space-y-6">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="text-muted-foreground">Loading your owned players...</p>
-              </div>
-            </div>
-          ) : !authenticated ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <Users className="w-12 h-12 text-muted-foreground mx-auto" />
-                <div>
-                  <h3 className="text-lg font-semibold">Connect Your Wallet</h3>
-                  <p className="text-muted-foreground">Connect your wallet to see your owned players</p>
-                </div>
-              </div>
-            </div>
-          ) : teamPlayers.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <Users className="w-12 h-12 text-muted-foreground mx-auto" />
-                <div>
-                  <h3 className="text-lg font-semibold">No Players Owned</h3>
-                  <p className="text-muted-foreground">You don't own any players yet. Purchase some from the Transfers section!</p>
-                </div>
-                <Button 
-                  onClick={() => window.location.hash = '#transfers'} 
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                >
-                  Browse Players
-                </Button>
-              </div>
-            </div>
+            <div>Loading team...</div>
           ) : (
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-semibold">Your Active Squad</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Showing {teamPlayers.length} owned player{teamPlayers.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-                  Owned: {ownedPlayerIds.length} NFT{ownedPlayerIds.length !== 1 ? 's' : ''}
-                </Badge>
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {teamPlayers.map((player, index) => (
-                  <motion.div
-                    key={player.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => {
-                      setSelectedPlayer(player);
-                      setIsModalOpen(true);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <Card className="p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/30 relative">
-                      {/* Shares owned indicator */}
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                          {playerBalances[player.id]?.toFixed(2) || '0.00'} Owned
-                        </Badge>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {teamPlayers.map((player, index) => (
+                <motion.div
+                  key={player.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => {
+                    setSelectedPlayer(player);
+                    setIsModalOpen(true);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Card className="p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/30">
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <ImageWithFallback
+                          src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                          alt={player.name}
+                          className="w-14 h-14 rounded-xl object-cover shadow-md"
+                        />
                       </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        <div className="relative">
-                          <ImageWithFallback
-                            src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
-                            alt={player.name}
-                            className="w-14 h-14 rounded-xl object-cover shadow-md"
-                          />
-                          {/* NFT indicator */}
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">#{player.id}</span>
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-sm font-medium">{player.name}</h3>
-                          <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
-                          <div className="flex items-center justify-between mt-2">
-                            <Badge variant="outline" className="text-xs">{player.price}</Badge>
-                            <span className="text-sm text-primary font-medium">
-                              {(() => {
-                                const shares = playerBalances[player.id] || 0;
-                                const priceStr = playerPrices[player.id] || player.price;
-                                const priceNum = parseFloat(priceStr.replace(/[^\d.]/g, ''));
-                                const totalValue = shares * priceNum;
-                                return `$${totalValue.toFixed(2)}`;
-                              })()}
-                            </span>
-                          </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium">{player.name}</h3>
+                        <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <Badge variant="outline" className="text-xs">{player.price}</Badge>
+                          <span className="text-sm text-primary font-medium">{player.points} pts</span>
                         </div>
                       </div>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
           )}
-          
           {/* PlayerPurchaseModal */}
           {selectedPlayer && (
             <PlayerPurchaseModal
@@ -382,15 +358,86 @@ export default function TeamSection() {
         </TabsContent>
 
         <TabsContent value="development" className="space-y-6">
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center space-y-4">
-              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto" />
-              <div>
-                <h3 className="text-lg font-semibold">Development Features Coming Soon</h3>
-                <p className="text-muted-foreground">Player development and training features will be available here.</p>
-              </div>
+          {developmentLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-2 text-muted-foreground">Loading development players...</span>
             </div>
-          </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {developmentPlayersWithData.map((player, index) => (
+                <motion.div
+                  key={player.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => handleDevelopmentPlayerClick(player)}
+                  className="cursor-pointer"
+                >
+                  <Card className="p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/30">
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <ImageWithFallback
+                          src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                          alt={player.name}
+                          className="w-14 h-14 rounded-xl object-cover shadow-md"
+                        />
+                        {/* Development badge overlay */}
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                          <TrendingUp className="w-3 h-3 text-white" />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium">{player.name}</h3>
+                        <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                            {player.lockedShares} shares
+                          </Badge>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-sm text-primary font-medium">{player.points} pts</span>
+                            <TrendingUp className="w-3 h-3 text-purple-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+              
+              {developmentPlayers.totalPlayers === 0 && (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No Development Players</h3>
+                  <p className="text-sm mb-4">Start developing players to promote them to your active squad</p>
+                  <Button 
+                    onClick={testContract}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                    size="sm"
+                  >
+                    Test Contract Connection
+                  </Button>
+                  {testResults && (
+                    <div className="mt-4 p-4 bg-accent/50 rounded-lg text-left max-w-md mx-auto">
+                      <p className="text-sm font-medium">Test Results:</p>
+                      <p className="text-xs">Connected: {testResults.isConnected ? '✅' : '❌'}</p>
+                      <p className="text-xs">Players Found: {testResults.userPlayerIds.length}</p>
+                      {testResults.error && <p className="text-xs text-red-600">Error: {testResults.error}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {/* PromotionMenu for development players */}
+          <PromotionMenu
+            isOpen={isPromotionMenuOpen}
+            onClose={() => {
+              setIsPromotionMenuOpen(false);
+              setSelectedPromotionPlayer(null);
+            }}
+            player={selectedPromotionPlayer}
+          />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
