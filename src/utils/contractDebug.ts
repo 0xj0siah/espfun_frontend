@@ -1,7 +1,8 @@
 import { createPublicClient, http } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
+import { readContractCached } from './contractCache';
 
-// Create a debug client
+// Create a minimal debug client for non-contract operations
 const debugClient = createPublicClient({
   chain: {
     id: NETWORK_CONFIG.chainId,
@@ -53,7 +54,7 @@ export async function debugContractConnection() {
     console.log('\n3. Testing basic contract calls...');
     
     try {
-      const currencyInfo = await debugClient.readContract({
+      const currencyInfo = await readContractCached({
         address: fdfPairContract.address as `0x${string}`,
         abi: fdfPairContract.abi as any,
         functionName: 'getCurrencyInfo',
@@ -65,7 +66,7 @@ export async function debugContractConnection() {
     }
     
     try {
-      const allPlayerIds = await debugClient.readContract({
+      const allPlayerIds = await readContractCached({
         address: fdfPairContract.address as `0x${string}`,
         abi: fdfPairContract.abi as any,
         functionName: 'getAllPlayerIds',
@@ -88,7 +89,7 @@ export async function debugContractConnection() {
         for (const testIds of testCases) {
           try {
             console.log(`Testing getPrices with IDs: [${testIds.join(', ')}]`);
-            const result = await debugClient.readContract({
+            const result = await readContractCached({
               address: fdfPairContract.address as `0x${string}`,
               abi: fdfPairContract.abi as any,
               functionName: 'getPrices',
@@ -118,7 +119,7 @@ export async function debugContractConnection() {
         for (const testIds of testCases) {
           try {
             console.log(`Testing getPrices with IDs: [${testIds.join(', ')}]`);
-            const result = await debugClient.readContract({
+            const result = await readContractCached({
               address: fdfPairContract.address as `0x${string}`,
               abi: fdfPairContract.abi as any,
               functionName: 'getPrices',
@@ -151,7 +152,7 @@ export async function debugContractConnection() {
       for (const testIds of testCases) {
         try {
           console.log(`Testing getPrices with IDs: [${testIds.join(', ')}]`);
-          const result = await debugClient.readContract({
+          const result = await readContractCached({
             address: fdfPairContract.address as `0x${string}`,
             abi: fdfPairContract.abi as any,
             functionName: 'getPrices',

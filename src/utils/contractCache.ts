@@ -1,5 +1,5 @@
 import { createPublicClient, http } from 'viem';
-import { NETWORK_CONFIG } from '../contracts';
+import { getContractData, NETWORK_CONFIG } from '../contracts';
 
 interface ContractReadCache {
   [key: string]: {
@@ -63,7 +63,13 @@ class ContractCacheManager {
     functionName: string,
     args: any[]
   ): string {
-    const argsStr = JSON.stringify(args);
+    // Custom stringify function that handles BigInt
+    const argsStr = JSON.stringify(args, (key, value) => {
+      if (typeof value === 'bigint') {
+        return value.toString() + 'n'; // Add 'n' suffix to distinguish BigInt
+      }
+      return value;
+    });
     return `${address}:${functionName}:${argsStr}`;
   }
 

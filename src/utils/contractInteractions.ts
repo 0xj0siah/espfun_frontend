@@ -2,6 +2,7 @@
 import { createPublicClient, http, createWalletClient, custom } from 'viem';
 import { monadTestnet } from 'viem/chains';
 import { CONTRACT_ADDRESSES, CONTRACTS } from '../contracts';
+import { readContractCached } from './contractCache';
 
 // Create public client for read operations
 const publicClient = createPublicClient({
@@ -15,9 +16,9 @@ export async function getUserPlayerIds(userAddress: string): Promise<bigint[]> {
     console.log('getUserPlayerIds called with address:', userAddress);
     console.log('Contract address:', CONTRACT_ADDRESSES.DevelopmentPlayers);
 
-    const result = await publicClient.readContract({
+    const result = await readContractCached({
       address: CONTRACT_ADDRESSES.DevelopmentPlayers,
-      abi: CONTRACTS.DevelopmentPlayers.abi,
+      abi: CONTRACTS.DevelopmentPlayers.abi as any,
       functionName: 'getUserPlayerIds',
       args: [userAddress]
     });
@@ -34,9 +35,9 @@ export async function getLockedBalances(userAddress: string, playerIds: bigint[]
   try {
     console.log('getLockedBalances called with:', { userAddress, playerIds });
 
-    const result = await publicClient.readContract({
+    const result = await readContractCached({
       address: CONTRACT_ADDRESSES.DevelopmentPlayers,
-      abi: CONTRACTS.DevelopmentPlayers.abi,
+      abi: CONTRACTS.DevelopmentPlayers.abi as any,
       functionName: 'getLockedBalances',
       args: [userAddress, playerIds]
     });
@@ -142,9 +143,9 @@ export async function getActivePlayerIds(): Promise<bigint[]> {
   try {
     console.log('getActivePlayerIds called');
 
-    const result = await publicClient.readContract({
+    const result = await readContractCached({
       address: CONTRACT_ADDRESSES.Player,
-      abi: CONTRACTS.Player.abi,
+      abi: CONTRACTS.Player.abi as any,
       functionName: 'getActivePlayerIds',
       args: []
     });
@@ -161,9 +162,9 @@ export async function getPlayerBalance(userAddress: string, playerId: bigint): P
   try {
     console.log('getPlayerBalance called with:', { userAddress, playerId });
 
-    const result = await publicClient.readContract({
+    const result = await readContractCached({
       address: CONTRACT_ADDRESSES.Player,
-      abi: CONTRACTS.Player.abi,
+      abi: CONTRACTS.Player.abi as any,
       functionName: 'balanceOf',
       args: [userAddress, playerId]
     });
@@ -180,9 +181,9 @@ export async function getMultiplePlayerBalances(userAddress: string, playerIds: 
   try {
     console.log('getMultiplePlayerBalances called with:', { userAddress, playerIds });
 
-    const result = await publicClient.readContract({
+    const result = await readContractCached({
       address: CONTRACT_ADDRESSES.Player,
-      abi: CONTRACTS.Player.abi,
+      abi: CONTRACTS.Player.abi as any,
       functionName: 'balanceOfBatch',
       args: [playerIds.map(() => userAddress), playerIds]
     });

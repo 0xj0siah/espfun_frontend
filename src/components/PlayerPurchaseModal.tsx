@@ -17,6 +17,7 @@ import { usePoolInfo } from '../hooks/usePoolInfo';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams } from '../utils/signatures';
 import { apiService } from '../services/apiService';
 import { AuthenticationStatus } from './AuthenticationStatus';
+import { readContractCached } from '../utils/contractCache';
 
 interface Player {
   id: number;
@@ -101,7 +102,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       
       // Try currencyToken function first (more likely to be correct)
       try {
-        const address = await publicClient.readContract({
+        const address = await readContractCached({
           address: fdfPairContract.address as `0x${string}`,
           abi: fdfPairContract.abi as any,
           functionName: 'currencyToken',
@@ -114,7 +115,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         console.warn('currencyToken() failed, trying getCurrencyInfo():', currencyTokenError);
         
         // Fallback to getCurrencyInfo
-        const address = await publicClient.readContract({
+        const address = await readContractCached({
           address: fdfPairContract.address as `0x${string}`,
           abi: fdfPairContract.abi as any,
           functionName: 'getCurrencyInfo',
@@ -140,7 +141,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       const fdfPairContract = getContractData('FDFPair');
       
       // 🎯 CRITICAL: Use usedNonces + 1 (as per setup.md best practice)
-      const usedNonce = await publicClient.readContract({
+      const usedNonce = await readContractCached({
         address: fdfPairContract.address as `0x${string}`,
         abi: fdfPairContract.abi as any,
         functionName: 'usedNonces',
@@ -164,7 +165,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     
     try {
       const currencyAddress = await getCurrencyTokenAddress();
-      const balance = await publicClient.readContract({
+      const balance = await readContractCached({
         address: currencyAddress as `0x${string}`,
         abi: [
           {
@@ -205,7 +206,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Check current allowance first
     try {
-      const currentAllowance = await publicClient.readContract({
+      const currentAllowance = await readContractCached({
         address: currencyAddress as `0x${string}`,
         abi: [
           {
@@ -307,7 +308,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Check if player token pool exists
     try {
-      const poolInfo = await publicClient.readContract({
+      const poolInfo = await readContractCached({
         address: fdfPairContract.address as `0x${string}`,
         abi: fdfPairContract.abi as any,
         functionName: 'getPoolInfo',
