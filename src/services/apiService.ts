@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { requestCache } from '../utils/requestCache';
+import { retryWithBackoff, debounce } from '../utils/retryUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -75,11 +77,15 @@ class ApiService {
   setAuthToken(token: string) {
     this.token = token;
     localStorage.setItem('authToken', token);
+    // Clear user-specific cache when auth token changes
+    requestCache.clear();
   }
 
   clearAuthToken() {
     this.token = null;
     localStorage.removeItem('authToken');
+    // Clear all cache when user logs out
+    requestCache.clear();
   }
 
   private getHeaders() {
@@ -174,9 +180,21 @@ class ApiService {
   }
 
   async getBuyTokensNonce(address: string): Promise<{ nonce: number; address: string }> {
+    const cacheKey = `buyTokens-nonce:${address}`;
+    const endpoint = 'buyTokens/nonce';
+
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/buyTokens/nonce/${address}`);
-      return response.data;
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/buyTokens/nonce/${address}`);
+          });
+          return response.data;
+        },
+        { ttl: 30000 } // Cache nonce for 30 seconds
+      );
     } catch (error) {
       console.error('Failed to get buyTokens nonce:', error);
       if (axios.isAxiosError(error)) {
@@ -218,10 +236,22 @@ class ApiService {
 
   // Pack-related API functions
   async getAvailablePacks(): Promise<PackInfo[]> {
+    const cacheKey = 'available-packs';
+    const endpoint = 'packs';
+
     try {
-      // Don't require authentication for getting available packs
-      const response = await axios.get(`${API_BASE_URL}/api/packs`);
-      return response.data;
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          // Don't require authentication for getting available packs
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/packs`);
+          });
+          return response.data;
+        },
+        { ttl: 300000 } // Cache for 5 minutes since pack info changes infrequently
+      );
     } catch (error) {
       console.error('Failed to get available packs:', error);
       throw new Error('Failed to get available packs from backend');
@@ -230,13 +260,25 @@ class ApiService {
 
   // User points API functions
   async getUserPoints(): Promise<UserPoints> {
+    const cacheKey = `user-points:${this.token?.substring(0, 10) || 'anonymous'}`;
+    const endpoint = 'points/balance';
+
     try {
-      console.log('🔍 Fetching user points from backend...');
-      const response = await axios.get(`${API_BASE_URL}/api/points/balance`, {
-        headers: this.getHeaders()
-      });
-      console.log('✅ User points response:', JSON.stringify(response.data, null, 2));
-      return response.data;
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          console.log('🔍 Fetching user points from backend...');
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/points/balance`, {
+              headers: this.getHeaders()
+            });
+          });
+          console.log('✅ User points response:', JSON.stringify(response.data, null, 2));
+          return response.data;
+        },
+        { ttl: 15000 } // Cache for 15 seconds since points change more frequently
+      );
     } catch (error) {
       console.error('Failed to get user points:', error);
       if (axios.isAxiosError(error)) {
@@ -298,6 +340,122 @@ class ApiService {
         throw new Error(`Pack purchase failed: ${errorMessage}`);
       }
       throw new Error('Failed to purchase pack from backend');
+    }
+  }
+
+  // Player management API functions
+  async getPromotionCost(playerIds: string[]): Promise<{ [playerId: string]: number }> {
+    const cacheKey = `promotion-cost:${playerIds.sort().join(',')}`;
+    const endpoint = 'players/promotion-cost';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          console.log('💰 Getting promotion cost for players:', playerIds);
+          const response = await retryWithBackoff(async () => {
+            return axios.post(
+              `${API_BASE_URL}/api/players/promotion-cost`,
+              { playerIds },
+              { headers: this.getHeaders() }
+            );
+          });
+          console.log('✅ Promotion cost response:', response.data);
+          return response.data;
+        },
+        { ttl: 60000 } // Cache for 1 minute since costs don't change frequently
+      );
+    } catch (error) {
+      console.error('Failed to get promotion cost:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('Authentication required. Please authenticate your wallet first.');
+      }
+      throw new Error('Failed to get promotion cost from backend');
+    }
+  }
+
+  async getCutValue(playerIds: string[]): Promise<{ [playerId: string]: number }> {
+    const cacheKey = `cut-value:${playerIds.sort().join(',')}`;
+    const endpoint = 'players/cut-value';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          console.log('💎 Getting cut value for players:', playerIds);
+          const response = await retryWithBackoff(async () => {
+            return axios.post(
+              `${API_BASE_URL}/api/players/cut-value`,
+              { playerIds },
+              { headers: this.getHeaders() }
+            );
+          });
+          console.log('✅ Cut value response:', response.data);
+          return response.data;
+        },
+        { ttl: 60000 } // Cache for 1 minute since values don't change frequently
+      );
+    } catch (error) {
+      console.error('Failed to get cut value:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('Authentication required. Please authenticate your wallet first.');
+      }
+      throw new Error('Failed to get cut value from backend');
+    }
+  }
+
+  async promotePlayer(playerId: string, shares: number): Promise<any> {
+    try {
+      console.log('⬆️ Promoting player:', { playerId, shares });
+      const response = await axios.post(
+        `${API_BASE_URL}/api/players/promote`,
+        { playerId, shares },
+        { headers: this.getHeaders() }
+      );
+      console.log('✅ Promote player response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to promote player:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Authentication required. Please authenticate your wallet first.');
+        }
+        if (error.response?.status === 400) {
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Invalid promotion request';
+          throw new Error(errorMessage);
+        }
+        if (error.response?.status === 402) {
+          throw new Error('Insufficient skill points for promotion.');
+        }
+      }
+      throw new Error('Failed to promote player');
+    }
+  }
+
+  async cutPlayer(playerId: string, shares: number): Promise<any> {
+    try {
+      console.log('⬇️ Cutting player:', { playerId, shares });
+      const response = await axios.post(
+        `${API_BASE_URL}/api/players/cut`,
+        { playerId, shares },
+        { headers: this.getHeaders() }
+      );
+      console.log('✅ Cut player response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to cut player:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Authentication required. Please authenticate your wallet first.');
+        }
+        if (error.response?.status === 400) {
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Invalid cut request';
+          throw new Error(errorMessage);
+        }
+      }
+      throw new Error('Failed to cut player');
     }
   }
 }

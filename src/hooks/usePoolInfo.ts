@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { createPublicClient, http } from 'viem';
-import { getContractData, NETWORK_CONFIG } from '../contracts';
+import { getContractData } from '../contracts';
+import { readContractCached, initializeContractCache } from '../utils/contractCache';
 
 interface PoolInfo {
   playerId: number;
@@ -17,32 +17,13 @@ export interface PriceImpactCalculation {
   effectivePrice: number;
 }
 
-// Create public client for reading contract data
-const publicClient = createPublicClient({
-  chain: {
-    id: NETWORK_CONFIG.chainId,
-    name: NETWORK_CONFIG.name,
-    rpcUrls: {
-      default: { http: [NETWORK_CONFIG.rpcUrl] },
-      public: { http: [NETWORK_CONFIG.rpcUrl] },
-    },
-    blockExplorers: {
-      default: { name: 'MonadScan', url: NETWORK_CONFIG.blockExplorer },
-    },
-    nativeCurrency: {
-      name: 'MON',
-      symbol: 'MON',
-      decimals: 18,
-    },
-    testnet: true,
-  },
-  transport: http(NETWORK_CONFIG.rpcUrl),
-});
-
 export function usePoolInfo() {
   const [poolData, setPoolData] = useState<Map<number, PoolInfo>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Initialize contract cache
+  initializeContractCache();
 
   const fetchPoolInfo = async (playerIds: number[]) => {
     if (playerIds.length === 0) {
@@ -60,9 +41,9 @@ export function usePoolInfo() {
       console.log('Using FDFPair contract:', fdfPairContract.address);
       
       // Call the actual contract to get pool info
-      const result = await publicClient.readContract({
+      const result = await readContractCached({
         address: fdfPairContract.address as `0x${string}`,
-        abi: fdfPairContract.abi,
+        abi: fdfPairContract.abi as any,
         functionName: 'getPoolInfo',
         args: [playerIds.map(id => BigInt(id))],
       });

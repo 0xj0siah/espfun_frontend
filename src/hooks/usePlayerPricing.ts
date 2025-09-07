@@ -1,38 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { createPublicClient, http, formatUnits, parseUnits } from 'viem';
-import { getContractData, NETWORK_CONFIG } from '../contracts';
-
-// Create a public client for reading from the contract
-const publicClient = createPublicClient({
-  chain: {
-    id: NETWORK_CONFIG.chainId,
-    name: NETWORK_CONFIG.name,
-    rpcUrls: {
-      default: { http: [NETWORK_CONFIG.rpcUrl] },
-      public: { http: [NETWORK_CONFIG.rpcUrl] },
-    },
-    blockExplorers: {
-      default: { name: 'MonadScan', url: NETWORK_CONFIG.blockExplorer },
-    },
-    nativeCurrency: {
-      name: 'MON',
-      symbol: 'MON',
-      decimals: 18,
-    },
-    testnet: true,
-  },
-  transport: http(NETWORK_CONFIG.rpcUrl, {
-    batch: true,
-    timeout: 30000,
-  }),
-});
+import { formatUnits, parseUnits } from 'viem';
+import { getContractData } from '../contracts';
+import { readContractCached, initializeContractCache } from '../utils/contractCache';
 
 // Hook to fetch player price from FDFPair contract
 export function usePlayerPrice(playerId: number) {
   const [price, setPrice] = useState<string>('0 USDC');
   const [loading, setLoading] = useState(false);
   const { ready } = usePrivy();
+
+  // Initialize contract cache
+  useEffect(() => {
+    initializeContractCache();
+  }, []);
 
   useEffect(() => {
     if (!ready || !playerId) return;
@@ -43,9 +24,9 @@ export function usePlayerPrice(playerId: number) {
         const fdfPairContract = getContractData('FDFPair');
         
         // Make actual contract call to get prices using getPrices function
-        const result = await publicClient.readContract({
+        const result = await readContractCached({
           address: fdfPairContract.address as `0x${string}`,
-          abi: fdfPairContract.abi,
+          abi: fdfPairContract.abi as any,
           functionName: 'getPrices',
           args: [[BigInt(playerId)]], // Array of player token IDs
         });
@@ -73,8 +54,8 @@ export function usePlayerPrice(playerId: number) {
 
     fetchPrice();
     
-    // Update prices every 30 seconds
-    const interval = setInterval(fetchPrice, 30000);
+    // Update prices every 5 minutes (cache handles more frequent updates)
+    const interval = setInterval(fetchPrice, 300000);
     return () => clearInterval(interval);
   }, [playerId, ready]);
 
@@ -96,15 +77,14 @@ export function usePlayerPrices(playerIds: number[]) {
         console.log('Fetching prices for player IDs:', playerIds);
         const fdfPairContract = getContractData('FDFPair');
         console.log('Using FDFPair contract at:', fdfPairContract.address);
-        console.log('Network config:', NETWORK_CONFIG);
         const newPrices: Record<number, string> = {};
         
         // First, test basic connectivity
         try {
           console.log('Testing contract connectivity...');
-          const currencyInfo = await publicClient.readContract({
+          const currencyInfo = await readContractCached({
             address: fdfPairContract.address as `0x${string}`,
-            abi: fdfPairContract.abi,
+            abi: fdfPairContract.abi as any,
             functionName: 'getCurrencyInfo',
             args: [],
           });
@@ -116,9 +96,9 @@ export function usePlayerPrices(playerIds: number[]) {
         // Get all available player IDs from contract
         try {
           console.log('Getting all player IDs from contract...');
-          const allPlayerIds = await publicClient.readContract({
+          const allPlayerIds = await readContractCached({
             address: fdfPairContract.address as `0x${string}`,
-            abi: fdfPairContract.abi,
+            abi: fdfPairContract.abi as any,
             functionName: 'getAllPlayerIds',
             args: [],
           });
@@ -145,9 +125,9 @@ export function usePlayerPrices(playerIds: number[]) {
           console.log('Player IDs as BigInt:', playerIds.map(id => BigInt(id)));
           
           // First try getPrices
-          const result = await publicClient.readContract({
+          const result = await readContractCached({
             address: fdfPairContract.address as `0x${string}`,
-            abi: fdfPairContract.abi,
+            abi: fdfPairContract.abi as any,
             functionName: 'getPrices',
             args: [playerIds.map(id => BigInt(id))],
           });
@@ -195,9 +175,9 @@ export function usePlayerPrices(playerIds: number[]) {
           // Try with simple test IDs as fallback
           try {
             console.log('Testing with basic player IDs [1, 2, 3, 4, 5, 6]...');
-            const testResult = await publicClient.readContract({
+            const testResult = await readContractCached({
               address: fdfPairContract.address as `0x${string}`,
-              abi: fdfPairContract.abi,
+              abi: fdfPairContract.abi as any,
               functionName: 'getPrices',
               args: [[1n, 2n, 3n, 4n, 5n, 6n]],
             });
@@ -244,9 +224,9 @@ export function usePlayerPrices(playerIds: number[]) {
               
               for (const testId of testIds) {
                 try {
-                  const singleResult = await publicClient.readContract({
+                  const singleResult = await readContractCached({
                     address: fdfPairContract.address as `0x${string}`,
-                    abi: fdfPairContract.abi,
+                    abi: fdfPairContract.abi as any,
                     functionName: 'getPrices',
                     args: [[BigInt(testId)]],
                   });
@@ -292,8 +272,8 @@ export function usePlayerPrices(playerIds: number[]) {
 
     fetchPrices();
     
-    // Update prices every 30 seconds
-    const interval = setInterval(fetchPrices, 30000);
+    // Update prices every 5 minutes (cache handles more frequent updates)  
+    const interval = setInterval(fetchPrices, 300000);
     return () => clearInterval(interval);
   }, [JSON.stringify(playerIds), ready]);
 
@@ -315,9 +295,9 @@ export async function getReserveData(playerId: number) {
   try {
     const fdfPairContract = getContractData('FDFPair');
     
-    const poolInfo = await publicClient.readContract({
+    const poolInfo = await readContractCached({
       address: fdfPairContract.address as `0x${string}`,
-      abi: fdfPairContract.abi,
+      abi: fdfPairContract.abi as any,
       functionName: 'getPoolInfo',
       args: [[BigInt(playerId)]], // Array of player token IDs
     });

@@ -8,6 +8,7 @@ export const BackendStatus = () => {
     const checkBackendStatus = async () => {
       try {
         // Try to get a nonce as a simple health check
+        // Use a cached version to prevent spamming
         await apiService.getBuyTokensNonce('0x0000000000000000000000000000000000000000');
         setStatus('available');
       } catch (error) {
@@ -16,8 +17,10 @@ export const BackendStatus = () => {
       }
     };
 
+    // Only check status once when component mounts
+    // Cache will handle subsequent identical requests
     checkBackendStatus();
-  }, []);
+  }, []); // Empty dependency array to run only once
 
   if (status === 'checking') {
     return (

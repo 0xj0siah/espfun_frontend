@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -8,34 +8,8 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Scissors, TrendingUp, Star, X, ArrowLeft, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
-
-// Mock implementations for promotion functions
-const getPromotionCost = async (playerId: string): Promise<number> => {
-  // Mock implementation - return a random cost between 50-200 ETH
-  return Math.floor(Math.random() * 150) + 50;
-};
-
-const getCutValue = async (playerId: string): Promise<number> => {
-  // Mock implementation - return a random value between 20-100 ETH
-  return Math.floor(Math.random() * 80) + 20;
-};
-
-const cutPlayers = async (playerId: string, shares: number): Promise<any> => {
-  // Mock implementation - simulate API call
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  return { success: true, message: `Successfully cut ${shares} shares of player ${playerId}` };
-};
-
-const promotePlayers = async (playerId: string, shares: number): Promise<any> => {
-  // Mock implementation - simulate API call
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  return { success: true, message: `Successfully promoted ${shares} shares of player ${playerId}` };
-};
-
-const testFunction = () => {
-  // Mock implementation
-  return { status: 'ok', message: 'API service connection test successful' };
-};
+import { apiService } from '../services/apiService';
+import { debounce } from '../utils/retryUtils';
 
 interface Player {
   id: string;
@@ -77,6 +51,44 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   const [promoteShares, setPromoteShares] = useState('');
   const [cutShares, setCutShares] = useState('');
   const [selectedPercentage, setSelectedPercentage] = useState<number | null>(null);
+  const [promotionCost, setPromotionCost] = useState<number | null>(null);
+  const [cutValue, setCutValue] = useState<number | null>(null);
+  const [loadingCosts, setLoadingCosts] = useState(false);
+
+  // Create a debounced version of cost loading to prevent request spam
+  const debouncedLoadCosts = useMemo(
+    () => debounce(async (playerId: string) => {
+      if (!playerId) return;
+      
+      setLoadingCosts(true);
+      try {
+        // Load both promotion cost and cut value in parallel
+        const [promotionCostResponse, cutValueResponse] = await Promise.all([
+          apiService.getPromotionCost([playerId]),
+          apiService.getCutValue([playerId])
+        ]);
+        
+        setPromotionCost(promotionCostResponse[playerId] || null);
+        setCutValue(cutValueResponse[playerId] || null);
+      } catch (error) {
+        console.error('Error loading cost and value info:', error);
+        // Only show error toast if it's not a rate limit error (cache will handle those)
+        if (!error?.message?.includes('Rate limit')) {
+          toast.error('Failed to load cost information');
+        }
+      } finally {
+        setLoadingCosts(false);
+      }
+    }, 500), // 500ms debounce delay
+    []
+  );
+
+  // Load cost and value information when modal opens
+  useEffect(() => {
+    if (isOpen && player?.id) {
+      debouncedLoadCosts(player.id);
+    }
+  }, [isOpen, player?.id, debouncedLoadCosts]);
 
   if (!player) return null;
 
@@ -94,6 +106,8 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   };
 
   const handlePromoteSubmit = async () => {
+    if (!player) return;
+    
     const shares = parseInt(promoteShares) || 0;
     if (shares <= 0 || shares > totalShares) {
       toast.error('Please enter a valid number of shares');
@@ -102,23 +116,22 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
 
     setLoading(true);
     try {
-      const result = await promotePlayers(player.id, shares);
+      const result = await apiService.promotePlayer(player.id, shares);
       
-      if (result.success) {
-        toast.success(`Successfully promoted ${shares} shares of ${player.name}!`);
-        onClose();
-      } else {
-        toast.error(result.message || 'Promotion failed. Please try again.');
-      }
+      toast.success(`Successfully promoted ${shares} shares of ${player.name}!`);
+      onClose();
     } catch (error) {
       console.error('Error promoting player:', error);
-      toast.error('An error occurred during promotion. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during promotion. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCutSubmit = async () => {
+    if (!player) return;
+    
     const shares = parseInt(cutShares) || 0;
     if (shares <= 0 || shares > totalShares) {
       toast.error('Please enter a valid number of shares');
@@ -127,17 +140,14 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
 
     setLoading(true);
     try {
-      const result = await cutPlayers(player.id, shares);
+      const result = await apiService.cutPlayer(player.id, shares);
       
-      if (result.success) {
-        toast.success(`Successfully cut ${shares} shares of ${player.name}!`);
-        onClose();
-      } else {
-        toast.error(result.message || 'Cut failed. Please try again.');
-      }
+      toast.success(`Successfully cut ${shares} shares of ${player.name}!`);
+      onClose();
     } catch (error) {
       console.error('Error cutting player:', error);
-      toast.error('An error occurred during cut. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during cut. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -302,6 +312,13 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <p className="text-sm text-muted-foreground">
                   Choose how many shares to promote
                 </p>
+                {loadingCosts ? (
+                  <div className="text-sm text-blue-500 mt-2">Loading promotion costs...</div>
+                ) : promotionCost !== null ? (
+                  <div className="text-sm text-blue-600 font-medium mt-2">
+                    Cost: {promotionCost} skill points per share
+                  </div>
+                ) : null}
               </div>
 
               {/* Manual Input */}
@@ -323,6 +340,11 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <p className="text-xs text-muted-foreground text-center">
                   Available: {player.lockedShares || '0'} shares
                 </p>
+                {promotionCost !== null && promoteShares && parseInt(promoteShares) > 0 && (
+                  <div className="text-sm text-blue-600 font-medium text-center mt-1">
+                    Total cost: {(promotionCost * parseInt(promoteShares)).toLocaleString()} skill points
+                  </div>
+                )}
               </div>
 
               {/* Percentage Buttons */}
@@ -388,6 +410,13 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <p className="text-sm text-muted-foreground">
                   Choose how many shares to cut
                 </p>
+                {loadingCosts ? (
+                  <div className="text-sm text-green-500 mt-2">Loading cut values...</div>
+                ) : cutValue !== null ? (
+                  <div className="text-sm text-green-600 font-medium mt-2">
+                    Reward: {cutValue} tournament points per share
+                  </div>
+                ) : null}
               </div>
 
               {/* Manual Input */}
@@ -409,6 +438,11 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <p className="text-xs text-muted-foreground text-center">
                   Available: {player.lockedShares || '0'} shares
                 </p>
+                {cutValue !== null && cutShares && parseInt(cutShares) > 0 && (
+                  <div className="text-sm text-green-600 font-medium text-center mt-1">
+                    Total reward: {(cutValue * parseInt(cutShares)).toLocaleString()} tournament points
+                  </div>
+                )}
               </div>
 
               {/* Percentage Buttons */}
