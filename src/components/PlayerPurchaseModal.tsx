@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
-import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock, X } from 'lucide-react';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
@@ -831,47 +831,59 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl border-0 shadow-2xl">
-        <DialogHeader className="space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <ImageWithFallback
-                  src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=150&h=150&fit=crop&crop=face&random=${player.id}`}
-                  alt={player.name}
-                  className="w-20 h-20 rounded-xl object-cover shadow-lg"
-                />
-                <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)} flex items-center justify-center text-white text-sm font-bold`}>
-                  {player.rating}
+        <div className="relative">
+          {/* Close button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="absolute -top-2 -right-2 z-10 overflow-hidden group h-8 w-8 p-0 rounded-full hover:bg-background/50"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            <X className="h-4 w-4" />
+          </Button>
+        
+          <DialogHeader className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <ImageWithFallback
+                    src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=150&h=150&fit=crop&crop=face&random=${player.id}`}
+                    alt={player.name}
+                    className="w-20 h-20 rounded-xl object-cover shadow-lg"
+                  />
+                  <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)} flex items-center justify-center text-white text-sm font-bold`}>
+                    {player.rating}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <DialogTitle className="text-2xl bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                  {player.name}
-                </DialogTitle>
-                <DialogDescription className="sr-only">
-                  Player details and purchase information for {player.name}
-                </DialogDescription>
-                <div className="flex items-center space-x-2 mt-2">
-                  <Badge variant="outline" className="flex items-center space-x-1">
-                    {getPositionIcon(player.position)}
-                    <span>{player.position}</span>
-                  </Badge>
-                  <Badge variant="secondary">{player.game}</Badge>
-                  <div className={`flex items-center space-x-1 ${
-                    player.trend === 'up' ? 'text-green-500' : 
-                    player.trend === 'down' ? 'text-red-500' : 
-                    'text-muted-foreground'
-                  }`}>
-                    {player.trend === 'up' ? <TrendingUp className="w-4 h-4" /> : 
-                     player.trend === 'down' ? <TrendingDown className="w-4 h-4" /> : 
-                     <span className="w-4 h-4 flex items-center justify-center">→</span>}
-                    <span className="text-sm">{player.points} pts</span>
+                <div>
+                  <DialogTitle className="text-2xl bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                    {player.name}
+                  </DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Player details and purchase information for {player.name}
+                  </DialogDescription>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Badge variant="outline" className="flex items-center space-x-1">
+                      {getPositionIcon(player.position)}
+                      <span>{player.position}</span>
+                    </Badge>
+                    <Badge variant="secondary">{player.game}</Badge>
+                    <div className={`flex items-center space-x-1 ${
+                      player.trend === 'up' ? 'text-green-500' : 
+                      player.trend === 'down' ? 'text-red-500' : 
+                      'text-muted-foreground'
+                    }`}>
+                      {player.trend === 'up' ? <TrendingUp className="w-4 h-4" /> : 
+                       player.trend === 'down' ? <TrendingDown className="w-4 h-4" /> : 
+                       <span className="w-4 h-4 flex items-center justify-center">→</span>}
+                      <span className="text-sm">{player.points} pts</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </DialogHeader>
+          </DialogHeader>
 
         {/* Authentication Status */}
         <div className="px-1">
@@ -897,8 +909,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                       setTransactionStatus('idle');
                       setStatusMessage('');
                     }}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg text-lg px-8 py-3 transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95"
+                    className="relative overflow-hidden group bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg text-lg px-8 py-3 transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95"
                   >
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     Purchase Player
                   </Button>
                   <Button 
@@ -909,8 +922,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                       setStatusMessage('');
                     }}
                     variant="outline"
-                    className="text-lg px-8 py-3 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 hover:border-red-500 hover:text-red-500"
+                    className="relative overflow-hidden group text-lg px-8 py-3 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 hover:border-red-500 hover:text-red-500"
                   >
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     Sell Player
                   </Button>
                 </div>
@@ -1140,20 +1154,22 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                       setStatusMessage('');
                       setTransactionHash('');
                     }}
-                    className="flex-1"
+                    className="relative overflow-hidden group flex-1"
                     disabled={isLoading}
                   >
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     Cancel
                   </Button>
                   <Button
                     onClick={handleConfirm}
                     disabled={!usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading}
-                    className={`flex-1 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 ${
+                    className={`relative overflow-hidden group flex-1 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 ${
                       action === 'buy'
                         ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                     }`}
                   >
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     {isLoading ? (
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1305,6 +1321,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               </Card>
             </div>
           )}
+        </div>
         </div>
       </DialogContent>
     </Dialog>

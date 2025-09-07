@@ -5,7 +5,6 @@ import TransfersSection from './components/TransfersSection';
 import LiveScoresSection from './components/LiveScoresSection';
 import LeaderboardSection from './components/LeaderboardSection';
 import PackOpeningSection from './components/PackOpeningSection';
-import { AuthTest } from './components/AuthTest';
 
 // Import debug utility
 import './utils/contractDebug';
@@ -25,8 +24,6 @@ export default function App() {
         return <LeaderboardSection />;
       case 'Pack Opening':
         return <PackOpeningSection />;
-      case 'Auth Test':
-        return <AuthTest />;
       default:
         return <TeamSection />;
     }
