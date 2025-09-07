@@ -20,10 +20,10 @@ class ContractCacheManager {
   private rateLimitTracker: Map<string, { count: number; resetTime: number }> = new Map();
   
   // Cache TTL settings (in milliseconds)
-  private readonly DEFAULT_TTL = 30000; // 30 seconds
-  private readonly PRICE_TTL = 15000; // 15 seconds for prices (more frequent updates)
-  private readonly POOL_INFO_TTL = 30000; // 30 seconds for pool info
-  private readonly STATIC_DATA_TTL = 300000; // 5 minutes for static data like player IDs
+  private readonly DEFAULT_TTL = 60000; // 1 minute
+  private readonly PRICE_TTL = 60000; // 1 minute for prices (reduced frequency)
+  private readonly POOL_INFO_TTL = 120000; // 2 minutes for pool info
+  private readonly STATIC_DATA_TTL = 600000; // 10 minutes for static data like player IDs
   
   // Rate limiting settings
   private readonly RATE_LIMIT_WINDOW = 60000; // 1 minute

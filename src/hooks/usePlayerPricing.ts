@@ -52,10 +52,14 @@ export function usePlayerPrice(playerId: number) {
       }
     };
 
-    fetchPrice();
+    // Add small random delay to stagger initial requests
+    const delay = Math.random() * 2000; // 0-2 seconds
+    setTimeout(() => {
+      fetchPrice();
+    }, delay);
     
-    // Update prices every 5 minutes (cache handles more frequent updates)
-    const interval = setInterval(fetchPrice, 300000);
+    // Update prices every 15 seconds (cache handles more frequent updates)
+    const interval = setInterval(fetchPrice, 15000);
     return () => clearInterval(interval);
   }, [playerId, ready]);
 
@@ -270,10 +274,14 @@ export function usePlayerPrices(playerIds: number[]) {
       }
     };
 
-    fetchPrices();
+    // Add small random delay to stagger initial requests
+    const delay = Math.random() * 2000; // 0-2 seconds
+    setTimeout(() => {
+      fetchPrices();
+    }, delay);
     
-    // Update prices every 5 minutes (cache handles more frequent updates)  
-    const interval = setInterval(fetchPrices, 300000);
+    // Update prices every 15 seconds (cache handles more frequent updates)  
+    const interval = setInterval(fetchPrices, 15000);
     return () => clearInterval(interval);
   }, [JSON.stringify(playerIds), ready]);
 
