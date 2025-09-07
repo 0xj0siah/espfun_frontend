@@ -136,3 +136,61 @@ export async function testDevelopmentPlayersContract(userAddress: string): Promi
     };
   }
 }
+
+// Player contract functions
+export async function getActivePlayerIds(): Promise<bigint[]> {
+  try {
+    console.log('getActivePlayerIds called');
+
+    const result = await publicClient.readContract({
+      address: CONTRACT_ADDRESSES.Player,
+      abi: CONTRACTS.Player.abi,
+      functionName: 'getActivePlayerIds',
+      args: []
+    });
+
+    console.log('getActivePlayerIds result:', result);
+    return result as bigint[];
+  } catch (error) {
+    console.error('Error fetching active player IDs:', error);
+    return [];
+  }
+}
+
+export async function getPlayerBalance(userAddress: string, playerId: bigint): Promise<bigint> {
+  try {
+    console.log('getPlayerBalance called with:', { userAddress, playerId });
+
+    const result = await publicClient.readContract({
+      address: CONTRACT_ADDRESSES.Player,
+      abi: CONTRACTS.Player.abi,
+      functionName: 'balanceOf',
+      args: [userAddress, playerId]
+    });
+
+    console.log('getPlayerBalance result:', result);
+    return result as bigint;
+  } catch (error) {
+    console.error('Error fetching player balance:', error);
+    return BigInt(0);
+  }
+}
+
+export async function getMultiplePlayerBalances(userAddress: string, playerIds: bigint[]): Promise<bigint[]> {
+  try {
+    console.log('getMultiplePlayerBalances called with:', { userAddress, playerIds });
+
+    const result = await publicClient.readContract({
+      address: CONTRACT_ADDRESSES.Player,
+      abi: CONTRACTS.Player.abi,
+      functionName: 'balanceOfBatch',
+      args: [playerIds.map(() => userAddress), playerIds]
+    });
+
+    console.log('getMultiplePlayerBalances result:', result);
+    return result as bigint[];
+  } catch (error) {
+    console.error('Error fetching multiple player balances:', error);
+    return playerIds.map(() => BigInt(0));
+  }
+}

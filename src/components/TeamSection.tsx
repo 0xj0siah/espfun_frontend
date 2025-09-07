@@ -14,7 +14,8 @@ import { PromotionMenu } from './PromotionMenu';
 import { toast } from "sonner";
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import fakeData from '../fakedata.json';
-import { getDevelopmentPlayersData, testDevelopmentPlayersContract } from '../utils/contractInteractions';
+import { getDevelopmentPlayersData, testDevelopmentPlayersContract, getActivePlayerIds, getPlayerBalance } from '../utils/contractInteractions';
+import { usePoolInfo } from '../hooks/usePoolInfo';
 
 interface PlayerStats {
   kills: number;
@@ -45,6 +46,8 @@ interface Player {
   xp: number;
   potential: number;
   lockedShares?: string; // Optional property for development players
+  ownedShares?: bigint; // Owned shares from Player contract
+  totalValue?: string; // Total value of owned shares
 }
 
 // Type for Privy's wallet
@@ -64,6 +67,7 @@ interface PrivyWallet extends SmartWallet {
 export default function TeamSection() {
   const [activeTab, setActiveTab] = useState('squad');
   const [teamPlayers, setTeamPlayers] = useState<Player[]>([]);
+  const [ownedPlayers, setOwnedPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,6 +92,9 @@ export default function TeamSection() {
     error?: string;
   } | null>(null);
 
+  // Add pool data hook for accurate pricing
+  const { poolData, fetchPoolInfo } = usePoolInfo();
+
   // Helper function to format shares from wei to readable number
   const formatShares = (wei: bigint): string => {
     try {
@@ -98,6 +105,115 @@ export default function TeamSection() {
     } catch (error) {
       console.error('Error formatting shares:', error);
       return '0';
+    }
+  };
+
+  // Helper function to calculate total value of owned shares using real pool price
+  const calculateTotalValue = (ownedShares: bigint, playerId: number): string => {
+    try {
+      const shares = parseFloat(formatEther(ownedShares));
+      
+      // Try to get real price from pool data first
+      const poolInfo = poolData.get(playerId);
+      let pricePerShare = 0;
+      
+      if (poolInfo && poolInfo.currencyReserve > 0n && poolInfo.playerTokenReserve > 0n) {
+        // Calculate real price from pool reserves: USDC reserve / token reserve
+        const usdcReserve = Number(poolInfo.currencyReserve) / 1e6; // USDC has 6 decimals
+        const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18; // Tokens have 18 decimals
+        pricePerShare = usdcReserve / tokenReserve;
+        console.log(`🔄 Using real pool price for player ${playerId}: ${pricePerShare.toFixed(8)} USDC per token`);
+      } else {
+        // Fallback to pricing hook data
+        const fallbackPrice = playerPrices[playerId] || '0.000 USDC';
+        pricePerShare = parseFloat(fallbackPrice.replace(/[^\d.-]/g, '')) || 0;
+        console.log(`⚠️ Using fallback price for player ${playerId}: ${pricePerShare} USDC per token`);
+      }
+      
+      const totalValue = shares * pricePerShare;
+      return `${totalValue.toFixed(3)} USDC`;
+    } catch (error) {
+      console.error('Error calculating total value:', error);
+      return '0.000 USDC';
+    }
+  };
+
+  // Fetch owned players and their balances using individual balanceOf calls
+  const fetchOwnedPlayers = async (userAddress: string) => {
+    try {
+      // Get all active player IDs
+      const activePlayerIds = await getActivePlayerIds();
+      console.log('Active player IDs:', activePlayerIds);
+
+      if (activePlayerIds.length === 0) {
+        setOwnedPlayers([]);
+        return;
+      }
+
+      // Get balances for each active player using individual balanceOf calls
+      console.log('Calling balanceOf for each active player...');
+      const balancePromises = activePlayerIds.map(playerId => {
+        console.log(`Calling balanceOf(${userAddress}, ${playerId})`);
+        return getPlayerBalance(userAddress, playerId);
+      });
+
+      const balances = await Promise.all(balancePromises);
+      console.log('Player balances from balanceOf calls:', balances);
+
+      // Filter players that the user owns (balance > 0)
+      const ownedPlayerData = activePlayerIds
+        .map((playerId, index) => ({
+          playerId,
+          balance: balances[index]
+        }))
+        .filter(({ balance }) => balance > BigInt(0));
+
+      if (ownedPlayerData.length === 0) {
+        setOwnedPlayers([]);
+        return;
+      }
+
+      // Get player prices for value calculation
+      const playerPricesArray = ownedPlayerData.map(({ playerId }) =>
+        playerPrices[playerId.toString()] || '0.000 USDC'
+      );
+
+      // Create player objects for owned players
+      const ownedPlayersList = ownedPlayerData.map(({ playerId, balance }, index) => {
+        const playerIdNum = Number(playerId);
+        const basePlayerData = fakeData.teamPlayers.find(p => p.id === playerIdNum) ||
+          fakeData.teamPlayers[playerIdNum % fakeData.teamPlayers.length];
+
+        return {
+          ...basePlayerData,
+          id: playerIdNum,
+          price: playerPricesArray[index],
+          points: 0, // Will be replaced with total value
+          ownedShares: balance,
+          totalValue: calculateTotalValue(balance, playerIdNum), // Use player ID instead of price
+          // Add required fields for Player interface
+          level: 1,
+          xp: 50,
+          potential: 75,
+          // Ensure types are properly cast
+          trend: (basePlayerData.trend as "up" | "down" | "stable") || "stable",
+          recentMatches: basePlayerData.recentMatches.map(match => ({
+            ...match,
+            result: match.result as "win" | "loss"
+          }))
+        };
+      });
+
+      setOwnedPlayers(ownedPlayersList);
+      
+      // Fetch pool data for accurate pricing
+      const playerIds = ownedPlayerData.map(({ playerId }) => Number(playerId));
+      if (playerIds.length > 0) {
+        await fetchPoolInfo(playerIds);
+      }
+    } catch (error) {
+      console.error('Error fetching owned players:', error);
+      setOwnedPlayers([]);
     }
   };
 
@@ -132,6 +248,8 @@ export default function TeamSection() {
   const developmentPlayersWithData = useMemo(() => {
     return developmentPlayers.playerIds.map((playerId, index) => {
       const playerIdNum = Number(playerId);
+      const lockedBalance = developmentPlayers.lockedBalances[index] || BigInt(0);
+      
       // Find matching player data from fakeData, or create a default one
       const basePlayerData = fakeData.teamPlayers.find(p => p.id === playerIdNum) || {
         id: playerIdNum,
@@ -160,7 +278,9 @@ export default function TeamSection() {
         // Update with contract data
         price: playerPrices[playerIdNum] || basePlayerData.price,
         // Add development-specific info with formatted shares
-        lockedShares: formatShares(developmentPlayers.lockedBalances[index] || BigInt(0)),
+        lockedShares: formatShares(lockedBalance),
+        // Calculate total value using the same logic as active players
+        totalValue: calculateTotalValue(lockedBalance, playerIdNum),
         // Ensure types are properly cast
         trend: basePlayerData.trend as "up" | "down" | "stable",
         recentMatches: basePlayerData.recentMatches.map(match => ({
@@ -169,7 +289,7 @@ export default function TeamSection() {
         }))
       };
     });
-  }, [developmentPlayers.playerIds, developmentPlayers.lockedBalances, playerPrices]);
+  }, [developmentPlayers.playerIds, developmentPlayers.lockedBalances, playerPrices, poolData]);
 
   const handleDevelopmentPlayerClick = (player: any) => {
     // Convert the development player to promotion menu format
@@ -212,6 +332,15 @@ export default function TeamSection() {
     setTeamPlayers(playersWithPricing);
     setLoading(false); // Set loading to false regardless of pricesLoading
   }, [playerPrices]); // Remove pricesLoading from dependencies
+
+  // Fetch owned players when user is authenticated or pool data changes
+  useEffect(() => {
+    if (authenticated && user?.wallet?.address) {
+      fetchOwnedPlayers(user.wallet.address);
+    } else {
+      setOwnedPlayers([]);
+    }
+  }, [authenticated, user?.wallet?.address, poolData]); // Add poolData as dependency
 
   // Fetch development players data
   useEffect(() => {
@@ -308,10 +437,16 @@ export default function TeamSection() {
 
         <TabsContent value="squad" className="space-y-6">
           {loading ? (
-            <div>Loading team...</div>
+            <div>Loading owned players...</div>
+          ) : ownedPlayers.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Owned Players</h3>
+              <p className="text-muted-foreground">You don't own any player shares yet. Purchase some to see them here!</p>
+            </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {teamPlayers.map((player, index) => (
+              {ownedPlayers.map((player, index) => (
                 <motion.div
                   key={player.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -323,24 +458,71 @@ export default function TeamSection() {
                   }}
                   className="cursor-pointer"
                 >
-                  <Card className="p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/30">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <ImageWithFallback
-                          src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
-                          alt={player.name}
-                          className="w-14 h-14 rounded-xl object-cover shadow-md"
-                        />
+                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group">
+                    {/* Background gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    
+                    {/* Content container */}
+                    <div className="relative z-10">
+                      {/* Header row with player info and shares badge */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div className="relative">
+                            <ImageWithFallback
+                              src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                              alt={player.name}
+                              className="w-14 h-14 rounded-xl object-cover shadow-md ring-2 ring-white/20 group-hover:ring-blue-200 transition-all duration-300"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold text-foreground group-hover:text-blue-700 transition-colors duration-200 truncate">
+                              {player.name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground/80 truncate flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                              {player.game} • {player.position}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Shares badge with enhanced styling */}
+                        <div className="flex flex-col items-end ml-3">
+                          <Badge 
+                            variant="secondary" 
+                            className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200/50 px-3 py-1 shadow-sm font-medium"
+                          >
+                            {formatShares(player.ownedShares || BigInt(0))} shares
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-medium">{player.name}</h3>
-                        <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <Badge variant="outline" className="text-xs">{player.price}</Badge>
-                          <span className="text-sm text-primary font-medium">{player.points} pts</span>
+                      
+                      {/* Stats row */}
+                      <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                        <div className="flex items-center space-x-2">
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs px-3 py-1 bg-background/50 border-border/40 hover:bg-accent/50 transition-colors font-medium"
+                          >
+                            {player.price}
+                          </Badge>
+                          {/* Performance indicator */}
+                          <div className="flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                            <span className="text-xs text-green-600 font-medium">+5.2%</span>
+                          </div>
+                        </div>
+                        
+                        {/* Total value with enhanced styling */}
+                        <div className="text-right">
+                          <div className="text-sm font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                            {player.totalValue || '0.000 USDC'}
+                          </div>
+                          <div className="text-xs text-muted-foreground/60">Total Value</div>
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Hover effect border */}
+                    <div className="absolute inset-0 rounded-lg border-2 border-transparent group-hover:border-blue-200/50 transition-colors duration-300" />
                   </Card>
                 </motion.div>
               ))}
@@ -374,33 +556,75 @@ export default function TeamSection() {
                   onClick={() => handleDevelopmentPlayerClick(player)}
                   className="cursor-pointer"
                 >
-                  <Card className="p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/30">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <ImageWithFallback
-                          src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
-                          alt={player.name}
-                          className="w-14 h-14 rounded-xl object-cover shadow-md"
-                        />
-                        {/* Development badge overlay */}
-                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                          <TrendingUp className="w-3 h-3 text-white" />
+                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group">
+                    {/* Background gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    
+                    {/* Content container */}
+                    <div className="relative z-10">
+                      {/* Header row with player info and shares badge */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div className="relative">
+                            <ImageWithFallback
+                              src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                              alt={player.name}
+                              className="w-14 h-14 rounded-xl object-cover shadow-md ring-2 ring-white/20 group-hover:ring-purple-200 transition-all duration-300"
+                            />
+                            {/* Development badge overlay */}
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                              <TrendingUp className="w-3 h-3 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold text-foreground group-hover:text-purple-700 transition-colors duration-200 truncate">
+                              {player.name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground/80 truncate flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                              {player.game} • {player.position}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-medium">{player.name}</h3>
-                        <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                        {/* Locked shares badge with enhanced styling */}
+                        <div className="flex flex-col items-end ml-3">
+                          <Badge 
+                            variant="secondary" 
+                            className="text-xs bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border border-purple-200/50 px-3 py-1 shadow-sm font-medium"
+                          >
                             {player.lockedShares} shares
                           </Badge>
+                        </div>
+                      </div>
+                      
+                      {/* Stats row */}
+                      <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                        <div className="flex items-center space-x-2">
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs px-3 py-1 bg-background/50 border-border/40 hover:bg-accent/50 transition-colors font-medium"
+                          >
+                            {player.price}
+                          </Badge>
+                          {/* Development progress indicator */}
                           <div className="flex items-center space-x-1">
-                            <span className="text-sm text-primary font-medium">{player.points} pts</span>
-                            <TrendingUp className="w-3 h-3 text-purple-600" />
+                            <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                            <span className="text-xs text-purple-600 font-medium">Developing</span>
                           </div>
+                        </div>
+                        
+                        {/* Total value with enhanced styling */}
+                        <div className="text-right">
+                          <div className="text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            {player.totalValue || '0.000 USDC'}
+                          </div>
+                          <div className="text-xs text-muted-foreground/60">Total Value</div>
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Hover effect border */}
+                    <div className="absolute inset-0 rounded-lg border-2 border-transparent group-hover:border-purple-200/50 transition-colors duration-300" />
                   </Card>
                 </motion.div>
               ))}
