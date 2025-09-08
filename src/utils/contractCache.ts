@@ -136,7 +136,6 @@ class ContractCacheManager {
       return null;
     }
 
-    console.log('🎯 Contract cache hit for:', key);
     return entry.data;
   }
 
@@ -182,7 +181,6 @@ class ContractCacheManager {
     const existingRequest = this.pendingRequests.get(pendingKey);
     
     if (existingRequest) {
-      console.log('🔄 Deduplicating contract request for:', cacheKey);
       return existingRequest.promise;
     }
 
@@ -202,7 +200,6 @@ class ContractCacheManager {
       const ttl = this.getTTL(functionName);
       this.setCache(cacheKey, result, ttl);
       
-      console.log(`✅ Contract read successful: ${functionName} (cached for ${ttl/1000}s)`);
       return result;
     } finally {
       // Remove from pending requests
@@ -221,8 +218,6 @@ class ContractCacheManager {
   }): Promise<any> {
     const { address, abi, functionName, args = [] } = params;
     
-    console.log(`🔗 Making RPC call: ${functionName} on ${address}`);
-    
     return this.publicClient.readContract({
       address,
       abi,
@@ -238,7 +233,6 @@ class ContractCacheManager {
     this.cache = {};
     this.pendingRequests.clear();
     this.rateLimitTracker.clear();
-    console.log('🧹 Contract cache cleared');
   }
 
   /**
@@ -297,8 +291,6 @@ class ContractCacheManager {
         delete this.cache[key];
       }
     });
-    
-    console.log(`🗑️ Invalidated cache for ${address || 'all'}:${functionName || 'all'}`);
   }
 }
 
@@ -320,6 +312,5 @@ export const readContractCached = (params: {
 
 // Export initialization function to set up the cache with proper network config
 export const initializeContractCache = () => {
-  console.log('🔄 Contract cache initialized and ready');
   return contractCache;
 };

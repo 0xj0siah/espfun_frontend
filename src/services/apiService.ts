@@ -69,9 +69,82 @@ export interface PackPurchaseResponse {
 
 class ApiService {
   private token: string | null = null;
+  private authErrorHandler?: (error: any) => void;
+  private autoReAuthHandler?: () => Promise<boolean>;
+  private isReAuthenticating = false;
 
   constructor() {
     this.token = localStorage.getItem('authToken');
+    this.setupAxiosInterceptors();
+  }
+
+  // Set up axios interceptors for automatic token handling
+  private setupAxiosInterceptors() {
+    // Response interceptor to handle 401 errors
+    axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          console.warn('🔐 401 Unauthorized detected - attempting automatic reauthentication');
+          
+          // Prevent multiple simultaneous reauthentication attempts
+          if (this.isReAuthenticating) {
+            console.log('🔄 Reauthentication already in progress, waiting...');
+            // Wait for existing reauthentication to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Retry the original request
+            return axios(error.config!);
+          }
+
+          this.isReAuthenticating = true;
+          
+          try {
+            // Clear the invalid token first
+            this.clearAuthToken();
+            
+            // Attempt automatic reauthentication
+            if (this.autoReAuthHandler) {
+              const reAuthSuccess = await this.autoReAuthHandler();
+              if (reAuthSuccess) {
+                console.log('🔄 Reauthentication successful, retrying request');
+                // Retry the original request with new token
+                return axios(error.config!);
+              } else {
+                console.warn('🔄 Reauthentication failed, notifying error handler');
+                // Reauthentication failed, notify error handler
+                if (this.authErrorHandler) {
+                  this.authErrorHandler(error);
+                }
+              }
+            } else {
+              console.warn('🔄 No auto reauth handler available, notifying error handler');
+              // No auto reauth handler, fall back to manual error handling
+              if (this.authErrorHandler) {
+                this.authErrorHandler(error);
+              }
+            }
+          } catch (reAuthError) {
+            console.error('🔄 Reauthentication error:', reAuthError);
+            if (this.authErrorHandler) {
+              this.authErrorHandler(error);
+            }
+          } finally {
+            this.isReAuthenticating = false;
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // Set authentication error handler (called by useAuthentication hook)
+  setAuthErrorHandler(handler: (error: any) => void) {
+    this.authErrorHandler = handler;
+  }
+
+  // Set automatic reauthentication handler
+  setAutoReAuthHandler(handler: () => Promise<boolean>) {
+    this.autoReAuthHandler = handler;
   }
 
   setAuthToken(token: string) {
@@ -88,6 +161,35 @@ class ApiService {
     requestCache.clear();
   }
 
+  // Check if current token is valid by making a test request
+  async validateToken(): Promise<boolean> {
+    if (!this.token) {
+      return false;
+    }
+
+    try {
+      // Make a lightweight request to validate the token
+      await axios.get(`${API_BASE_URL}/api/points/balance`, {
+        headers: this.getHeaders()
+      });
+      return true;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        console.warn('Token validation failed - token is invalid');
+        this.clearAuthToken();
+        return false;
+      }
+      // For other errors (network, server issues), assume token might still be valid
+      console.warn('Token validation failed due to network/server error:', error);
+      return true; // Don't invalidate token for network issues
+    }
+  }
+
+  // Get current authentication status
+  isAuthenticated(): boolean {
+    return !!this.token;
+  }
+
   private getHeaders() {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -95,9 +197,6 @@ class ApiService {
 
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`;
-      console.log('🔐 Auth token present:', this.token.substring(0, 20) + '...');
-    } else {
-      console.log('⚠️ No auth token found');
     }
 
     return headers;
@@ -150,18 +249,12 @@ class ApiService {
   // BuyTokens EIP712 Signature
   async prepareSignature(request: BuyTokensRequest): Promise<SignatureResponse> {
     try {
-      console.log('🌐 Requesting signature from backend API:', {
-        url: `${API_BASE_URL}/api/buyTokens/prepare-signature`,
-        request
-      });
-
       const response = await axios.post(
         `${API_BASE_URL}/api/buyTokens/prepare-signature`,
         request,
         { headers: this.getHeaders() }
       );
 
-      console.log('✅ Backend signature response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to prepare signature:', error);
@@ -268,13 +361,11 @@ class ApiService {
         cacheKey,
         endpoint,
         async () => {
-          console.log('🔍 Fetching user points from backend...');
           const response = await retryWithBackoff(async () => {
             return axios.get(`${API_BASE_URL}/api/points/balance`, {
               headers: this.getHeaders()
             });
           });
-          console.log('✅ User points response:', JSON.stringify(response.data, null, 2));
           return response.data;
         },
         { ttl: 15000 } // Cache for 15 seconds since points change more frequently
@@ -295,16 +386,8 @@ class ApiService {
 
   async purchasePack(request: PackPurchaseRequest): Promise<PackPurchaseResponse> {
     try {
-      console.log('🎁 Purchasing pack via backend API:', request);
-
       // Use pack type as string (PRO, EPIC, LEGENDARY) as per API docs
       const packType = request.packType;
-
-      console.log('📡 API Request Details:');
-      console.log('- URL:', `${API_BASE_URL}/api/packs/${packType}/purchase`);
-      console.log('- Method: POST');
-      console.log('- Headers:', this.getHeaders());
-      console.log('- Body: {} (empty - pack type only in URL)');
 
       const response = await axios.post(
         `${API_BASE_URL}/api/packs/${packType}/purchase`,
@@ -312,19 +395,10 @@ class ApiService {
         { headers: this.getHeaders() }
       );
 
-      console.log('✅ Pack purchase response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to purchase pack:', error);
       if (axios.isAxiosError(error)) {
-        console.error('❌ API Error Details:');
-        console.error('- Status:', error.response?.status);
-        console.error('- Status Text:', error.response?.statusText);
-        console.error('- Response Data:', JSON.stringify(error.response?.data, null, 2));
-        console.error('- Request URL:', error.config?.url);
-        console.error('- Request Method:', error.config?.method);
-        console.error('- Request Headers:', JSON.stringify(error.config?.headers, null, 2));
-
         if (error.response?.status === 401) {
           throw new Error('Authentication required. Please authenticate your wallet first.');
         }
@@ -335,8 +409,6 @@ class ApiService {
           throw new Error('Too many requests. Please wait a moment before trying again.');
         }
         const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data?.detail || error.message;
-        console.error('❌ Full error message:', errorMessage);
-        console.error('❌ Full response data:', JSON.stringify(error.response?.data, null, 2));
         throw new Error(`Pack purchase failed: ${errorMessage}`);
       }
       throw new Error('Failed to purchase pack from backend');
@@ -344,8 +416,10 @@ class ApiService {
   }
 
   // Player management API functions
-  async getPromotionCost(playerIds: string[]): Promise<{ [playerId: string]: number }> {
-    const cacheKey = `promotion-cost:${playerIds.sort().join(',')}`;
+  async getPromotionCost(playerIds: string[], shares: number[] = []): Promise<{ [playerId: string]: number }> {
+    // If no shares provided, default to 1 for each player to get per-share cost
+    const sharesToSend = shares.length > 0 ? shares : playerIds.map(() => 1);
+    const cacheKey = `promotion-cost:${playerIds.sort().join(',')}-${sharesToSend.join(',')}`;
     const endpoint = 'players/promotion-cost';
 
     try {
@@ -353,15 +427,28 @@ class ApiService {
         cacheKey,
         endpoint,
         async () => {
-          console.log('💰 Getting promotion cost for players:', playerIds);
           const response = await retryWithBackoff(async () => {
             return axios.post(
               `${API_BASE_URL}/api/players/promotion-cost`,
-              { playerIds },
+              { 
+                playerIds: playerIds.map(id => parseInt(id)),
+                shares: sharesToSend
+              },
               { headers: this.getHeaders() }
             );
           });
-          console.log('✅ Promotion cost response:', response.data);
+          
+          // The API might return { promotionCost: number } or { [playerId]: cost }
+          // Let's handle both formats
+          if (response.data.promotionCost !== undefined) {
+            // Single promotion cost returned, map it to the playerId
+            const result: { [playerId: string]: number } = {};
+            playerIds.forEach(id => {
+              result[id] = response.data.promotionCost;
+            });
+            return result;
+          }
+          
           return response.data;
         },
         { ttl: 60000 } // Cache for 1 minute since costs don't change frequently
@@ -375,8 +462,10 @@ class ApiService {
     }
   }
 
-  async getCutValue(playerIds: string[]): Promise<{ [playerId: string]: number }> {
-    const cacheKey = `cut-value:${playerIds.sort().join(',')}`;
+  async getCutValue(playerIds: string[], shares: number[] = []): Promise<{ [playerId: string]: number }> {
+    // If no shares provided, default to 1 for each player to get per-share value
+    const sharesToSend = shares.length > 0 ? shares : playerIds.map(() => 1);
+    const cacheKey = `cut-value:${playerIds.sort().join(',')}-${sharesToSend.join(',')}`;
     const endpoint = 'players/cut-value';
 
     try {
@@ -384,16 +473,33 @@ class ApiService {
         cacheKey,
         endpoint,
         async () => {
-          console.log('💎 Getting cut value for players:', playerIds);
           const response = await retryWithBackoff(async () => {
             return axios.post(
               `${API_BASE_URL}/api/players/cut-value`,
-              { playerIds },
+              { 
+                playerIds: playerIds.map(id => parseInt(id)),
+                shares: sharesToSend
+              },
               { headers: this.getHeaders() }
             );
           });
-          console.log('✅ Cut value response:', response.data);
-          return response.data;
+          
+          // The API returns { cutValue, totalShares, breakdown[] }
+          // We need to convert this to { [playerId]: points } format
+          const result: { [playerId: string]: number } = {};
+          
+          if (response.data.breakdown && Array.isArray(response.data.breakdown)) {
+            response.data.breakdown.forEach((item: any) => {
+              result[item.playerId.toString()] = item.points || 0;
+            });
+          } else if (response.data.cutValue !== undefined) {
+            // Fallback: use cutValue for all requested players
+            playerIds.forEach(id => {
+              result[id] = response.data.cutValue;
+            });
+          }
+          
+          return result;
         },
         { ttl: 60000 } // Cache for 1 minute since values don't change frequently
       );
@@ -406,15 +512,38 @@ class ApiService {
     }
   }
 
+  // Method to get promotion cost for specific amounts (used for real-time calculation)
+  async getPromotionCostForAmount(playerId: string, shares: number): Promise<number> {
+    try {
+      const response = await this.getPromotionCost([playerId], [shares]);
+      return response[playerId] || 0;
+    } catch (error) {
+      console.error('Failed to get promotion cost for amount:', error);
+      throw error;
+    }
+  }
+
+  // Method to get cut value for specific amounts (used for real-time calculation)  
+  async getCutValueForAmount(playerId: string, shares: number): Promise<number> {
+    try {
+      const response = await this.getCutValue([playerId], [shares]);
+      return response[playerId] || 0;
+    } catch (error) {
+      console.error('Failed to get cut value for amount:', error);
+      throw error;
+    }
+  }
+
   async promotePlayer(playerId: string, shares: number): Promise<any> {
     try {
-      console.log('⬆️ Promoting player:', { playerId, shares });
       const response = await axios.post(
         `${API_BASE_URL}/api/players/promote`,
-        { playerId, shares },
+        { 
+          playerIds: [parseInt(playerId)], 
+          shares: [shares] 
+        },
         { headers: this.getHeaders() }
       );
-      console.log('✅ Promote player response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to promote player:', error);
@@ -436,13 +565,14 @@ class ApiService {
 
   async cutPlayer(playerId: string, shares: number): Promise<any> {
     try {
-      console.log('⬇️ Cutting player:', { playerId, shares });
       const response = await axios.post(
         `${API_BASE_URL}/api/players/cut`,
-        { playerId, shares },
+        { 
+          playerIds: [parseInt(playerId)], 
+          shares: [shares] 
+        },
         { headers: this.getHeaders() }
       );
-      console.log('✅ Cut player response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to cut player:', error);

@@ -57,13 +57,11 @@ export async function retryWithBackoff<T>(
 
       // Check if we should retry this error
       if (!config.retryCondition(error)) {
-        console.log(`❌ Non-retryable error on attempt ${attempt}:`, error?.message || error);
         throw error;
       }
 
       // Don't retry on the last attempt
       if (attempt === config.maxAttempts) {
-        console.log(`❌ Max retry attempts (${config.maxAttempts}) reached`);
         throw error;
       }
 
@@ -73,7 +71,6 @@ export async function retryWithBackoff<T>(
         config.maxDelay
       );
 
-      console.log(`🔄 Retrying in ${delay}ms (attempt ${attempt}/${config.maxAttempts})...`);
       await sleep(delay);
     }
   }

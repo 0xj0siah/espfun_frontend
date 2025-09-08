@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
+import { useAuthentication } from '../hooks/useAuthentication';
 
 interface HeaderProps {
   activeTab: string;
@@ -17,7 +18,7 @@ interface HeaderProps {
 }
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
-  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Auth Test'];
+  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'];
   const [selectedGame, setSelectedGame] = useState('CS2');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -30,6 +31,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const [hasCopied, setHasCopied] = useState(false);
 
   const { login, logout, ready, authenticated, user } = usePrivy();
+  const { isAuthenticated, isAuthenticating, error: authError, authenticate } = useAuthentication();
 
   const games = [
     { value: 'CS2', label: 'Counter-Strike 2' },
@@ -158,6 +160,13 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
 
           {/* Right Section - Controls */}
           <div className="flex items-center space-x-4">
+            {/* Authentication Error Alert */}
+            {authError && (
+              <Alert variant="destructive" className="mr-4 max-w-xs">
+                <AlertDescription className="text-sm">{authError}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Game Selector */}
             <Select value={selectedGame} onValueChange={setSelectedGame}>
               <SelectTrigger className="w-44 bg-accent/50 border-0 shadow-sm">
@@ -195,6 +204,15 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               >
                 <Wallet className="w-4 h-4 mr-2" />
                 Connect Wallet
+              </Button>
+            ) : !isAuthenticated ? (
+              <Button 
+                onClick={() => authenticate()} 
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg"
+                disabled={isAuthenticating}
+              >
+                <Wallet className="w-4 h-4 mr-2" />
+                {isAuthenticating ? "Authenticating..." : "Authenticate"}
               </Button>
             ) : (
               <DropdownMenu>

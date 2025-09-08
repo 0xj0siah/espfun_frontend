@@ -128,7 +128,6 @@ class RequestCache {
     if (!skipCache) {
       const cached = this.get<T>(cacheKey);
       if (cached) {
-        console.log('🎯 Cache hit for:', cacheKey);
         return cached;
       }
     }

@@ -35,11 +35,8 @@ export function usePoolInfo() {
     setError(null);
 
     try {
-      console.log('Fetching real pool info for players:', playerIds);
-      
       const fdfPairContract = getContractData('FDFPair');
-      console.log('Using FDFPair contract:', fdfPairContract.address);
-      
+
       // Call the actual contract to get pool info
       const result = await readContractCached({
         address: fdfPairContract.address as `0x${string}`,
@@ -48,15 +45,13 @@ export function usePoolInfo() {
         args: [playerIds.map(id => BigInt(id))],
       });
 
-      console.log('Contract getPoolInfo result:', result);
-      
       // Parse the result - getPoolInfo should return [currencyReserves[], playerTokenReserves[]]
       const [currencyReserves, playerTokenReserves] = result as [bigint[], bigint[]];
-      
+
       if (!currencyReserves || !playerTokenReserves) {
         throw new Error('Invalid contract response: missing reserves data');
       }
-      
+
       if (currencyReserves.length !== playerIds.length || playerTokenReserves.length !== playerIds.length) {
         throw new Error(`Contract response length mismatch: expected ${playerIds.length} entries, got currency: ${currencyReserves?.length}, tokens: ${playerTokenReserves?.length}`);
       }
@@ -70,17 +65,6 @@ export function usePoolInfo() {
           playerTokenReserve: playerTokenReserves[index],
         };
         realPoolData.set(playerId, poolInfo);
-        
-        console.log(`Real pool info for player ${playerId}:`, {
-          playerId,
-          currencyReserve: poolInfo.currencyReserve.toString(),
-          playerTokenReserve: poolInfo.playerTokenReserve.toString(),
-          currencyReserveFormatted: (Number(poolInfo.currencyReserve) / 1e6).toFixed(2) + ' USDC',
-          playerTokenReserveFormatted: (Number(poolInfo.playerTokenReserve) / 1e18).toFixed(2) + ' tokens',
-          currentPrice: poolInfo.currencyReserve > 0n && poolInfo.playerTokenReserve > 0n 
-            ? ((Number(poolInfo.currencyReserve) / 1e6) / (Number(poolInfo.playerTokenReserve) / 1e18)).toFixed(4) + ' USDC per token'
-            : 'No liquidity'
-        });
       });
 
       setPoolData(realPoolData);
@@ -88,7 +72,7 @@ export function usePoolInfo() {
     } catch (err) {
       console.error('Error fetching pool info from contract:', err);
       setError(err instanceof Error ? err.message : 'Unknown error fetching pool data');
-      
+
       // Provide fallback empty data instead of mock data
       const fallbackPoolData = new Map<number, PoolInfo>();
       playerIds.forEach((playerId) => {
@@ -98,7 +82,6 @@ export function usePoolInfo() {
           playerTokenReserve: BigInt(0),
         };
         fallbackPoolData.set(playerId, poolInfo);
-        console.warn(`Using fallback empty pool data for player ${playerId} due to contract error`);
       });
       setPoolData(fallbackPoolData);
     } finally {
@@ -113,24 +96,17 @@ export function usePoolInfo() {
   ): PriceImpactCalculation | null => {
     const poolInfo = poolData.get(playerId);
     if (!poolInfo) {
-      console.log('Cannot calculate price impact: no pool data for player', playerId);
       return null;
     }
-    
+
     if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
-      console.log('Cannot calculate price impact: invalid trade amount', tradeAmount);
       return null;
     }
 
     const { currencyReserve, playerTokenReserve } = poolInfo;
-    
+
     // Check if pool has liquidity
     if (currencyReserve === BigInt(0) || playerTokenReserve === BigInt(0)) {
-      console.log('Cannot calculate price impact: no liquidity in pool', {
-        playerId,
-        currencyReserve: currencyReserve.toString(),
-        playerTokenReserve: playerTokenReserve.toString()
-      });
       return null;
     }
 
@@ -141,7 +117,7 @@ export function usePoolInfo() {
 
     // Current price: USDC per token
     const currentPrice = currencyReserveNum / playerTokenReserveNum;
-    
+
     // Validate current price
     if (!isFinite(currentPrice) || currentPrice <= 0) {
       console.error('Invalid current price calculated:', currentPrice);
@@ -151,24 +127,11 @@ export function usePoolInfo() {
     // Use constant product AMM formula: x * y = k
     const k = currencyReserveNum * playerTokenReserveNum;
 
-    console.log('Price impact calculation inputs:', {
-      playerId,
-      action,
-      tradeAmountInput: tradeAmount,
-      tradeAmountNum,
-      currencyReserveNum: currencyReserveNum.toFixed(2),
-      playerTokenReserveNum: playerTokenReserveNum.toFixed(6),
-      currentPrice: currentPrice.toFixed(6),
-      k: k.toFixed(2),
-      currencyReserveRaw: currencyReserve.toString(),
-      playerTokenReserveRaw: playerTokenReserve.toString()
-    });
-
     let newCurrencyReserve: number;
     let newPlayerTokenReserve: number;
     let newPrice: number;
     let tokensTraded: number;
-    
+
     if (action === 'buy') {
       // User spends USDC to get player tokens
       // New currency reserve = current + USDC spent
@@ -177,17 +140,17 @@ export function usePoolInfo() {
       newPlayerTokenReserve = k / newCurrencyReserve;
       // Tokens received by user
       tokensTraded = playerTokenReserveNum - newPlayerTokenReserve;
-      
+
       newPrice = newCurrencyReserve / newPlayerTokenReserve;
     } else {
       // User sells player tokens to get USDC
       // New player token reserve = current + player tokens sold
       newPlayerTokenReserve = playerTokenReserveNum + tradeAmountNum;
-      // New currency reserve = k / new player token reserve  
+      // New currency reserve = k / new player token reserve
       newCurrencyReserve = k / newPlayerTokenReserve;
       // USDC received by user
       tokensTraded = currencyReserveNum - newCurrencyReserve;
-      
+
       newPrice = newCurrencyReserve / newPlayerTokenReserve;
     }
 
@@ -199,9 +162,9 @@ export function usePoolInfo() {
 
     // Calculate price impact as percentage (positive for price increase, negative for price decrease)
     // For buying: price should increase (positive impact)
-    // For selling: price should decrease (negative impact) 
+    // For selling: price should decrease (negative impact)
     const priceImpact = ((newPrice - currentPrice) / currentPrice) * 100;
-    
+
     // For display purposes, we typically show the absolute value but keep sign for logic
     const priceImpactMagnitude = Math.abs(priceImpact);
 
@@ -211,21 +174,11 @@ export function usePoolInfo() {
       newPrice,
       currentPrice,
       tokensTraded: Math.abs(tokensTraded),
-      effectivePrice: action === 'buy' 
+      effectivePrice: action === 'buy'
         ? tradeAmountNum / Math.abs(tokensTraded) // USDC spent per token received
         : Math.abs(tokensTraded) / tradeAmountNum // USDC received per token sold
     };
-    
-    console.log('Price impact calculation result:', {
-      ...result,
-      priceImpact: result.priceImpact.toFixed(4) + '%',
-      priceImpactSigned: result.priceImpactSigned.toFixed(4) + '%',
-      currentPrice: result.currentPrice.toFixed(6) + ' USDC/token',
-      newPrice: result.newPrice.toFixed(6) + ' USDC/token',
-      tokensTraded: result.tokensTraded.toFixed(6),
-      effectivePrice: result.effectivePrice?.toFixed(6) + ' USDC/token'
-    });
-    
+
     return result;
   };
 

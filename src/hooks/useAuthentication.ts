@@ -21,7 +21,7 @@ export const useAuthentication = () => {
     const checkAuthStatus = () => {
       const token = localStorage.getItem('authToken');
       const shouldBeAuthenticated = !!token && authenticated;
-      
+
       // Only update state if it actually changed
       if (shouldBeAuthenticated !== isAuthenticated) {
         setIsAuthenticated(shouldBeAuthenticated);
@@ -143,12 +143,81 @@ export const useAuthentication = () => {
     lastAuthAttempt = 0;
   }, []);
 
+  // Validate current token
+  const validateToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const isValid = await apiService.validateToken();
+      if (!isValid) {
+        console.warn('Token validation failed, clearing authentication');
+        clearAuthentication();
+        setError('Your session has expired. Please authenticate again.');
+      }
+      return isValid;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  }, [clearAuthentication]);
+
+  // Force re-authentication
+  const forceReAuth = useCallback(async (): Promise<boolean> => {
+    console.log('Forcing re-authentication...');
+    clearAuthentication();
+    // Small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return await authenticate();
+  }, [clearAuthentication, authenticate]);
+
+  // Automatic reauthentication for API calls (doesn't show user errors)
+  const autoReAuth = useCallback(async (): Promise<boolean> => {
+    console.log('🔄 Automatic re-authentication triggered by API call');
+    clearAuthentication();
+    // Small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    try {
+      const success = await authenticate();
+      if (success) {
+        console.log('🔄 Automatic re-authentication successful');
+      } else {
+        console.warn('🔄 Automatic re-authentication failed');
+      }
+      return success;
+    } catch (error) {
+      console.warn('🔄 Automatic re-authentication error:', error);
+      return false;
+    }
+  }, [clearAuthentication, authenticate]);
+
+  // Register auth error handler when component mounts
+  useEffect(() => {
+    const handleAuthError = (error: any) => {
+      console.warn('🔐 Authentication token invalidated due to 401 error');
+      // Clear authentication state when token becomes invalid
+      clearAuthentication();
+      setError('Your session has expired. Please authenticate again.');
+    };
+
+    // Register the error handler with apiService
+    apiService.setAuthErrorHandler(handleAuthError);
+    
+    // Register the auto reauthentication handler
+    apiService.setAutoReAuthHandler(autoReAuth);
+
+    // Cleanup on unmount
+    return () => {
+      apiService.setAuthErrorHandler(() => {});
+      apiService.setAutoReAuthHandler(() => Promise.resolve(false));
+    };
+  }, [clearAuthentication, autoReAuth]);
+
   return {
     isAuthenticated,
     isAuthenticating,
     error,
     authenticate,
     clearAuthentication,
+    autoReAuth,
     hasAuthToken: !!localStorage.getItem('authToken'),
     walletConnected: authenticated && !!user?.wallet?.address,
     hasAttemptedAuth

@@ -54,6 +54,12 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   const [promotionCost, setPromotionCost] = useState<number | null>(null);
   const [cutValue, setCutValue] = useState<number | null>(null);
   const [loadingCosts, setLoadingCosts] = useState(false);
+  const [userPoints, setUserPoints] = useState<{ skillPoints: number; tournamentPoints: number } | null>(null);
+  
+  // Real-time cost calculation states
+  const [realTimePromotionCost, setRealTimePromotionCost] = useState<number | null>(null);
+  const [realTimeCutValue, setRealTimeCutValue] = useState<number | null>(null);
+  const [loadingRealTimeCosts, setLoadingRealTimeCosts] = useState(false);
 
   // Create a debounced version of cost loading to prevent request spam
   const debouncedLoadCosts = useMemo(
@@ -87,8 +93,63 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   useEffect(() => {
     if (isOpen && player?.id) {
       debouncedLoadCosts(player.id);
+      // Also fetch user points
+      loadUserPoints();
     }
   }, [isOpen, player?.id, debouncedLoadCosts]);
+
+  const loadUserPoints = async () => {
+    try {
+      const points = await apiService.getUserPoints();
+      setUserPoints(points);
+    } catch (error) {
+      console.error('Error loading user points:', error);
+    }
+  };
+
+  // Debounced real-time cost calculation for promotion
+  const debouncedCalculatePromotionCost = useMemo(
+    () => debounce(async (playerId: string, shares: number) => {
+      if (!shares || shares <= 0) {
+        setRealTimePromotionCost(null);
+        return;
+      }
+      
+      setLoadingRealTimeCosts(true);
+      try {
+        const cost = await apiService.getPromotionCostForAmount(playerId, shares);
+        setRealTimePromotionCost(cost);
+      } catch (error) {
+        console.error('Error calculating real-time promotion cost:', error);
+        setRealTimePromotionCost(null);
+      } finally {
+        setLoadingRealTimeCosts(false);
+      }
+    }, 500),
+    []
+  );
+
+  // Debounced real-time cost calculation for cut
+  const debouncedCalculateCutValue = useMemo(
+    () => debounce(async (playerId: string, shares: number) => {
+      if (!shares || shares <= 0) {
+        setRealTimeCutValue(null);
+        return;
+      }
+      
+      setLoadingRealTimeCosts(true);
+      try {
+        const value = await apiService.getCutValueForAmount(playerId, shares);
+        setRealTimeCutValue(value);
+      } catch (error) {
+        console.error('Error calculating real-time cut value:', error);
+        setRealTimeCutValue(null);
+      } finally {
+        setLoadingRealTimeCosts(false);
+      }
+    }, 500),
+    []
+  );
 
   if (!player) return null;
 
@@ -97,15 +158,27 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
 
   const handlePercentageSelect = (percentage: number, isPromote: boolean) => {
     setSelectedPercentage(percentage);
-    const shares = Math.floor((totalShares * percentage) / 100).toString();
+    const shares = Math.floor((totalShares * percentage) / 100);
+    const sharesStr = shares.toString();
+    
     if (isPromote) {
-      setPromoteShares(shares);
+      setPromoteShares(sharesStr);
+      // Trigger real-time cost calculation
+      if (shares > 0 && player) {
+        debouncedCalculatePromotionCost(player.id, shares);
+      }
     } else {
-      setCutShares(shares);
+      setCutShares(sharesStr);
+      // Trigger real-time cost calculation
+      if (shares > 0 && player) {
+        debouncedCalculateCutValue(player.id, shares);
+      }
     }
   };
 
   const handlePromoteSubmit = async () => {
+    console.log('🚀 Promote button clicked', { player: player?.id, shares: promoteShares });
+    
     if (!player) return;
     
     const shares = parseInt(promoteShares) || 0;
@@ -114,11 +187,26 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
       return;
     }
 
+    // Check if user has enough skill points
+    const totalCost = realTimePromotionCost !== null ? realTimePromotionCost : 
+                     (promotionCost ? promotionCost * shares : 0);
+    
+    if (userPoints && totalCost > userPoints.skillPoints) {
+      toast.error(`Insufficient skill points. You need ${totalCost.toLocaleString()} but only have ${userPoints.skillPoints.toLocaleString()}`);
+      return;
+    }
+
+    console.log('🔄 Starting promotion process...', { playerId: player.id, shares });
+    
     setLoading(true);
     try {
       const result = await apiService.promotePlayer(player.id, shares);
       
       toast.success(`Successfully promoted ${shares} shares of ${player.name}!`);
+      
+      // Refresh user points after successful promotion
+      loadUserPoints();
+      
       onClose();
     } catch (error) {
       console.error('Error promoting player:', error);
@@ -130,6 +218,8 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   };
 
   const handleCutSubmit = async () => {
+    console.log('✂️ Cut button clicked', { player: player?.id, shares: cutShares });
+    
     if (!player) return;
     
     const shares = parseInt(cutShares) || 0;
@@ -138,11 +228,17 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
       return;
     }
 
+    console.log('🔄 Starting cut process...', { playerId: player.id, shares });
+
     setLoading(true);
     try {
       const result = await apiService.cutPlayer(player.id, shares);
       
       toast.success(`Successfully cut ${shares} shares of ${player.name}!`);
+      
+      // Refresh user points after successful cut
+      loadUserPoints();
+      
       onClose();
     } catch (error) {
       console.error('Error cutting player:', error);
@@ -319,6 +415,11 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     Cost: {promotionCost} skill points per share
                   </div>
                 ) : null}
+                {userPoints && (
+                  <div className="text-sm text-muted-foreground mt-2">
+                    Your balance: {userPoints.skillPoints.toLocaleString()} skill points
+                  </div>
+                )}
               </div>
 
               {/* Manual Input */}
@@ -329,8 +430,17 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   type="number"
                   value={promoteShares}
                   onChange={(e) => {
-                    setPromoteShares(e.target.value);
+                    const value = e.target.value;
+                    setPromoteShares(value);
                     setSelectedPercentage(null);
+                    
+                    // Trigger real-time cost calculation
+                    const shares = parseInt(value);
+                    if (shares > 0 && player) {
+                      debouncedCalculatePromotionCost(player.id, shares);
+                    } else {
+                      setRealTimePromotionCost(null);
+                    }
                   }}
                   placeholder="Enter shares to promote"
                   max={totalShares}
@@ -340,9 +450,35 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <p className="text-xs text-muted-foreground text-center">
                   Available: {player.lockedShares || '0'} shares
                 </p>
-                {promotionCost !== null && promoteShares && parseInt(promoteShares) > 0 && (
-                  <div className="text-sm text-blue-600 font-medium text-center mt-1">
-                    Total cost: {(promotionCost * parseInt(promoteShares)).toLocaleString()} skill points
+                {(promotionCost !== null || realTimePromotionCost !== null) && promoteShares && parseInt(promoteShares) > 0 && (
+                  <div className={`text-sm font-medium text-center mt-1 ${
+                    userPoints && realTimePromotionCost !== null && realTimePromotionCost > userPoints.skillPoints
+                      ? 'text-red-500'
+                      : userPoints && promotionCost !== null && (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints
+                      ? 'text-red-500'
+                      : 'text-blue-600'
+                  }`}>
+                    {loadingRealTimeCosts ? (
+                      <div className="text-xs text-muted-foreground">Calculating cost...</div>
+                    ) : realTimePromotionCost !== null ? (
+                      <>
+                        Total cost: {realTimePromotionCost.toLocaleString()} skill points
+                        {userPoints && realTimePromotionCost > userPoints.skillPoints && (
+                          <div className="text-xs text-red-400 mt-1">
+                            Insufficient skill points
+                          </div>
+                        )}
+                      </>
+                    ) : promotionCost !== null ? (
+                      <>
+                        Total cost: {(promotionCost * parseInt(promoteShares)).toLocaleString()} skill points
+                        {userPoints && (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints && (
+                          <div className="text-xs text-red-400 mt-1">
+                            Insufficient skill points
+                          </div>
+                        )}
+                      </>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -377,7 +513,16 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 </Button>
                 <Button
                   onClick={handlePromoteSubmit}
-                  disabled={loading || !promoteShares || parseInt(promoteShares) <= 0}
+                  disabled={
+                    loading || 
+                    !promoteShares || 
+                    parseInt(promoteShares) <= 0 ||
+                    (userPoints && (
+                      (realTimePromotionCost !== null && realTimePromotionCost > userPoints.skillPoints) ||
+                      (realTimePromotionCost === null && promotionCost && promoteShares && 
+                       (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints)
+                    ))
+                  }
                   className="flex-1 h-12 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0"
                 >
                   {loading ? (
@@ -417,6 +562,11 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     Reward: {cutValue} tournament points per share
                   </div>
                 ) : null}
+                {userPoints && (
+                  <div className="text-sm text-muted-foreground mt-2">
+                    Your balance: {userPoints.tournamentPoints.toLocaleString()} tournament points
+                  </div>
+                )}
               </div>
 
               {/* Manual Input */}
@@ -427,8 +577,17 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   type="number"
                   value={cutShares}
                   onChange={(e) => {
-                    setCutShares(e.target.value);
+                    const value = e.target.value;
+                    setCutShares(value);
                     setSelectedPercentage(null);
+                    
+                    // Trigger real-time cost calculation
+                    const shares = parseInt(value);
+                    if (shares > 0 && player) {
+                      debouncedCalculateCutValue(player.id, shares);
+                    } else {
+                      setRealTimeCutValue(null);
+                    }
                   }}
                   placeholder="Enter shares to cut"
                   max={totalShares}
@@ -438,9 +597,15 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <p className="text-xs text-muted-foreground text-center">
                   Available: {player.lockedShares || '0'} shares
                 </p>
-                {cutValue !== null && cutShares && parseInt(cutShares) > 0 && (
+                {(cutValue !== null || realTimeCutValue !== null) && cutShares && parseInt(cutShares) > 0 && (
                   <div className="text-sm text-green-600 font-medium text-center mt-1">
-                    Total reward: {(cutValue * parseInt(cutShares)).toLocaleString()} tournament points
+                    {loadingRealTimeCosts ? (
+                      <div className="text-xs text-muted-foreground">Calculating reward...</div>
+                    ) : realTimeCutValue !== null ? (
+                      <>Total reward: {realTimeCutValue.toLocaleString()} tournament points</>
+                    ) : cutValue !== null ? (
+                      <>Total reward: {(cutValue * parseInt(cutShares)).toLocaleString()} tournament points</>
+                    ) : null}
                   </div>
                 )}
               </div>

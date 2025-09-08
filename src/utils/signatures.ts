@@ -43,11 +43,6 @@ export function createBuyTokensTypedData(domain: any, messageData: {
   deadline: number;
   nonce: number;
 }) {
-  console.log('🔧 Creating EIP712 typed data with arrays:', {
-    playerTokenIds: messageData.playerTokenIds,
-    amounts: messageData.amounts
-  });
-  
   // For Privy, we use decimal string representation to avoid BigInt serialization issues
   const formattedMessage = {
     buyer: messageData.buyer as `0x${string}`,
@@ -57,8 +52,6 @@ export function createBuyTokensTypedData(domain: any, messageData: {
     deadline: BigInt(messageData.deadline).toString(), // Convert to decimal string
     nonce: BigInt(messageData.nonce).toString() // Convert to decimal string
   };
-  
-  console.log('✅ Formatted message for EIP712 (decimal string values):', formattedMessage);
   
   return {
     domain,
@@ -109,6 +102,5 @@ export function validateSignatureParams(messageData: any): boolean {
     throw new Error(`Invalid maxCurrencySpend value: ${messageData.maxCurrencySpend}`);
   }
   
-  console.log('✅ EIP712 signature parameters validated with string conversion');
   return true;
 }
