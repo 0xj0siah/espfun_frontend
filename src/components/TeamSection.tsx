@@ -445,8 +445,7 @@ export default function TeamSection({
         toast.success(`Successfully sold ${player.name}!`);
       }
       
-      // Close modal
-      setIsModalOpen(false);
+      // No automatic modal close - user controls when to close
 
     } catch (error) {
       console.error("Purchase state update failed:", error);

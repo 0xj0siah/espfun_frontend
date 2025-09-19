@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock, X } from 'lucide-react';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
@@ -64,6 +64,46 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [statusMessage, setStatusMessage] = useState('');
   const [transactionHash, setTransactionHash] = useState('');
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
+  const [alertKey, setAlertKey] = useState(0); // Track unique alert instances to prevent overlap
+  const [showAlert, setShowAlert] = useState(false); // Control alert visibility
+
+  // Helper function to safely update alert state and prevent overlap
+  const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
+    // First hide any existing alert
+    setShowAlert(false);
+    
+    // Small delay to ensure previous alert is hidden before showing new one
+    setTimeout(() => {
+      setTransactionStatus(status);
+      setStatusMessage(message);
+      setTransactionHash(hash);
+      setAlertKey(prev => prev + 1);
+      setShowAlert(status !== 'idle');
+    }, 50);
+  };
+
+  // Helper to update transaction hash while maintaining current status
+  const updateTransactionHash = (hash: string) => {
+    setTransactionHash(hash);
+  };
+
+  // Custom handler to prevent modal from closing automatically
+  const handleOpenChange = (open: boolean) => {
+    // Never allow automatic closing - user must manually close
+    // This prevents backdrop clicks and Escape key from closing the modal
+    if (!open) {
+      // Explicitly prevent closing by not calling onClose()
+      return;
+    }
+    // If opening, allow it
+    // Note: We don't call onClose() here to prevent any automatic closing
+  };
+
+  // Helper to format transaction hash for display (abbreviated)
+  const formatTransactionHash = (hash: string): string => {
+    if (!hash || hash.length < 10) return hash;
+    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+  };
   
   const { user, ready, authenticated } = usePrivy();
   const { sendTransaction } = useSendTransaction();
@@ -296,7 +336,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     // Use Privy's sendTransaction hook
     console.log('📤 Sending USDC approval transaction...');
     const { hash } = await sendTransaction(transactionRequest, options);
-    setTransactionHash(hash);
+    updateTransactionHash(hash);
 
     console.log('⏳ Waiting for approval confirmation...');
     // Wait for transaction confirmation
@@ -534,7 +574,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Use Privy's sendTransaction hook
     const { hash } = await sendTransaction(transactionRequest, options);
-    setTransactionHash(hash);
+    updateTransactionHash(hash);
 
     console.log('⏳ Transaction sent, hash:', hash);
 
@@ -812,7 +852,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Use Privy's sendTransaction hook
     const { hash } = await sendTransaction(transactionRequest, options);
-    setTransactionHash(hash);
+    updateTransactionHash(hash);
 
     console.log('⏳ Transaction sent, hash:', hash);
 
@@ -965,14 +1005,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   const handleConfirm = async () => {
     if (!usdcAmount || parseFloat(usdcAmount) <= 0) {
-      setTransactionStatus('error');
-      setStatusMessage('Please enter a valid amount');
+      updateAlertState('error', 'Please enter a valid amount');
       return;
     }
 
     if (!authenticated || !user?.wallet?.address) {
-      setTransactionStatus('error');
-      setStatusMessage('Please connect your wallet first');
+      updateAlertState('error', 'Please connect your wallet first');
       return;
     }
 
@@ -980,14 +1018,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     const userBalance = parseFloat(userUsdcBalance);
     const requiredAmount = parseFloat(usdcAmount);
     if (action === 'buy' && userBalance < requiredAmount) {
-      setTransactionStatus('error');
-      setStatusMessage(`Insufficient USDC balance. You have ${userBalance.toFixed(2)} USDC but need ${requiredAmount.toFixed(2)} USDC`);
+      updateAlertState('error', `Insufficient USDC balance. You have ${userBalance.toFixed(2)} USDC but need ${requiredAmount.toFixed(2)} USDC`);
       return;
     }
 
     setIsLoading(true);
-    setTransactionStatus('pending');
-    setStatusMessage(`${action === 'buy' ? 'Purchasing' : 'Selling'} ${player.name} tokens...`);
+    updateAlertState('pending', `${action === 'buy' ? 'Purchasing' : 'Selling'} ${player.name} tokens...`);
     
     try {
       console.log('🔄 UPDATED CODE RUNNING - handleConfirm function with slippage fix');
@@ -1009,8 +1045,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         const userBalance = parseFloat(userUsdcBalance);
         const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
         if (userBalance < maxSpendAmount) {
-          setTransactionStatus('error');
-          setStatusMessage(`Insufficient USDC balance for slippage. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage`);
+          updateAlertState('error', `Insufficient USDC balance for slippage. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage`);
           return;
         }
         
@@ -1028,20 +1063,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         await onPurchase(player, usdcAmount, action, slippage);
       }
       
-      setTransactionStatus('success');
-      setStatusMessage(`Successfully ${action === 'buy' ? 'purchased' : 'sold'} ${player.name} tokens!`);
+      updateAlertState('success', `Successfully ${action === 'buy' ? 'purchased' : 'sold'} ${player.name} tokens!`);
       
-      // Reset form after successful transaction
-      setTimeout(() => {
-        setShowBuySellMenu(false);
-        setUsdcAmount('');
-        setAction('buy');
-        setSlippage(0.5);
-        setTransactionStatus('idle');
-        setStatusMessage('');
-        setTransactionHash('');
-        onClose();
-      }, 3000);
+      // No automatic form reset or modal close - user controls when to close
     } catch (error) {
       console.error('❌ Buy tokens failed:', error);
       
@@ -1077,8 +1101,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         }
       }
       
-      setTransactionStatus('error');
-      setStatusMessage(`Transaction failed: ${errorMessage}`);
+      updateAlertState('error', `Transaction failed: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -1100,7 +1123,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl border-0 shadow-2xl">
         <div className="relative">
           {/* Close button */}
@@ -1177,8 +1200,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     onClick={() => {
                       setShowBuySellMenu(true);
                       setAction('buy');
-                      setTransactionStatus('idle');
-                      setStatusMessage('');
+                      updateAlertState('idle');
                     }}
                     className="relative overflow-hidden group bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg text-lg px-8 py-3 transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95"
                   >
@@ -1189,8 +1211,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     onClick={() => {
                       setShowBuySellMenu(true);
                       setAction('sell');
-                      setTransactionStatus('idle');
-                      setStatusMessage('');
+                      updateAlertState('idle');
                     }}
                     variant="outline"
                     className="relative overflow-hidden group text-lg px-8 py-3 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 hover:border-red-500 hover:text-red-500"
@@ -1421,9 +1442,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                       setUsdcAmount('');
                       setAction('buy');
                       setSlippage(0.5);
-                      setTransactionStatus('idle');
-                      setStatusMessage('');
-                      setTransactionHash('');
+                      updateAlertState('idle');
                     }}
                     className="relative overflow-hidden group flex-1"
                     disabled={isLoading}
@@ -1452,65 +1471,92 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   </Button>
                 </div>
 
-                {/* Transaction Status Tab */}
-                {transactionStatus !== 'idle' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="mt-4"
+                {/* Transaction Status Tab - Strict No-Overlap Design */}
+                {showAlert && transactionStatus !== 'idle' && (
+                  <div
+                    key={`alert-${alertKey}`}
+                    className="mt-6 mb-4 w-full"
+                    style={{ minHeight: '120px', clear: 'both' }} // Ensure minimum space and clear floats
                   >
-                    <Alert className={`border ${
-                      transactionStatus === 'pending' 
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' 
-                        : transactionStatus === 'success' 
-                        ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
-                        : 'border-red-500 bg-red-50 dark:bg-red-950/20'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        {transactionStatus === 'pending' && (
-                          <Clock className="w-4 h-4 text-blue-500 animate-pulse" />
-                        )}
-                        {transactionStatus === 'success' && (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                        )}
-                        {transactionStatus === 'error' && (
-                          <XCircle className="w-4 h-4 text-red-500" />
-                        )}
-                        <AlertDescription className={`font-medium ${
-                          transactionStatus === 'pending' 
-                            ? 'text-blue-700 dark:text-blue-300' 
-                            : transactionStatus === 'success' 
-                            ? 'text-green-700 dark:text-green-300' 
-                            : 'text-red-700 dark:text-red-300'
-                        }`}>
-                          {statusMessage}
-                        </AlertDescription>
+                    <div className="w-full bg-white dark:bg-gray-900 border-2 rounded-lg shadow-lg overflow-hidden">
+                      {/* Status Header - Fixed Height */}
+                      <div className={`w-full px-4 py-3 border-b-2 ${
+                        transactionStatus === 'pending' 
+                          ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-700' 
+                          : transactionStatus === 'success' 
+                          ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-700' 
+                          : 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-700'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0">
+                            {transactionStatus === 'pending' && (
+                              <Clock className="w-6 h-6 text-blue-600 animate-pulse" />
+                            )}
+                            {transactionStatus === 'success' && (
+                              <CheckCircle className="w-6 h-6 text-green-600" />
+                            )}
+                            {transactionStatus === 'error' && (
+                              <XCircle className="w-6 h-6 text-red-600" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-bold text-base leading-tight truncate ${
+                              transactionStatus === 'pending' 
+                                ? 'text-blue-800 dark:text-blue-200' 
+                                : transactionStatus === 'success' 
+                                ? 'text-green-800 dark:text-green-200' 
+                                : 'text-red-800 dark:text-red-200'
+                            }`}>
+                              {statusMessage}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                       
-                      {transactionHash && (
-                        <div className="mt-2 pt-2 border-t border-current/20">
-                          <a 
-                            href={`${NETWORK_CONFIG.blockExplorer}/tx/${transactionHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-current/80 hover:text-current transition-colors underline"
-                          >
-                            View transaction: {transactionHash.slice(0, 10)}...{transactionHash.slice(-8)}
-                          </a>
-                        </div>
-                      )}
-                      
-                      {transactionStatus === 'success' && (
-                        <div className="mt-2 pt-2 border-t border-current/20">
-                          <p className="text-xs text-current/80">
-                            This modal will close automatically in a few seconds.
-                          </p>
-                        </div>
-                      )}
-                    </Alert>
-                  </motion.div>
+                      {/* Content Area - Separate Container */}
+                      <div className="w-full p-4 space-y-4 bg-white dark:bg-gray-900">
+                        {/* Transaction Hash Section */}
+                        {transactionHash && (
+                          <div className="w-full">
+                            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-3">
+                              <div className="mb-2">
+                                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">
+                                  Transaction Hash
+                                </p>
+                                <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-2 mb-2">
+                                  <p className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all leading-relaxed">
+                                    {formatTransactionHash(transactionHash)}
+                                  </p>
+                                </div>
+                                <a 
+                                  href={`${NETWORK_CONFIG.blockExplorer}/tx/${transactionHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded border border-blue-200 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-colors"
+                                >
+                                  View on Explorer →
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Success Message Section */}
+                        {transactionStatus === 'success' && (
+                          <div className="w-full">
+                            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-700 rounded-md p-3 text-center">
+                              <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                                ✅ Transaction completed successfully!
+                              </p>
+                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                You can close this modal when ready
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </motion.div>
             </Card>
