@@ -66,23 +66,42 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
   const [alertKey, setAlertKey] = useState(0); // Track unique alert instances to prevent overlap
   const [showAlert, setShowAlert] = useState(false); // Control alert visibility
+  const [notificationDismissed, setNotificationDismissed] = useState(false); // Track if notification was dismissed
 
   // Helper function to safely update alert state and prevent overlap
   const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
-    // First hide any existing alert
-    setShowAlert(false);
-    
-    // Small delay to ensure previous alert is hidden before showing new one
-    setTimeout(() => {
+    // For smooth transitions between pending and success/error, don't hide the alert
+    // Only hide when going to idle or when starting a new alert from idle state
+    let shouldHideAlert = false;
+    if (status === 'idle') {
+      shouldHideAlert = true;
+    } else if (!showAlert) {
+      shouldHideAlert = true;
+    }
+
+    if (shouldHideAlert) {
+      setShowAlert(false);
+    }
+
+    // Reset notification dismissed state for new notifications
+    setNotificationDismissed(false);
+
+    // Small delay to ensure previous alert is hidden before showing new one (only for new alerts)
+    const updateFunction = () => {
       setTransactionStatus(status);
       setStatusMessage(message);
       setTransactionHash(hash);
       setAlertKey(prev => prev + 1);
       setShowAlert(status !== 'idle');
-    }, 50);
-  };
+    };
 
-  // Helper to update transaction hash while maintaining current status
+    if (shouldHideAlert) {
+      setTimeout(updateFunction, 50);
+    } else {
+      // For smooth transitions, update immediately without delay
+      updateFunction();
+    }
+  };  // Helper to update transaction hash while maintaining current status
   const updateTransactionHash = (hash: string) => {
     setTransactionHash(hash);
   };
@@ -603,8 +622,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }
     
     // Set success status with detailed info
-    setTransactionStatus('success');
-    setStatusMessage(`✅ Successfully bought player tokens! Gas used: ${receipt.gasUsed.toString()}`);
+    updateAlertState('success', `✅ Successfully bought player tokens!`, hash);
   };
 
   // Sell tokens using Player contract with proper EIP-712 signature
@@ -881,8 +899,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }
     
     // Set success status with detailed info
-    setTransactionStatus('success');
-    setStatusMessage(`✅ Successfully sold player tokens! Gas used: ${receipt.gasUsed.toString()}`);
+    updateAlertState('success', `✅ Successfully sold player tokens!`, hash);
   };
 
   const getRatingColor = (rating: number) => {
@@ -1062,8 +1079,6 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       if (onPurchase) {
         await onPurchase(player, usdcAmount, action, slippage);
       }
-      
-      updateAlertState('success', `Successfully ${action === 'buy' ? 'purchased' : 'sold'} ${player.name} tokens!`);
       
       // No automatic form reset or modal close - user controls when to close
     } catch (error) {
@@ -1327,104 +1342,106 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   </div>
                 </div>
 
-                {/* Transaction Details */}
-                <div className="mt-6 p-4 rounded-lg bg-accent/20 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Price Impact</span>
-                    <div className="flex items-center gap-1">
-                      {poolLoading ? (
-                        <span className="text-muted-foreground">Loading contract data...</span>
-                      ) : poolError ? (
-                        <span className="text-red-500">Contract Error</span>
-                      ) : realPriceImpactData ? (
-                        <span className={isPriceImpactHigh ? 'text-red-500' : 'text-foreground'}>
-                          {priceImpact}%
+                {/* Transaction Details - Hide during processing and when notification is active (unless dismissed) */}
+                {transactionStatus !== 'pending' && (!showAlert || notificationDismissed) && (
+                  <div className="mt-6 p-4 rounded-lg bg-accent/20 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Price Impact</span>
+                      <div className="flex items-center gap-1">
+                        {poolLoading ? (
+                          <span className="text-muted-foreground">Loading contract data...</span>
+                        ) : poolError ? (
+                          <span className="text-red-500">Contract Error</span>
+                        ) : realPriceImpactData ? (
+                          <span className={isPriceImpactHigh ? 'text-red-500' : 'text-foreground'}>
+                            {priceImpact}%
+                          </span>
+                        ) : usdcAmount && poolData && poolData.size > 0 ? (
+                          <span className="text-yellow-500">No Liquidity</span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {usdcAmount ? 'Enter amount' : '0.00%'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Show pool info when available */}
+                    {poolData && poolData.size > 0 && poolData.get(player.id) && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Pool Reserves</span>
+                        <span>
+                          {(() => {
+                            const pool = poolData.get(player.id);
+                            if (!pool) return 'No data';
+                            const usdcReserve = (Number(pool.currencyReserve) / 1e6).toFixed(2);
+                            const tokenReserve = (Number(pool.playerTokenReserve) / 1e18).toFixed(2);
+                            const currentPrice = pool.currencyReserve > 0n && pool.playerTokenReserve > 0n
+                              ? (Number(pool.currencyReserve) / 1e6) / (Number(pool.playerTokenReserve) / 1e18)
+                              : 0;
+                            return `${usdcReserve} USDC / ${tokenReserve} ${player.name} (${formatPriceDisplay(currentPrice)} USDC/token)`;
+                          })()}
                         </span>
-                      ) : usdcAmount && poolData && poolData.size > 0 ? (
-                        <span className="text-yellow-500">No Liquidity</span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {usdcAmount ? 'Enter amount' : '0.00%'}
+                      </div>
+                    )}
+                    
+                    {/* Show effective price when trade data is available */}
+                    {realPriceImpactData && realPriceImpactData.effectivePrice && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Effective Price</span>
+                        <span>
+                          {formatPriceDisplay(realPriceImpactData.effectivePrice)} USDC per token
                         </span>
-                      )}
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Slippage Tolerance</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="w-4 h-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Maximum price movement you're willing to accept</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSlippage(0.5)}
+                          className={`px-2 py-1 h-auto ${slippage === 0.5 ? 'bg-accent' : ''}`}
+                        >
+                          0.5%
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSlippage(1)}
+                          className={`px-2 py-1 h-auto ${slippage === 1 ? 'bg-accent' : ''}`}
+                        >
+                          1%
+                        </Button>
+                        <Input
+                          type="number"
+                          value={slippage}
+                          onChange={e => setSlippage(Number(e.target.value))}
+                          className="w-16 h-8 text-sm"
+                          min="0.1"
+                          max="50"
+                          step="0.1"
+                        />
+                        <span className="text-sm">%</span>
+                      </div>
                     </div>
                   </div>
-                  
-                  {/* Show pool info when available */}
-                  {poolData && poolData.size > 0 && poolData.get(player.id) && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Pool Reserves</span>
-                      <span>
-                        {(() => {
-                          const pool = poolData.get(player.id);
-                          if (!pool) return 'No data';
-                          const usdcReserve = (Number(pool.currencyReserve) / 1e6).toFixed(2);
-                          const tokenReserve = (Number(pool.playerTokenReserve) / 1e18).toFixed(2);
-                          const currentPrice = pool.currencyReserve > 0n && pool.playerTokenReserve > 0n
-                            ? (Number(pool.currencyReserve) / 1e6) / (Number(pool.playerTokenReserve) / 1e18)
-                            : 0;
-                          return `${usdcReserve} USDC / ${tokenReserve} ${player.name} (${formatPriceDisplay(currentPrice)} USDC/token)`;
-                        })()}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Show effective price when trade data is available */}
-                  {realPriceImpactData && realPriceImpactData.effectivePrice && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Effective Price</span>
-                      <span>
-                        {formatPriceDisplay(realPriceImpactData.effectivePrice)} USDC per token
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">Slippage Tolerance</span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="w-4 h-4 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Maximum price movement you're willing to accept</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSlippage(0.5)}
-                        className={`px-2 py-1 h-auto ${slippage === 0.5 ? 'bg-accent' : ''}`}
-                      >
-                        0.5%
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSlippage(1)}
-                        className={`px-2 py-1 h-auto ${slippage === 1 ? 'bg-accent' : ''}`}
-                      >
-                        1%
-                      </Button>
-                      <Input
-                        type="number"
-                        value={slippage}
-                        onChange={e => setSlippage(Number(e.target.value))}
-                        className="w-16 h-8 text-sm"
-                        min="0.1"
-                        max="50"
-                        step="0.1"
-                      />
-                      <span className="text-sm">%</span>
-                    </div>
-                  </div>
-                </div>
+                )}
 
-                {/* Warning for high price impact */}
-                {isPriceImpactHigh && realPriceImpactData && (
+                {/* Warning for high price impact - Hide during processing and when notification is active (unless dismissed) */}
+                {transactionStatus !== 'pending' && (!showAlert || notificationDismissed) && isPriceImpactHigh && realPriceImpactData && (
                   <Alert variant="destructive" className="mt-4">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
@@ -1480,7 +1497,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   >
                     <div className="w-full bg-white dark:bg-gray-900 border-2 rounded-lg shadow-lg overflow-hidden">
                       {/* Status Header - Fixed Height */}
-                      <div className={`w-full px-4 py-3 border-b-2 ${
+                      <div className={`w-full px-4 py-3 border-b-2 relative ${
                         transactionStatus === 'pending' 
                           ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-700' 
                           : transactionStatus === 'success' 
@@ -1511,6 +1528,21 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                             </p>
                           </div>
                         </div>
+                        {/* Close Button - Only show for completed transactions */}
+                        {transactionStatus !== 'pending' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setNotificationDismissed(true);
+                              setShowAlert(false);
+                            }}
+                            className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-black/10 dark:hover:bg-white/10"
+                            aria-label="Dismiss notification"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                       
                       {/* Content Area - Separate Container */}
@@ -1541,19 +1573,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                           </div>
                         )}
                         
-                        {/* Success Message Section */}
-                        {transactionStatus === 'success' && (
-                          <div className="w-full">
-                            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-700 rounded-md p-3 text-center">
-                              <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                                ✅ Transaction completed successfully!
-                              </p>
-                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                You can close this modal when ready
-                              </p>
-                            </div>
-                          </div>
-                        )}
+
                       </div>
                     </div>
                   </div>
