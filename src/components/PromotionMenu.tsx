@@ -8,6 +8,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Scissors, TrendingUp, Star, X, ArrowLeft, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+import { parseUnits } from 'viem';
 import { apiService } from '../services/apiService';
 import { debounce } from '../utils/retryUtils';
 

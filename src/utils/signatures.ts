@@ -6,12 +6,29 @@ export const EIP712_DOMAIN = {
   chainId: NETWORK_CONFIG.chainId, // Monad testnet
 };
 
+export const PLAYER_EIP712_DOMAIN = {
+  name: 'Player',
+  version: '1',
+  chainId: NETWORK_CONFIG.chainId, // Monad testnet
+};
+
 export const BUY_TOKENS_TYPES = {
   BuyTokens: [
     { name: 'buyer', type: 'address' },
     { name: 'playerTokenIds', type: 'uint256[]' },
     { name: 'amounts', type: 'uint256[]' },
     { name: 'maxCurrencySpend', type: 'uint256' },
+    { name: 'deadline', type: 'uint256' },
+    { name: 'nonce', type: 'uint256' }
+  ]
+};
+
+export const SELL_TOKENS_TYPES = {
+  SellTokens: [
+    { name: 'seller', type: 'address' },
+    { name: 'playerTokenIds', type: 'uint256[]' },
+    { name: 'amounts', type: 'uint256[]' },
+    { name: 'minCurrencyToReceive', type: 'uint256' },
     { name: 'deadline', type: 'uint256' },
     { name: 'nonce', type: 'uint256' }
   ]
@@ -25,6 +42,18 @@ export const BUY_TOKENS_TYPES = {
 export function createEIP712Domain(verifyingContract: string) {
   return {
     ...EIP712_DOMAIN,
+    verifyingContract: verifyingContract as `0x${string}`
+  };
+}
+
+/**
+ * Creates EIP712 domain for sellTokens signature (Player contract)
+ * @param verifyingContract - Player contract address
+ * @returns EIP712 domain object
+ */
+export function createPlayerEIP712Domain(verifyingContract: string) {
+  return {
+    ...PLAYER_EIP712_DOMAIN,
     verifyingContract: verifyingContract as `0x${string}`
   };
 }
@@ -57,6 +86,38 @@ export function createBuyTokensTypedData(domain: any, messageData: {
     domain,
     types: BUY_TOKENS_TYPES,
     primaryType: 'BuyTokens' as const,
+    message: formattedMessage
+  };
+}
+
+/**
+ * Creates typed data for sellTokens signature
+ * @param domain - EIP712 domain (Player contract)
+ * @param messageData - The transaction data
+ * @returns Typed data object ready for signing
+ */
+export function createSellTokensTypedData(domain: any, messageData: {
+  seller: string;
+  playerTokenIds: number[];
+  amounts: string[]; // BigInt string values from parseUnits
+  minCurrencyToReceive: string; // BigInt.toString() - NOT decimal string like "1.03"
+  deadline: number;
+  nonce: number;
+}) {
+  // For Privy, we use decimal string representation to avoid BigInt serialization issues
+  const formattedMessage = {
+    seller: messageData.seller as `0x${string}`,
+    playerTokenIds: messageData.playerTokenIds.map(id => BigInt(id).toString()), // Convert to decimal string
+    amounts: messageData.amounts.map(amt => BigInt(amt).toString()), // Keep as decimal string
+    minCurrencyToReceive: BigInt(messageData.minCurrencyToReceive).toString(), // Convert to decimal string
+    deadline: BigInt(messageData.deadline).toString(), // Convert to decimal string
+    nonce: BigInt(messageData.nonce).toString() // Convert to decimal string
+  };
+  
+  return {
+    domain,
+    types: SELL_TOKENS_TYPES,
+    primaryType: 'SellTokens' as const,
     message: formattedMessage
   };
 }
@@ -100,6 +161,50 @@ export function validateSignatureParams(messageData: any): boolean {
     BigInt(messageData.maxCurrencySpend);
   } catch (error) {
     throw new Error(`Invalid maxCurrencySpend value: ${messageData.maxCurrencySpend}`);
+  }
+  
+  return true;
+}
+
+/**
+ * Validates EIP712 sell signature parameters match expected contract format
+ * @param messageData - The message data to validate
+ * @returns true if valid, throws error if invalid
+ */
+export function validateSellSignatureParams(messageData: any): boolean {
+  const required = ['seller', 'playerTokenIds', 'amounts', 'minCurrencyToReceive', 'deadline', 'nonce'];
+  
+  for (const field of required) {
+    if (!(field in messageData)) {
+      throw new Error(`Missing required field: ${field}`);
+    }
+  }
+  
+  if (!Array.isArray(messageData.playerTokenIds)) {
+    throw new Error('playerTokenIds must be an array');
+  }
+  
+  if (!Array.isArray(messageData.amounts)) {
+    throw new Error('amounts must be an array');
+  }
+  
+  if (messageData.playerTokenIds.length !== messageData.amounts.length) {
+    throw new Error('playerTokenIds and amounts arrays must have same length');
+  }
+  
+  // Validate that amounts are valid BigInt strings
+  for (const amount of messageData.amounts) {
+    try {
+      BigInt(amount);
+    } catch (error) {
+      throw new Error(`Invalid amount value: ${amount}`);
+    }
+  }
+  
+  try {
+    BigInt(messageData.minCurrencyToReceive);
+  } catch (error) {
+    throw new Error(`Invalid minCurrencyToReceive value: ${messageData.minCurrencyToReceive}`);
   }
   
   return true;

@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import TeamSection from './components/TeamSection';
 import TransfersSection from './components/TransfersSection';
 import LiveScoresSection from './components/LiveScoresSection';
 import LeaderboardSection from './components/LeaderboardSection';
 import PackOpeningSection from './components/PackOpeningSection';
+import { usePlayerPrices } from './hooks/usePlayerPricing';
+import fakeData from './fakedata.json';
 
 // Import debug utility
 import './utils/contractDebug';
@@ -12,10 +14,19 @@ import './utils/contractDebug';
 export default function App() {
   const [activeTab, setActiveTab] = useState('Team');
 
+  // Always preload player prices on initial site load for better UX
+  const playerIds = fakeData.teamPlayers.map(player => player.id);
+  const { prices: preloadedPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
+
+  // Debug logging
+  console.log('🚀 App: preloadedPrices keys:', Object.keys(preloadedPrices));
+  console.log('🚀 App: pricesLoading:', pricesLoading);
+  console.log('🚀 App: playerIds count:', playerIds.length);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'Team':
-        return <TeamSection />;
+        return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
       case 'Transfers':
         return <TransfersSection />;
       case 'Live Scores':
@@ -25,7 +36,7 @@ export default function App() {
       case 'Pack Opening':
         return <PackOpeningSection />;
       default:
-        return <TeamSection />;
+        return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
     }
   };
 

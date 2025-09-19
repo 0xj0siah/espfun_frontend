@@ -64,7 +64,13 @@ interface PrivyWallet extends SmartWallet {
   embeddedWallet: EmbeddedWallet;
 }
 
-export default function TeamSection() {
+export default function TeamSection({ 
+  preloadedPrices = {}, 
+  pricesLoading = false 
+}: { 
+  preloadedPrices?: Record<number, string>;
+  pricesLoading?: boolean;
+}) {
   const [activeTab, setActiveTab] = useState('squad');
   const [teamPlayers, setTeamPlayers] = useState<Player[]>([]);
   const [ownedPlayers, setOwnedPlayers] = useState<Player[]>([]);
@@ -108,35 +114,44 @@ export default function TeamSection() {
     }
   };
 
-  // Helper function to calculate total value of owned shares using real pool price
-  const calculateTotalValue = (ownedShares: bigint, playerId: number): string => {
-    try {
-      const shares = parseFloat(formatEther(ownedShares));
-      
-      // Try to get real price from pool data first
-      const poolInfo = poolData.get(playerId);
-      let pricePerShare = 0;
-      
-      if (poolInfo && poolInfo.currencyReserve > 0n && poolInfo.playerTokenReserve > 0n) {
-        // Calculate real price from pool reserves: USDC reserve / token reserve
-        const usdcReserve = Number(poolInfo.currencyReserve) / 1e6; // USDC has 6 decimals
-        const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18; // Tokens have 18 decimals
-        pricePerShare = usdcReserve / tokenReserve;
-        console.log(`🔄 Using real pool price for player ${playerId}: ${pricePerShare.toFixed(8)} USDC per token`);
-      } else {
-        // Fallback to pricing hook data
-        const fallbackPrice = playerPrices[playerId] || '0.000 USDC';
-        pricePerShare = parseFloat(fallbackPrice.replace(/[^\d.-]/g, '')) || 0;
-        console.log(`⚠️ Using fallback price for player ${playerId}: ${pricePerShare} USDC per token`);
+  // Use preloaded prices from App component
+  const playerPrices = preloadedPrices;
+
+  // Debug logging
+  console.log('🎯 TeamSection: preloadedPrices keys:', Object.keys(preloadedPrices || {}));
+  console.log('🎯 TeamSection: pricesLoading:', pricesLoading);
+
+  // Memoize calculateTotalValue to prevent unnecessary recalculations
+  const calculateTotalValue = useMemo(() => {
+    return (ownedShares: bigint, playerId: number): string => {
+      try {
+        const shares = parseFloat(formatEther(ownedShares));
+        
+        // Try to get real price from pool data first
+        const poolInfo = poolData.get(playerId);
+        let pricePerShare = 0;
+        
+        if (poolInfo && poolInfo.currencyReserve > 0n && poolInfo.playerTokenReserve > 0n) {
+          // Calculate real price from pool reserves: USDC reserve / token reserve
+          const usdcReserve = Number(poolInfo.currencyReserve) / 1e6; // USDC has 6 decimals
+          const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18; // Tokens have 18 decimals
+          pricePerShare = usdcReserve / tokenReserve;
+          console.log(`🔄 Using real pool price for player ${playerId}: ${pricePerShare.toFixed(8)} USDC per token`);
+        } else {
+          // Fallback to pricing hook data
+          const fallbackPrice = playerPrices[playerId] || '0.000 USDC';
+          pricePerShare = parseFloat(fallbackPrice.replace(/[^\d.-]/g, '')) || 0;
+          console.log(`⚠️ Using fallback price for player ${playerId}: ${pricePerShare} USDC per token`);
+        }
+        
+        const totalValue = shares * pricePerShare;
+        return `${totalValue.toFixed(3)} USDC`;
+      } catch (error) {
+        console.error('Error calculating total value:', error);
+        return '0.000 USDC';
       }
-      
-      const totalValue = shares * pricePerShare;
-      return `${totalValue.toFixed(3)} USDC`;
-    } catch (error) {
-      console.error('Error calculating total value:', error);
-      return '0.000 USDC';
-    }
-  };
+    };
+  }, [poolData, playerPrices]);
 
   // Fetch owned players and their balances using individual balanceOf calls
   const fetchOwnedPlayers = async (userAddress: string) => {
@@ -173,11 +188,6 @@ export default function TeamSection() {
         return;
       }
 
-      // Get player prices for value calculation
-      const playerPricesArray = ownedPlayerData.map(({ playerId }) =>
-        playerPrices[playerId.toString()] || '0.000 USDC'
-      );
-
       // Create player objects for owned players
       const ownedPlayersList = ownedPlayerData.map(({ playerId, balance }, index) => {
         const playerIdNum = Number(playerId);
@@ -187,7 +197,7 @@ export default function TeamSection() {
         return {
           ...basePlayerData,
           id: playerIdNum,
-          price: playerPricesArray[index],
+          price: playerPrices[playerIdNum] || '0.000 USDC',
           points: 0, // Will be replaced with total value
           ownedShares: balance,
           totalValue: calculateTotalValue(balance, playerIdNum), // Use player ID instead of price
@@ -207,9 +217,9 @@ export default function TeamSection() {
       setOwnedPlayers(ownedPlayersList);
       
       // Fetch pool data for accurate pricing
-      const playerIds = ownedPlayerData.map(({ playerId }) => Number(playerId));
-      if (playerIds.length > 0) {
-        await fetchPoolInfo(playerIds);
+      const playerIdsForPool = ownedPlayerData.map(({ playerId }) => Number(playerId));
+      if (playerIdsForPool.length > 0) {
+        await fetchPoolInfo(playerIdsForPool);
       }
     } catch (error) {
       console.error('Error fetching owned players:', error);
@@ -239,10 +249,6 @@ export default function TeamSection() {
       toast.error('Contract test failed');
     }
   };
-
-  // Get player IDs for pricing - use useMemo to prevent recreation
-  const playerIds = useMemo(() => fakeData.teamPlayers.map(player => player.id), []);
-  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
 
   // Create development player objects from contract data and fake data
   const developmentPlayersWithData = useMemo(() => {
@@ -312,35 +318,66 @@ export default function TeamSection() {
   };
 
   useEffect(() => {
-    // Use fake data and merge with contract prices
-    const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => ({
-      ...player,
-      // Add missing fields for interface compatibility (set to fixed values)
-      level: 1, // Fixed level
-      xp: 50, // Fixed XP value instead of random
-      potential: 50, // Fixed potential
-      // Ensure types are properly cast
-      trend: player.trend as "up" | "down" | "stable",
-      recentMatches: player.recentMatches.map(match => ({
-        ...match,
-        result: match.result as "win" | "loss"
-      })),
-      // Price will be updated when contract prices load
-      price: playerPrices[player.id] || player.price
-    }));
-    
-    setTeamPlayers(playersWithPricing);
-    setLoading(false); // Set loading to false regardless of pricesLoading
-  }, [playerPrices]); // Remove pricesLoading from dependencies
+    // Use fake data and merge with preloaded contract prices
+    const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => {
+      const preloadedPrice = playerPrices[player.id];
+      const finalPrice = preloadedPrice || player.price;
 
-  // Fetch owned players when user is authenticated or pool data changes
+      console.log(`🎯 Player ${player.id} (${player.name}):`, {
+        preloadedPrice,
+        fallbackPrice: player.price,
+        finalPrice,
+        hasPreloadedPrice: !!preloadedPrice
+      });
+
+      return {
+        ...player,
+        // Add missing fields for interface compatibility (set to fixed values)
+        level: 1, // Fixed level
+        xp: 50, // Fixed XP value instead of random
+        potential: 50, // Fixed potential
+        // Ensure types are properly cast
+        trend: player.trend as "up" | "down" | "stable",
+        recentMatches: player.recentMatches.map(match => ({
+          ...match,
+          result: match.result as "win" | "loss"
+        })),
+        // Price will be updated when preloaded prices are available
+        price: finalPrice
+      };
+    });
+
+    console.log('📊 TeamSection: Processed', playersWithPricing.length, 'players with pricing');
+    setTeamPlayers(playersWithPricing);
+
+    // Always set loading to false after processing, regardless of pricesLoading state
+    // This prevents getting stuck in loading state if price fetching fails
+    setLoading(false);
+  }, [playerPrices, pricesLoading]); // Update when preloaded prices change
+
+  // Fetch owned players when component mounts or wallet changes
   useEffect(() => {
-    if (authenticated && user?.wallet?.address) {
-      fetchOwnedPlayers(user.wallet.address);
-    } else {
-      setOwnedPlayers([]);
-    }
-  }, [authenticated, user?.wallet?.address, poolData]); // Add poolData as dependency
+    const loadOwnedPlayers = async () => {
+      if (!authenticated || !user?.wallet?.address) {
+        console.log('User not authenticated or no wallet address for owned players');
+        setOwnedPlayers([]);
+        return;
+      }
+
+      console.log('Loading owned players for address:', user.wallet.address);
+      setLoading(true);
+      try {
+        await fetchOwnedPlayers(user.wallet.address);
+      } catch (error) {
+        console.error('Error loading owned players:', error);
+        setOwnedPlayers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOwnedPlayers();
+  }, [authenticated, user?.wallet?.address]); // Revert dependency array
 
   // Fetch development players data
   useEffect(() => {
@@ -366,6 +403,27 @@ export default function TeamSection() {
 
     fetchDevelopmentPlayers();
   }, [authenticated, user?.wallet?.address]);
+
+  // Update owned players prices when playerPrices changes (without re-fetching balances)
+  useEffect(() => {
+    if (ownedPlayers.length > 0 && Object.keys(playerPrices).length > 0) {
+      console.log('🎯 Updating owned players with new prices:', playerPrices);
+      setOwnedPlayers(prevPlayers =>
+        prevPlayers.map(player => {
+          const updatedPrice = playerPrices[player.id];
+          if (updatedPrice && updatedPrice !== player.price) {
+            console.log(`🎯 Updated price for owned player ${player.id} (${player.name}): ${player.price} → ${updatedPrice}`);
+            return {
+              ...player,
+              price: updatedPrice,
+              totalValue: calculateTotalValue(player.ownedShares || BigInt(0), player.id)
+            };
+          }
+          return player;
+        })
+      );
+    }
+  }, [playerPrices, calculateTotalValue]);
 
   const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => {
     if (!authenticated || !user?.wallet?.address) {
@@ -415,7 +473,10 @@ export default function TeamSection() {
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-          Total Value: 550 USDC
+          Total Value: {ownedPlayers.reduce((total, player) => {
+            const value = parseFloat(player.totalValue?.replace(/[^\d.-]/g, '') || '0');
+            return total + value;
+          }, 0).toFixed(3)} USDC
         </Badge>
       </div>
 

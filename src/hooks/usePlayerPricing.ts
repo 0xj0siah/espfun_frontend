@@ -70,18 +70,34 @@ export function usePlayerPrice(playerId: number) {
 export function usePlayerPrices(playerIds: number[]) {
   const [prices, setPrices] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
-  const { ready } = usePrivy();
+  const { ready, user, authenticated } = usePrivy();
 
   useEffect(() => {
-    if (!ready || playerIds.length === 0) return;
+    if (playerIds.length === 0) return;
+
+    // Always fetch prices - don't wait for wallet if not authenticated
+    // Only wait for wallet if authenticated but not ready
+    if (authenticated && !ready) {
+      console.log('🚀 usePlayerPrices: Waiting for wallet to be ready...');
+      return;
+    }
 
     const fetchPrices = async () => {
       setLoading(true);
+      console.log('🚀 usePlayerPrices: Starting price fetch for', playerIds.length, 'players');
+      
       try {
         const fdfPairContract = getContractData('FDFPair');
         const newPrices: Record<number, string> = {};
 
+        // Initialize fallback prices first
+        playerIds.forEach((playerId) => {
+          const basePrice = 50 + (playerId % 10) * 20;
+          newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
+        });
+
         try {
+          console.log('🚀 usePlayerPrices: Attempting to fetch from contract...');
           const result = await readContractCached({
             address: fdfPairContract.address as `0x${string}`,
             abi: fdfPairContract.abi as any,
@@ -90,49 +106,44 @@ export function usePlayerPrices(playerIds: number[]) {
           });
 
           const pricesArray = result as bigint[];
+          console.log('🚀 usePlayerPrices: Contract returned', pricesArray?.length || 0, 'prices');
 
           if (Array.isArray(pricesArray) && pricesArray.length > 0) {
             playerIds.forEach((playerId, index) => {
               if (index < pricesArray.length && pricesArray[index] > 0n) {
                 const priceInUsdc = formatUnits(pricesArray[index], 6);
                 newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
-              } else {
-                const basePrice = 50 + (playerId % 10) * 20;
-                newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
               }
-            });
-          } else {
-            playerIds.forEach((playerId) => {
-              const basePrice = 50 + (playerId % 10) * 20;
-              newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
             });
           }
 
         } catch (error) {
-          // Final fallback
-          playerIds.forEach(id => {
-            const basePrice = 50 + (id % 10) * 20;
-            newPrices[id] = `${basePrice.toFixed(2)} USDC`;
-          });
+          console.log('🚀 usePlayerPrices: Contract fetch failed, using fallbacks:', error instanceof Error ? error.message : String(error));
         }
 
         setPrices(newPrices);
+        console.log('✅ usePlayerPrices: Set prices for', Object.keys(newPrices).length, 'players');
       } catch (error) {
-        // Final fallback prices
+        console.log('⚠️ usePlayerPrices: Unexpected error:', error instanceof Error ? error.message : String(error));
+        // Ensure we always have fallback prices
         const fallbackPrices: Record<number, string> = {};
         playerIds.forEach(id => {
           const basePrice = 50 + (id % 10) * 20;
           fallbackPrices[id] = `${basePrice.toFixed(2)} USDC`;
         });
         setPrices(fallbackPrices);
+        console.log('⚠️ usePlayerPrices: Using emergency fallback prices');
       } finally {
         setLoading(false);
       }
     };
 
+    console.log('🚀 usePlayerPrices: Current prices state before fetch:', Object.keys(prices).length, 'players cached');
+
     // Add small random delay to stagger initial requests
     const delay = Math.random() * 2000;
     const timeoutId = setTimeout(() => {
+      console.log('🚀 usePlayerPrices: Executing fetch after delay:', delay, 'ms');
       fetchPrices();
     }, delay);
 
@@ -143,7 +154,7 @@ export function usePlayerPrices(playerIds: number[]) {
       clearTimeout(timeoutId);
       clearInterval(interval);
     };
-  }, [playerIds.join(','), ready]);
+  }, [playerIds.length > 0 ? playerIds.join(',') : '', ready || !authenticated]); // Fixed dependency array
 
   return { prices, loading };
 }

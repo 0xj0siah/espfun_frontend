@@ -14,8 +14,8 @@ import { usePrivy, useSendTransaction, useWallets, useSignTypedData } from '@pri
 import { createPublicClient, createWalletClient, http, parseUnits, formatUnits, custom, encodeFunctionData } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { usePoolInfo } from '../hooks/usePoolInfo';
-import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams } from '../utils/signatures';
-import { apiService } from '../services/apiService';
+import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams, createPlayerEIP712Domain, createSellTokensTypedData, validateSellSignatureParams } from '../utils/signatures';
+import { apiService, SellTokensRequest } from '../services/apiService';
 import { AuthenticationStatus } from './AuthenticationStatus';
 import { readContractCached } from '../utils/contractCache';
 
@@ -155,6 +155,30 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       console.error('Error getting current nonce:', error);
       // More conservative fallback - start from 1 if we can't get the nonce
       console.log('🔄 Using fallback nonce: 1');
+      return 1;
+    }
+  };
+
+  // Get current nonce for sell transactions from Player contract
+  const getCurrentSellNonce = async (userAddress: string): Promise<number> => {
+    try {
+      const playerContract = getContractData('Player');
+      
+      // Player contract uses getCurrentNonce function
+      const currentNonce = await readContractCached({
+        address: playerContract.address as `0x${string}`,
+        abi: playerContract.abi as any,
+        functionName: 'getCurrentNonce',
+        args: [userAddress],
+      });
+      
+      const nextNonce = Number(currentNonce) + 1; // Next nonce to use
+      console.log('✅ Current sell nonce for', userAddress, ':', Number(currentNonce), '-> Using:', nextNonce);
+      return nextNonce;
+    } catch (error) {
+      console.error('Error getting current sell nonce:', error);
+      // More conservative fallback - start from 1 if we can't get the nonce
+      console.log('🔄 Using fallback sell nonce: 1');
       return 1;
     }
   };
@@ -543,7 +567,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     setStatusMessage(`✅ Successfully bought player tokens! Gas used: ${receipt.gasUsed.toString()}`);
   };
 
-  // Sell tokens using Player contract
+  // Sell tokens using Player contract with proper EIP-712 signature
   const sellTokens = async (playerTokenId: number, tokenAmountToSell: string, minCurrencyToReceive: string): Promise<void> => {
     if (!user?.wallet?.address || !authenticated) {
       throw new Error('Wallet not connected');
@@ -553,14 +577,227 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     const minCurrencyBigInt = parseUnits(minCurrencyToReceive, 6); // USDC has 6 decimals
     const tokenAmountBigInt = parseUnits(tokenAmountToSell, 18); // Player tokens have 18 decimals
 
-    const deadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour deadline
-    const nonce = Date.now(); // Simple nonce
+    console.log('🔄 Starting sellTokens transaction...');
+    console.log('🎯 Sell Tokens Parameters:');
+    console.log('- Player IDs:', [playerTokenId]);
+    console.log('- Amounts (tokens):', [tokenAmountToSell]);
+    console.log('- Amounts (wei):', [tokenAmountBigInt.toString()]);
+    console.log('- Min receive (USDC):', minCurrencyToReceive);
+    console.log('- Min receive (wei):', minCurrencyBigInt.toString());
+
+    // Validate minimum amounts
+    if (minCurrencyBigInt <= 0n) {
+      throw new Error('Minimum currency to receive must be greater than 0');
+    }
+    if (tokenAmountBigInt <= 0n) {
+      throw new Error('Token amount must be greater than 0');
+    }
+
+    // Check user's player token balance
+    try {
+      const playerBalance = await readContractCached({
+        address: playerContract.address as `0x${string}`,
+        abi: playerContract.abi as any,
+        functionName: 'balanceOf',
+        args: [user.wallet.address as `0x${string}`, BigInt(playerTokenId)],
+      });
+      
+      console.log('Player token balance:', (playerBalance as bigint).toString());
+      
+      if ((playerBalance as bigint) < tokenAmountBigInt) {
+        throw new Error(`Insufficient player token balance. You have ${formatUnits(playerBalance as bigint, 18)} tokens but need ${tokenAmountToSell} tokens`);
+      }
+    } catch (balanceError) {
+      console.error('Balance check error:', balanceError);
+      throw new Error(`Unable to verify player token balance: ${balanceError.message}`);
+    }
+
+    // Check if player is sellable
+    try {
+      const isSellable = await readContractCached({
+        address: playerContract.address as `0x${string}`,
+        abi: playerContract.abi as any,
+        functionName: 'isSellable',
+        args: [BigInt(playerTokenId)],
+      });
+      
+      if (!isSellable) {
+        throw new Error(`Player ${playerTokenId} is not currently sellable`);
+      }
+    } catch (sellableError) {
+      console.error('Sellable check error:', sellableError);
+      throw new Error(`Player ${playerTokenId} is not available for selling`);
+    }
+
+    // Set deadline (recommended: 5-15 minutes as per setup.md)
+    const deadline = Math.floor(Date.now() / 1000) + 300; // 5 minutes
+    console.log('⏰ Transaction deadline:', new Date(deadline * 1000).toLocaleString());
+
+    // Try backend signature generation first, fallback to local if unavailable
+    let signature: string;
+    let nonce: number;
+    let transactionId: string | null = null;
+
+    try {
+      // Check if we have authentication for backend API
+      const hasAuthToken = localStorage.getItem('authToken');
+      if (!hasAuthToken) {
+        throw new Error('No authentication token found - backend signatures require authentication');
+      }
+
+      console.log('🌐 Attempting backend sell signature generation...');
+      
+      // Prepare request data for backend signature generation
+      const signatureRequest: SellTokensRequest = {
+        playerTokenIds: [playerTokenId.toString()], // Send as string array (consistent with buy)
+        amounts: [tokenAmountBigInt.toString()], // BigInt as string
+        minCurrencyToReceive: Number(minCurrencyBigInt), // Convert BigInt to number
+        deadline
+      };
+
+      console.log('📝 Requesting EIP712 sell signature from backend API:', signatureRequest);
+
+      // Get signature from backend API
+      const signatureResponse = await apiService.prepareSellSignature(signatureRequest);
+      
+      console.log('✅ Backend sell signature response received:', {
+        transactionId: signatureResponse.transactionId,
+        signatureLength: signatureResponse.signature.length,
+        nonce: signatureResponse.txData?.nonce || 'not provided'
+      });
+
+      // Extract signature and transaction data from backend response
+      signature = signatureResponse.signature;
+      nonce = signatureResponse.txData?.nonce;
+      transactionId = signatureResponse.transactionId;
+      
+      // If backend didn't provide a nonce, fetch it separately
+      if (nonce === undefined || nonce === null) {
+        console.log('🔢 Backend did not provide nonce, fetching from nonce endpoint...');
+        nonce = await getCurrentSellNonce(user.wallet.address);
+        console.log('🔢 Fetched sell nonce:', nonce);
+      }
+      
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format from backend: ${signature}`);
+      }
+      
+      console.log('✅ Using backend-generated EIP712 sell signature:', signature.slice(0, 10) + '...');
+
+    } catch (backendError) {
+      console.warn('⚠️ Backend sell signature generation failed, falling back to local generation:', backendError);
+
+      // If error mentions authentication, inform user
+      if (backendError.message.includes('Authentication') || backendError.message.includes('token')) {
+        console.log('🔐 Authentication issue detected - user may need to re-authenticate for backend features');
+        setStatusMessage('Backend authentication required - using local signature generation');
+      }
+
+      // Fallback to local signature generation
+      console.log('🔄 Falling back to local EIP712 sell signature generation...');
+
+      // Get current nonce for sell signature (CRITICAL for transaction ordering)
+      nonce = await getCurrentSellNonce(user.wallet.address);
+      console.log('🔢 Current sell nonce (local):', nonce);
+      
+      // Prepare signature data for local generation
+      const signatureData = {
+        seller: user.wallet.address,
+        playerTokenIds: [playerTokenId], // Array with actual number
+        amounts: [tokenAmountBigInt.toString()], // Array with BigInt string
+        minCurrencyToReceive: minCurrencyBigInt.toString(), // BigInt string, not decimal
+        deadline,
+        nonce
+      };
+
+      console.log('📝 Preparing local EIP712 sell signature with data:', signatureData);
+
+      // Validate all values are safe for JSON serialization
+      const testData = {
+        playerTokenIds: signatureData.playerTokenIds,
+        amounts: signatureData.amounts,
+        minCurrencyToReceive: signatureData.minCurrencyToReceive,
+        deadline: signatureData.deadline,
+        nonce: signatureData.nonce
+      };
+      
+      try {
+        JSON.stringify(testData);
+        console.log('✅ Pre-signature data serialization test passed');
+      } catch (preSerializationError) {
+        console.error('❌ Pre-signature data serialization failed:', preSerializationError);
+        throw new Error(`Invalid data types before signature: ${preSerializationError.message}`);
+      }
+
+      // Generate EIP-712 signature using Privy's useSignTypedData hook
+      const domain = createPlayerEIP712Domain(playerContract.address);
+      const typedData = createSellTokensTypedData(domain, signatureData);
+      
+      // Validate signature parameters
+      validateSellSignatureParams(signatureData);
+
+      console.log('🔐 Creating local EIP712 sell signature... (requires txSigner wallet)');
+      
+      // Test JSON serialization before passing to Privy
+      try {
+        const testSerialization = JSON.stringify(typedData);
+        console.log('✅ JSON serialization test passed, data length:', testSerialization.length);
+      } catch (serializationError) {
+        console.error('❌ JSON serialization failed:', serializationError);
+        throw new Error(`Cannot serialize typed data for signing: ${serializationError.message}`);
+      }
+
+      // Use Privy's signTypedData hook
+      const signResult = await signTypedData(typedData, {
+        uiOptions: {
+          title: 'Sign Sell Transaction',
+          description: 'Please sign this message to complete your token sale',
+          buttonText: 'Sign Message'
+        }
+      });
+
+      // Extract signature from result (handles various response formats)
+      if (typeof signResult === 'string') {
+        signature = signResult;
+      } else if (signResult && typeof signResult === 'object') {
+        // Try various possible signature fields
+        signature = (signResult as any).signature || 
+                   (signResult as any).sig || 
+                   (signResult as any).data || 
+                   signResult.toString();
+      } else {
+        throw new Error('Invalid signature response format');
+      }
+      
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format: ${signature}`);
+      }
+      
+      console.log('✅ Local EIP712 sell signature generated:', signature.slice(0, 10) + '...');
+    }
+    
+    console.log('🚀 Executing sellTokens transaction...');
+
+    // Encode the sellTokens function call with signature
+    const data = encodeFunctionData({
+      abi: playerContract.abi,
+      functionName: 'sellTokens',
+      args: [
+        [BigInt(playerTokenId)], // _playerTokenIds array
+        [tokenAmountBigInt], // _amounts array
+        minCurrencyBigInt, // _minCurrencyToReceive
+        BigInt(deadline), // _deadline
+        signature as `0x${string}`, // _signature
+        BigInt(nonce) // _nonce
+      ]
+    });
+
+    console.log('🔧 Encoded sell transaction data');
 
     // Prepare transaction for selling tokens
     const transactionRequest = {
       to: playerContract.address as `0x${string}`,
-      // This would need proper ABI encoding - for now using a simplified approach
-      data: '0x' as `0x${string}`, // Would need to properly encode the function call
+      data: data,
     };
 
     const options = {
@@ -571,12 +808,41 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       }
     };
 
+    console.log('📤 Sending sellTokens transaction...');
+
     // Use Privy's sendTransaction hook
     const { hash } = await sendTransaction(transactionRequest, options);
     setTransactionHash(hash);
 
+    console.log('⏳ Transaction sent, hash:', hash);
+
     // Wait for transaction confirmation
-    await publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    
+    // Parse transaction results (as per setup.md best practices)
+    console.log('✅ Sell transaction confirmed!');
+    console.log('- Transaction Hash:', receipt.transactionHash);
+    console.log('- Block Number:', receipt.blockNumber);
+    console.log('- Gas Used:', receipt.gasUsed.toString());
+    console.log('🎯 AuthorisedSellTokens event should be emitted in logs');
+
+    // Confirm transaction with backend if we used backend signature generation
+    if (transactionId) {
+      try {
+        console.log('📤 Confirming sell transaction with backend...');
+        await apiService.confirmSellTransaction(transactionId, hash);
+        console.log('✅ Sell transaction confirmed with backend');
+      } catch (confirmError) {
+        console.error('⚠️ Failed to confirm sell transaction with backend:', confirmError);
+        // Don't throw error here as the transaction itself was successful
+      }
+    } else {
+      console.log('ℹ️ Using local signature generation, skipping backend confirmation');
+    }
+    
+    // Set success status with detailed info
+    setTransactionStatus('success');
+    setStatusMessage(`✅ Successfully sold player tokens! Gas used: ${receipt.gasUsed.toString()}`);
   };
 
   const getRatingColor = (rating: number) => {
@@ -792,12 +1058,16 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           errorMessage = 'Price increased beyond max spend limit';
         } else if (error.message.includes('PlayerNotBuyable')) {
           errorMessage = 'One or more players are not buyable';
+        } else if (error.message.includes('PlayerNotSellable')) {
+          errorMessage = 'One or more players are not sellable';
         } else if (error.message.includes('insufficient funds')) {
           errorMessage = 'Insufficient TUSDC balance';
         } else if (error.message.includes('INSUFFICIENT_CURRENCY_AMOUNT')) {
           errorMessage = 'Insufficient USDC balance for this purchase';
         } else if (error.message.includes('INSUFFICIENT_LIQUIDITY')) {
           errorMessage = 'Insufficient liquidity in the pool for this trade';
+        } else if (error.message.includes('Insufficient player token balance')) {
+          errorMessage = error.message; // Use the detailed balance error message
         } else if (error.message.includes('User rejected')) {
           errorMessage = 'Transaction was cancelled by user';
         } else if (error.message.includes('insufficient funds')) {

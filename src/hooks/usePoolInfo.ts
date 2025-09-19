@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getContractData } from '../contracts';
 import { readContractCached, initializeContractCache } from '../utils/contractCache';
 
@@ -22,8 +22,10 @@ export function usePoolInfo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize contract cache
-  initializeContractCache();
+  // Initialize contract cache properly in useEffect
+  useEffect(() => {
+    initializeContractCache();
+  }, []);
 
   const fetchPoolInfo = async (playerIds: number[]) => {
     if (playerIds.length === 0) {

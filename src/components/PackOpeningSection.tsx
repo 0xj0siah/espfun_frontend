@@ -39,6 +39,17 @@ export default function PackOpeningSection() {
       try {
         setLoading(true);
         
+        // Clear cache to ensure fresh data
+        if (authenticated) {
+          console.log('🧹 Clearing API cache for fresh points data...');
+          // Force cache clear by calling clearAuthToken and then re-setting it
+          const currentToken = (apiService as any).token;
+          if (currentToken) {
+            apiService.clearAuthToken();
+            apiService.setAuthToken(currentToken);
+          }
+        }
+        
         // Load packs and user points in parallel
         const [packsResponse, pointsResponse] = await Promise.allSettled([
           apiService.getAvailablePacks(),

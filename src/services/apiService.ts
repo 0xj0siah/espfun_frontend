@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { parseUnits } from 'viem';
 import { requestCache } from '../utils/requestCache';
 import { retryWithBackoff, debounce } from '../utils/retryUtils';
 
@@ -11,13 +12,21 @@ export interface BuyTokensRequest {
   deadline: number;
 }
 
+export interface SellTokensRequest {
+  playerTokenIds: string[];
+  amounts: string[];
+  minCurrencyToReceive: number;
+  deadline: number;
+}
+
 export interface SignatureResponse {
   signature: string;
   txData: {
     nonce: number;
     playerTokenIds: string[];
     amounts: string[];
-    maxCurrencySpend: string;
+    maxCurrencySpend?: string;
+    minCurrencyToReceive?: number;
     deadline: number;
   };
   transactionId: string;
@@ -272,6 +281,32 @@ class ApiService {
     }
   }
 
+  // SellTokens EIP712 Signature
+  async prepareSellSignature(request: SellTokensRequest): Promise<SignatureResponse> {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/sell-tokens/prepare-signature`,
+        request,
+        { headers: this.getHeaders() }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Failed to prepare sell signature:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Authentication required. Please authenticate your wallet first.');
+        }
+        if (error.response?.status === 429) {
+          throw new Error('Too many requests. Please wait a moment before trying again.');
+        }
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+        throw new Error(`Backend sell signature preparation failed: ${errorMessage}`);
+      }
+      throw new Error('Failed to prepare sell signature from backend');
+    }
+  }
+
   async getBuyTokensNonce(address: string): Promise<{ nonce: number; address: string }> {
     const cacheKey = `buyTokens-nonce:${address}`;
     const endpoint = 'buyTokens/nonce';
@@ -296,6 +331,33 @@ class ApiService {
         }
       }
       throw new Error('Failed to get nonce from backend');
+    }
+  }
+
+  async getSellTokensNonce(address: string): Promise<{ nonce: number; address: string }> {
+    const cacheKey = `sellTokens-nonce:${address}`;
+    const endpoint = 'sell-tokens/nonce';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/sell-tokens/nonce/${address}`);
+          });
+          return response.data;
+        },
+        { ttl: 30000 } // Cache nonce for 30 seconds
+      );
+    } catch (error) {
+      console.error('Failed to get sellTokens nonce:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 429) {
+          throw new Error('Too many requests. Please wait a moment before trying again.');
+        }
+      }
+      throw new Error('Failed to get sell nonce from backend');
     }
   }
 
@@ -324,6 +386,20 @@ class ApiService {
     } catch (error) {
       console.error('Failed to confirm transaction:', error);
       throw new Error('Failed to confirm transaction with backend');
+    }
+  }
+
+  async confirmSellTransaction(transactionId: string, txHash: string): Promise<any> {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/sell-tokens/transaction/${transactionId}/confirm`,
+        { txHash },
+        { headers: this.getHeaders() }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Failed to confirm sell transaction:', error);
+      throw new Error('Failed to confirm sell transaction with backend');
     }
   }
 
@@ -366,7 +442,31 @@ class ApiService {
               headers: this.getHeaders()
             });
           });
-          return response.data;
+          
+          // Add detailed logging to see what the API actually returns
+          console.log('🔍 Raw API response from /api/points/balance:', response);
+          console.log('🔍 Raw response.data:', response.data);
+          console.log('🔍 Response data type:', typeof response.data);
+          console.log('🔍 Response data keys:', Object.keys(response.data || {}));
+          
+          // Check if the data needs transformation
+          let userData = response.data;
+          
+          // If the response is nested, extract the correct data
+          if (userData && typeof userData === 'object') {
+            if ('balance' in userData) {
+              console.log('🔄 Found nested balance data:', userData.balance);
+              userData = userData.balance;
+            } else if ('data' in userData) {
+              console.log('🔄 Found nested data:', userData.data);
+              userData = userData.data;
+            }
+          }
+          
+          console.log('🎯 Final transformed userData:', userData);
+          console.log('🎯 Tournament points value:', userData?.tournamentPoints);
+          
+          return userData;
         },
         { ttl: 15000 } // Cache for 15 seconds since points change more frequently
       );
@@ -536,11 +636,14 @@ class ApiService {
 
   async promotePlayer(playerId: string, shares: number): Promise<any> {
     try {
+      // Convert shares to proper decimal format (18 decimals for player tokens)
+      const sharesWithDecimals = parseUnits(shares.toString(), 18);
+      
       const response = await axios.post(
         `${API_BASE_URL}/api/players/promote`,
         { 
           playerIds: [parseInt(playerId)], 
-          shares: [shares] 
+          shares: [sharesWithDecimals.toString()] 
         },
         { headers: this.getHeaders() }
       );
@@ -565,11 +668,14 @@ class ApiService {
 
   async cutPlayer(playerId: string, shares: number): Promise<any> {
     try {
+      // Convert shares to proper decimal format (18 decimals for player tokens)
+      const sharesWithDecimals = parseUnits(shares.toString(), 18);
+      
       const response = await axios.post(
         `${API_BASE_URL}/api/players/cut`,
         { 
           playerIds: [parseInt(playerId)], 
-          shares: [shares] 
+          shares: [sharesWithDecimals.toString()] 
         },
         { headers: this.getHeaders() }
       );
