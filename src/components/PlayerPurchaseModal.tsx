@@ -67,17 +67,23 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [alertKey, setAlertKey] = useState(0); // Track unique alert instances to prevent overlap
   const [showAlert, setShowAlert] = useState(false); // Control alert visibility
   const [notificationDismissed, setNotificationDismissed] = useState(false); // Track if notification was dismissed
+  const previousStatusRef = useRef<'idle' | 'pending' | 'success' | 'error'>('idle'); // Track previous status
 
   // Helper function to safely update alert state and prevent overlap
   const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
     // For smooth transitions between pending and success/error, don't hide the alert
     // Only hide when going to idle or when starting a new alert from idle state
     let shouldHideAlert = false;
+    const prevStatus = previousStatusRef.current;
+
+    // Only hide alert when going to idle state OR when starting from idle to a new alert
     if (status === 'idle') {
       shouldHideAlert = true;
-    } else if (!showAlert) {
+    } else if (prevStatus === 'idle' && status !== 'idle') {
+      // Starting a new alert from idle state - hide first to reset
       shouldHideAlert = true;
     }
+    // For transitions between pending/success/error, NEVER hide the alert
 
     if (shouldHideAlert) {
       setShowAlert(false);
@@ -89,6 +95,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     // Small delay to ensure previous alert is hidden before showing new one (only for new alerts)
     const updateFunction = () => {
       setTransactionStatus(status);
+      previousStatusRef.current = status; // Update the ref with current status
       setStatusMessage(message);
       setTransactionHash(hash);
       setAlertKey(prev => prev + 1);
@@ -468,7 +475,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       console.warn('⚠️ Backend signature generation failed, falling back to local generation:', backendError);
 
       // If error mentions authentication, inform user
-      if (backendError.message.includes('Authentication') || backendError.message.includes('token')) {
+      if (backendError instanceof Error && (backendError.message.includes('Authentication') || backendError.message.includes('token'))) {
         console.log('🔐 Authentication issue detected - user may need to re-authenticate for backend features');
         setStatusMessage('Backend authentication required - using local signature generation');
       }
@@ -506,7 +513,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         console.log('✅ Pre-signature data serialization test passed');
       } catch (preSerializationError) {
         console.error('❌ Pre-signature data serialization failed:', preSerializationError);
-        throw new Error(`Invalid data types before signature: ${preSerializationError.message}`);
+        throw new Error(`Invalid data types before signature: ${preSerializationError instanceof Error ? preSerializationError.message : 'Unknown serialization error'}`);
       }
 
       // Generate EIP-712 signature using Privy's useSignTypedData hook
@@ -524,7 +531,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         console.log('✅ JSON serialization test passed, data length:', testSerialization.length);
       } catch (serializationError) {
         console.error('❌ JSON serialization failed:', serializationError);
-        throw new Error(`Cannot serialize typed data for signing: ${serializationError.message}`);
+        throw new Error(`Cannot serialize typed data for signing: ${serializationError instanceof Error ? serializationError.message : 'Unknown serialization error'}`);
       }
 
       // Use Privy's signTypedData hook
@@ -667,7 +674,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       }
     } catch (balanceError) {
       console.error('Balance check error:', balanceError);
-      throw new Error(`Unable to verify player token balance: ${balanceError.message}`);
+      throw new Error(`Unable to verify player token balance: ${balanceError instanceof Error ? balanceError.message : 'Unknown balance check error'}`);
     }
 
     // Check if player is sellable
@@ -746,7 +753,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       console.warn('⚠️ Backend sell signature generation failed, falling back to local generation:', backendError);
 
       // If error mentions authentication, inform user
-      if (backendError.message.includes('Authentication') || backendError.message.includes('token')) {
+      if (backendError instanceof Error && (backendError.message.includes('Authentication') || backendError.message.includes('token'))) {
         console.log('🔐 Authentication issue detected - user may need to re-authenticate for backend features');
         setStatusMessage('Backend authentication required - using local signature generation');
       }
@@ -784,7 +791,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         console.log('✅ Pre-signature data serialization test passed');
       } catch (preSerializationError) {
         console.error('❌ Pre-signature data serialization failed:', preSerializationError);
-        throw new Error(`Invalid data types before signature: ${preSerializationError.message}`);
+        throw new Error(`Invalid data types before signature: ${preSerializationError instanceof Error ? preSerializationError.message : 'Unknown serialization error'}`);
       }
 
       // Generate EIP-712 signature using Privy's useSignTypedData hook
@@ -802,7 +809,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         console.log('✅ JSON serialization test passed, data length:', testSerialization.length);
       } catch (serializationError) {
         console.error('❌ JSON serialization failed:', serializationError);
-        throw new Error(`Cannot serialize typed data for signing: ${serializationError.message}`);
+        throw new Error(`Cannot serialize typed data for signing: ${serializationError instanceof Error ? serializationError.message : 'Unknown serialization error'}`);
       }
 
       // Use Privy's signTypedData hook
