@@ -5,11 +5,12 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Scissors, TrendingUp, Star, X, ArrowLeft, Sparkles } from 'lucide-react';
+import { Scissors, TrendingUp, Star, X, ArrowLeft, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseUnits } from 'viem';
 import { apiService } from '../services/apiService';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { debounce } from '../utils/retryUtils';
 
 interface Player {
@@ -62,6 +63,15 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   const [realTimeCutValue, setRealTimeCutValue] = useState<number | null>(null);
   const [loadingRealTimeCosts, setLoadingRealTimeCosts] = useState(false);
 
+  // Authentication states
+  const { 
+    isAuthenticated, 
+    isAuthenticating, 
+    authenticate, 
+    error: authError,
+    walletConnected 
+  } = useAuthentication();
+
   // Create a debounced version of cost loading to prevent request spam
   const debouncedLoadCosts = useMemo(
     () => debounce(async (playerId: string) => {
@@ -80,7 +90,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
       } catch (error) {
         console.error('Error loading cost and value info:', error);
         // Only show error toast if it's not a rate limit error (cache will handle those)
-        if (!error?.message?.includes('Rate limit')) {
+        if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && !error.message.includes('Rate limit')) {
           toast.error('Failed to load cost information');
         }
       } finally {
@@ -93,11 +103,17 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   // Load cost and value information when modal opens
   useEffect(() => {
     if (isOpen && player?.id) {
+      // Auto-authenticate if not authenticated and wallet is connected
+      if (!isAuthenticated && walletConnected && !isAuthenticating) {
+        console.log('🔐 Auto-authenticating for PromotionMenu...');
+        authenticate();
+      }
+      
       debouncedLoadCosts(player.id);
       // Also fetch user points
       loadUserPoints();
     }
-  }, [isOpen, player?.id, debouncedLoadCosts]);
+  }, [isOpen, player?.id, debouncedLoadCosts, isAuthenticated, walletConnected, isAuthenticating, authenticate]);
 
   const loadUserPoints = async () => {
     try {
@@ -335,6 +351,45 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 </p>
               </div>
 
+              {/* Authentication Status */}
+              {!walletConnected && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Wallet Not Connected</span>
+                  </div>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Please connect your wallet to manage player shares.
+                  </p>
+                </div>
+              )}
+
+              {walletConnected && !isAuthenticated && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    {isAuthenticating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-1">
+                    {isAuthenticating 
+                      ? 'Please wait while we authenticate your wallet...' 
+                      : 'Authenticating automatically...'
+                    }
+                  </p>
+                  {authError && (
+                    <p className="text-xs text-red-600 mt-1">
+                      {authError}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-3">
                 {/* Promote Button */}
                 <motion.div
@@ -343,7 +398,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 >
                   <Button
                     onClick={() => setActiveAction('promote')}
-                    disabled={!canPromote}
+                    disabled={!canPromote || !isAuthenticated || isAuthenticating}
                     className="w-full h-16 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-lg relative overflow-hidden group"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
@@ -375,6 +430,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 >
                   <Button
                     onClick={() => setActiveAction('cut')}
+                    disabled={!isAuthenticated || isAuthenticating}
                     className="w-full h-16 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-lg relative overflow-hidden group"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
@@ -422,6 +478,28 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   </div>
                 )}
               </div>
+
+              {/* Authentication Status for Promote Menu */}
+              {walletConnected && !isAuthenticated && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    {isAuthenticating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {isAuthenticating ? 'Authenticating...' : 'Authenticating...'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-1">
+                    {isAuthenticating 
+                      ? 'Please wait while we authenticate your wallet...' 
+                      : 'Authentication in progress...'
+                    }
+                  </p>
+                </div>
+              )}
 
               {/* Manual Input */}
               <div className="space-y-2">
@@ -518,6 +596,8 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     loading || 
                     !promoteShares || 
                     parseInt(promoteShares) <= 0 ||
+                    !isAuthenticated ||
+                    isAuthenticating ||
                     (userPoints && (
                       (realTimePromotionCost !== null && realTimePromotionCost > userPoints.skillPoints) ||
                       (realTimePromotionCost === null && promotionCost && promoteShares && 
@@ -569,6 +649,28 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   </div>
                 )}
               </div>
+
+              {/* Authentication Status for Cut Menu */}
+              {walletConnected && !isAuthenticated && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    {isAuthenticating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {isAuthenticating ? 'Authenticating...' : 'Authenticating...'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-1">
+                    {isAuthenticating 
+                      ? 'Please wait while we authenticate your wallet...' 
+                      : 'Authentication in progress...'
+                    }
+                  </p>
+                </div>
+              )}
 
               {/* Manual Input */}
               <div className="space-y-2">
@@ -641,7 +743,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 </Button>
                 <Button
                   onClick={handleCutSubmit}
-                  disabled={loading || !cutShares || parseInt(cutShares) <= 0}
+                  disabled={loading || !cutShares || parseInt(cutShares) <= 0 || !isAuthenticated || isAuthenticating}
                   className="flex-1 h-12 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0"
                 >
                   {loading ? (
