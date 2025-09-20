@@ -588,13 +588,16 @@ export default function TeamSection({
               ))}
             </div>
           )}
-          {/* PlayerPurchaseModal */}
+          {/* PlayerPurchaseModal - moved outside TabsContent to prevent layout conflicts */}
           {selectedPlayer && (
             <PlayerPurchaseModal
               player={selectedPlayer}
               isOpen={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-              onPurchase={handlePurchase} // This will now receive both player and usdcAmount
+              onClose={() => {
+                setIsModalOpen(false);
+                setSelectedPlayer(null);
+              }}
+              onPurchase={handlePurchase}
             />
           )}
         </TabsContent>

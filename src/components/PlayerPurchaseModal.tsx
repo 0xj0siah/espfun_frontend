@@ -68,6 +68,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [showAlert, setShowAlert] = useState(false); // Control alert visibility
   const [notificationDismissed, setNotificationDismissed] = useState(false); // Track if notification was dismissed
   const previousStatusRef = useRef<'idle' | 'pending' | 'success' | 'error'>('idle'); // Track previous status
+  const isClosingRef = useRef(false); // Track if modal is closing to prevent showing buy/sell menu
+  const [isModalContentVisible, setIsModalContentVisible] = useState(true); // Control modal content animation
 
   // Helper function to safely update alert state and prevent overlap
   const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
@@ -79,7 +81,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     // Only hide alert when going to idle state OR when starting from idle to a new alert
     if (status === 'idle') {
       shouldHideAlert = true;
-    } else if (prevStatus === 'idle' && status !== 'idle') {
+    } else if (prevStatus === 'idle') {
       // Starting a new alert from idle state - hide first to reset
       shouldHideAlert = true;
     }
@@ -939,6 +941,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       fetchedPlayerIds.current.add(player.id);
       fetchPoolInfo([player.id]);
       
+      // Reset closing state and show modal content when modal opens
+      isClosingRef.current = false;
+      setIsModalContentVisible(true);
+      
       // Check user's USDC balance
       if (authenticated && user?.wallet?.address) {
         checkUserUsdcBalance();
@@ -1148,16 +1154,47 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl border-0 shadow-2xl">
         <div className="relative">
-          {/* Close button */}
+          {/* Close button - hide during closing animation */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={onClose}
-            className="absolute -top-2 -right-2 z-10 overflow-hidden group h-8 w-8 p-0 rounded-full hover:bg-background/50"
+            onClick={() => {
+              // Start the closing animation
+              setIsModalContentVisible(false);
+              
+              // Close modal after animation completes (0.3s to match the exit animation)
+              setTimeout(() => {
+                // Reset all states
+                setShowBuySellMenu(false);
+                setUsdcAmount('');
+                setAction('buy');
+                setSlippage(0.5);
+                updateAlertState('idle');
+                isClosingRef.current = false;
+                
+                // Close the modal
+                onClose();
+              }, 300);
+            }}
+            className={`absolute -top-2 -right-2 z-10 overflow-hidden group h-8 w-8 p-0 rounded-full hover:bg-background/50 transition-opacity duration-300 ${
+              !isModalContentVisible ? 'opacity-0' : 'opacity-100'
+            }`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             <X className="h-4 w-4" />
           </Button>
+          
+          {/* Modal Content with synchronized animation - maintain size during closing */}
+          <div className="h-[600px] overflow-hidden"> {/* Fixed height to prevent size shifting */}
+            <AnimatePresence mode="wait">
+              {isModalContentVisible && (
+                <motion.div
+                  layout={false}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 30 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
         
           <DialogHeader className="space-y-4">
             <div className="flex items-start justify-between">
@@ -1247,13 +1284,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           </Card>
 
           {/* Buy/Sell Menu */}
-          {showBuySellMenu && (
+          {showBuySellMenu && !isClosingRef.current && (
             <Card className="w-full max-w-md mx-auto bg-card/50 backdrop-blur-sm border-accent/20">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                exit={{ opacity: 0, y: 30 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 className="p-6 space-y-6"
               >
                 {/* Transaction Type Toggle */}
@@ -1666,6 +1703,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             </div>
           )}
         </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

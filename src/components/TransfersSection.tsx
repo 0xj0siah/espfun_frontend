@@ -10,6 +10,10 @@ import { motion } from 'motion/react';
 import { Search, Filter, TrendingUp, TrendingDown, ShoppingCart, DollarSign, Users, Star } from 'lucide-react';
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import fakeData from '../fakedata.json';
+import { usePrivy } from '@privy-io/react-auth';
+import { formatUnits } from 'viem';
+import { getContractData, NETWORK_CONFIG } from '../contracts';
+import { readContractCached } from '../utils/contractCache';
 
 interface Player {
   id: number;
@@ -45,10 +49,12 @@ export default function TransfersSection() {
   const [filterGame, setFilterGame] = useState('all');
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
 
   // Get player IDs for pricing - use useMemo to prevent recreation
   const playerIds = useMemo(() => fakeData.teamPlayers.map(player => player.id), []);
   const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
+  const { user, ready, authenticated } = usePrivy();
 
   useEffect(() => {
     // Use fake data and merge with contract prices
@@ -72,11 +78,15 @@ export default function TransfersSection() {
     setLoading(false); // Set loading to false regardless of pricesLoading
   }, [playerPrices]); // Remove pricesLoading from dependencies
 
-  const recentTransfers = [
-    { player: 'CyberNinja', action: 'Bought', price: '80 USDC', time: '2 hours ago', buyer: 'CryptoGamer23' },
-    { player: 'VoidWalker', action: 'Sold', price: '90 USDC', time: '1 day ago', buyer: 'ProPlayer99' },
-    { player: 'QuantumFlash', action: 'Bought', price: '150 USDC', time: '3 days ago', buyer: 'EliteStrat' }
-  ];
+  // Check user's USDC balance when authenticated
+  useEffect(() => {
+    if (authenticated && user?.wallet?.address) {
+      checkUserUsdcBalance();
+    } else {
+      setUserUsdcBalance('0');
+    }
+  }, [authenticated, user?.wallet?.address]);
+
 
   const filteredPlayers = availablePlayers
     .filter(player => 
@@ -102,6 +112,73 @@ export default function TransfersSection() {
     setSelectedPlayer(null);
   };
 
+  // Get currency token address from FDFPair contract
+  const getCurrencyTokenAddress = async (): Promise<string> => {
+    try {
+      const fdfPairContract = getContractData('FDFPair');
+      
+      // Try currencyToken function first (more likely to be correct)
+      try {
+        const address = await readContractCached({
+          address: fdfPairContract.address as `0x${string}`,
+          abi: fdfPairContract.abi as any,
+          functionName: 'currencyToken',
+          args: [],
+        });
+        console.log('✅ Currency token address from currencyToken():', address);
+        return address as string;
+      } catch (currencyTokenError) {
+        console.warn('currencyToken() failed, trying getCurrencyInfo():', currencyTokenError);
+        
+        // Fallback to getCurrencyInfo
+        const address = await readContractCached({
+          address: fdfPairContract.address as `0x${string}`,
+          abi: fdfPairContract.abi as any,
+          functionName: 'getCurrencyInfo',
+          args: [],
+        });
+        console.log('✅ Currency token address from getCurrencyInfo():', address);
+        return address as string;
+      }
+    } catch (error) {
+      console.error('Error getting currency token address:', error);
+      // Fallback to hardcoded TUSDC address from contracts
+      const tusdcContract = getContractData('TUSDC');
+      console.log('🔄 Using hardcoded TUSDC address as fallback:', tusdcContract.address);
+      return tusdcContract.address;
+    }
+  };
+
+  // Check user's USDC balance
+  const checkUserUsdcBalance = async (): Promise<void> => {
+    if (!user?.wallet?.address || !authenticated) return;
+    
+    try {
+      const currencyAddress = await getCurrencyTokenAddress();
+      const balance = await readContractCached({
+        address: currencyAddress as `0x${string}`,
+        abi: [
+          {
+            name: 'balanceOf',
+            type: 'function',
+            inputs: [{ name: 'account', type: 'address' }],
+            outputs: [{ name: '', type: 'uint256' }],
+            stateMutability: 'view'
+          }
+        ],
+        functionName: 'balanceOf',
+        args: [user.wallet.address as `0x${string}`],
+      });
+      
+      const formattedBalance = formatUnits(balance as bigint, 6);
+      setUserUsdcBalance(formattedBalance);
+      console.log('💰 User USDC balance:', formattedBalance);
+    } catch (error) {
+      console.error('Error checking USDC balance:', error);
+      setUserUsdcBalance('0');
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -121,7 +198,7 @@ export default function TransfersSection() {
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-          Balance: 210 USDC
+          Balance: {parseFloat(userUsdcBalance).toFixed(2)} USDC
         </Badge>
       </div>
 
@@ -162,126 +239,60 @@ export default function TransfersSection() {
         </div>
       </Card>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Available Players */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6 border-0 shadow-lg">
-            <h3 className="mb-6 flex items-center">
-              <Users className="w-5 h-5 mr-2 text-blue-500" />
-              Available Players ({filteredPlayers.length})
-            </h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {filteredPlayers.map((player, index) => (
-                <motion.div
-                  key={player.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  onClick={() => handlePlayerClick(player)}
-                  className="cursor-pointer group"
-                >
-                  <Card className="p-4 border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/20 group-hover:scale-105">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <ImageWithFallback
-                          src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
-                          alt={player.name}
-                          className="w-14 h-14 rounded-xl object-cover shadow-md"
-                        />
-                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
-                          {player.rating}
-                        </div>
+      {/* Available Players - Full Width */}
+      <div className="space-y-6">
+        <Card className="p-6 border-0 shadow-lg">
+          <h3 className="mb-6 flex items-center">
+            <Users className="w-5 h-5 mr-2 text-blue-500" />
+            Available Players ({filteredPlayers.length})
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredPlayers.map((player, index) => (
+              <motion.div
+                key={player.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => handlePlayerClick(player)}
+                className="cursor-pointer group"
+              >
+                <Card className="p-4 border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/20 group-hover:scale-105">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <ImageWithFallback
+                        src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                        alt={player.name}
+                        className="w-14 h-14 rounded-xl object-cover shadow-md"
+                      />
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                        {player.rating}
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium">{player.name}</h4>
-                        <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
-                          <div className={`flex items-center space-x-1 text-xs ${
-                            player.trend === 'up' ? 'text-green-500' : 
-                            player.trend === 'down' ? 'text-red-500' : 
-                            'text-muted-foreground'
-                          }`}>
-                            {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : 
-                             player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> : 
-                             <span>→</span>}
-                            <span>{player.points} pts</span>
-                          </div>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium">{player.name}</h4>
+                      <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
+                        <div className={`flex items-center space-x-1 text-xs ${
+                          player.trend === 'up' ? 'text-green-500' : 
+                          player.trend === 'down' ? 'text-red-500' : 
+                          'text-muted-foreground'
+                        }`}>
+                          {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : 
+                           player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> : 
+                           <span>→</span>}
+                          <span>{player.points} pts</span>
                         </div>
                       </div>
                     </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Recent Transfers */}
-          <Card className="p-6 border-0 shadow-lg">
-            <h3 className="mb-4 flex items-center">
-              <DollarSign className="w-5 h-5 mr-2 text-green-500" />
-              Recent Transfers
-            </h3>
-            <div className="space-y-3">
-              {recentTransfers.map((transfer, index) => (
-                <div key={index} className="p-3 bg-accent/30 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-medium">{transfer.player}</h4>
-                    <Badge variant={transfer.action === 'Bought' ? 'default' : 'secondary'}>
-                      {transfer.action}
-                    </Badge>
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{transfer.buyer}</span>
-                    <span>{transfer.price}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">{transfer.time}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Market Insights */}
-          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10">
-            <h3 className="mb-4 flex items-center">
-              <Star className="w-5 h-5 mr-2 text-yellow-500" />
-              Market Insights
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Avg Player Price</span>
-                <span className="text-sm font-medium text-primary">130 USDC</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Most Wanted Position</span>
-                <span className="text-sm font-medium text-primary">Duelist</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Price Trend</span>
-                <span className="text-sm font-medium text-green-600 flex items-center">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  +8% this week
-                </span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Transfer Tips */}
-          <Card className="p-6 border-0 shadow-lg">
-            <h4 className="text-sm font-medium mb-3">💡 Transfer Tips</h4>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <p>• Monitor player performance trends before buying</p>
-              <p>• Sell players before major tournaments for higher prices</p>
-              <p>• Budget 20% for emergency transfers</p>
-              <p>• Consider team synergy when building your squad</p>
-            </div>
-          </Card>
-        </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </Card>
       </div>
-      
+  
       {selectedPlayer && (
         <PlayerPurchaseModal
           player={selectedPlayer}
