@@ -4,9 +4,10 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Star, Zap, Trophy, Gift, Package, Gamepad2 } from 'lucide-react';
+import { Sparkles, Star, Zap, Trophy, Gift, Package, Gamepad2, AlertCircle, Loader2 } from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
 import { apiService, PackInfo, PackPurchaseResponse, UserPoints } from '../services/apiService';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { toast } from 'sonner';
 
 interface Player {
@@ -31,6 +32,15 @@ export default function PackOpeningSection() {
   const [userPoints, setUserPoints] = useState<UserPoints | null>(null);
 
   const { user, authenticated } = usePrivy();
+  
+  // Authentication states
+  const { 
+    isAuthenticated, 
+    isAuthenticating, 
+    authenticate, 
+    error: authError,
+    walletConnected 
+  } = useAuthentication();
 
   // Load available packs and user profile on component mount
   useEffect(() => {
@@ -38,6 +48,12 @@ export default function PackOpeningSection() {
       console.log('🎁 Loading packs and user profile...');
       try {
         setLoading(true);
+        
+        // Auto-authenticate if not authenticated and wallet is connected
+        if (!isAuthenticated && walletConnected && !isAuthenticating) {
+          console.log('🔐 Auto-authenticating for PackOpeningSection...');
+          await authenticate();
+        }
         
         // Clear cache to ensure fresh data
         if (authenticated) {
@@ -181,16 +197,16 @@ export default function PackOpeningSection() {
     };
 
     loadData();
-  }, []);
+  }, [authenticated, isAuthenticated, walletConnected, isAuthenticating, authenticate]);
 
   const openPack = async (pack: PackInfo) => {
-    if (!authenticated || !user?.wallet?.address) {
+    if (!isAuthenticated || !user?.wallet?.address) {
       toast.error('Please connect your wallet first');
       return;
     }
 
-    if (isPurchasing) {
-      return; // Prevent multiple clicks
+    if (isPurchasing || isAuthenticating) {
+      return; // Prevent multiple clicks or actions during authentication
     }
 
     setIsPurchasing(true);
@@ -308,6 +324,55 @@ export default function PackOpeningSection() {
           </motion.div>
         )}
         
+        {/* Authentication Status */}
+        {!walletConnected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto"
+          >
+            <div className="flex items-center gap-2 text-yellow-800">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Wallet Not Connected</span>
+            </div>
+            <p className="text-xs text-yellow-700 mt-1">
+              Please connect your wallet to purchase packs and view your points.
+            </p>
+          </motion.div>
+        )}
+
+        {walletConnected && !isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto"
+          >
+            <div className="flex items-center gap-2 text-blue-800">
+              {isAuthenticating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">
+                {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
+              </span>
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              {isAuthenticating 
+                ? 'Please wait while we authenticate your wallet...' 
+                : 'Authenticating automatically...'
+              }
+            </p>
+            {authError && (
+              <p className="text-xs text-red-600 mt-1">
+                {authError}
+              </p>
+            )}
+          </motion.div>
+        )}
+        
         {/* Authentication Prompt */}
         {!userPoints && authenticated && (
           <motion.div
@@ -366,8 +431,8 @@ export default function PackOpeningSection() {
                 whileHover={{ scale: 1.05, rotateY: 5 }}
                 className="perspective-1000"
               >
-                <Card className={`relative overflow-hidden border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer group ${isPurchasing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={() => !isPurchasing && openPack(pack)}
+                <Card className={`relative overflow-hidden border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer group ${isPurchasing || isAuthenticating || !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => !isPurchasing && !isAuthenticating && isAuthenticated && openPack(pack)}
                       style={{ width: '200px', height: '280px' }}>
                   {/* Realistic Pack Design - Box Style */}
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-purple-600 opacity-95"></div>
@@ -425,7 +490,7 @@ export default function PackOpeningSection() {
                   <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
                   {/* Loading Overlay */}
-                  {isPurchasing && (
+                  {(isPurchasing || isAuthenticating) && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                     </div>
