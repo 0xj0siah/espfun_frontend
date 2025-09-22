@@ -516,9 +516,9 @@ export default function TeamSection({
                     setSelectedPlayer(player);
                     setIsModalOpen(true);
                   }}
-                  className="cursor-pointer"
+                  className="cursor-pointer group"
                 >
-                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group">
+                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105">
                     {/* Background gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     
@@ -617,9 +617,9 @@ export default function TeamSection({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   onClick={() => handleDevelopmentPlayerClick(player)}
-                  className="cursor-pointer"
+                  className="cursor-pointer group"
                 >
-                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group">
+                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105">
                     {/* Background gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     
