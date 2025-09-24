@@ -85,6 +85,9 @@ class ContractCacheManager {
       case 'getAllPlayerIds':
       case 'getCurrencyInfo':
         return this.STATIC_DATA_TTL;
+      case 'usedNonces':
+      case 'getCurrentNonce':
+        return 0; // No caching for nonce functions to ensure fresh data
       default:
         return this.DEFAULT_TTL;
     }
