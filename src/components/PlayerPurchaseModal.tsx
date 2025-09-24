@@ -945,6 +945,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       isClosingRef.current = false;
       setIsModalContentVisible(true);
       
+      // Reset form state when switching to a new player to prevent cached input issues
+      setUsdcAmount('');
+      setAction('buy');
+      setSlippage(0.5);
+      setShowBuySellMenu(false);
+      updateAlertState('idle');
+      
       // Check user's USDC balance
       if (authenticated && user?.wallet?.address) {
         checkUserUsdcBalance();
