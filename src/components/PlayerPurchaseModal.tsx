@@ -17,7 +17,7 @@ import { usePoolInfo } from '../hooks/usePoolInfo';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams, createPlayerEIP712Domain, createSellTokensTypedData, validateSellSignatureParams } from '../utils/signatures';
 import { apiService, SellTokensRequest } from '../services/apiService';
 import { AuthenticationStatus } from './AuthenticationStatus';
-import { readContractCached } from '../utils/contractCache';
+import { readContractCached, contractCache } from '../utils/contractCache';
 
 interface Player {
   id: number;
@@ -370,6 +370,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     // Wait for transaction confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     console.log('✅ USDC approval confirmed:', receipt.transactionHash);
+
+    // Invalidate nonce cache after approval transaction
+    console.log('🔄 Invalidating nonce cache after USDC approval...');
+    contractCache.invalidateCache(fdfPairContract.address, 'usedNonces');
   };
 
   // Buy tokens using FDFPair contract with proper EIP-712 signature
@@ -615,6 +619,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     console.log('- Block Number:', receipt.blockNumber);
     console.log('- Gas Used:', receipt.gasUsed.toString());
     console.log('🎯 PlayerTokensPurchase event should be emitted in logs');
+
+    // Invalidate nonce cache after transaction to ensure fresh nonce for next transaction
+    console.log('🔄 Invalidating nonce cache after buy transaction...');
+    contractCache.invalidateCache(fdfPairContract.address, 'usedNonces');
 
     // Confirm transaction with backend if we used backend signature generation
     if (transactionId) {
@@ -892,6 +900,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     console.log('- Block Number:', receipt.blockNumber);
     console.log('- Gas Used:', receipt.gasUsed.toString());
     console.log('🎯 AuthorisedSellTokens event should be emitted in logs');
+
+    // Invalidate nonce cache after transaction to ensure fresh nonce for next transaction
+    console.log('🔄 Invalidating nonce cache after sell transaction...');
+    contractCache.invalidateCache(playerContract.address, 'getCurrentNonce');
 
     // Confirm transaction with backend if we used backend signature generation
     if (transactionId) {
