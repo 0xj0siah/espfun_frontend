@@ -112,7 +112,7 @@ function App() {
           accentColor: '#676FFF',
         },
         embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
+          createOnLogin: 'all-users',
         },
         defaultChain: monadTestnet,
         supportedChains: [monadTestnet],

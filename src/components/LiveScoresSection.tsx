@@ -176,16 +176,6 @@ export default function LiveScoresSection() {
               </motion.div>
             ))}
           </div>
-
-          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10 rounded-xl">
-            <h4 className="text-sm font-medium mb-2 flex items-center">
-              <Users className="w-4 h-4 mr-2 text-blue-500" />
-              Fantasy Points Update
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              Points are updated in real-time during live matches. Check back frequently for the latest scores!
-            </p>
-          </div>
         </Card>
       </div>
     </div>

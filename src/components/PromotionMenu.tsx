@@ -399,9 +399,9 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   <Button
                     onClick={() => setActiveAction('promote')}
                     disabled={!canPromote || !isAuthenticated || isAuthenticating}
-                    className="w-full h-16 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-lg relative overflow-hidden group"
+                    className="w-full h-16 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg relative transition-all duration-300"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                    {/* No overlay or white effect for dark mode. Only subtle color change. Uses dark: classes for dark mode hover. */}
                     <div className="flex items-center gap-4 relative z-10">
                       <div className="p-2 bg-white/20 rounded-xl">
                         <TrendingUp className="h-6 w-6" />
@@ -431,9 +431,9 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   <Button
                     onClick={() => setActiveAction('cut')}
                     disabled={!isAuthenticated || isAuthenticating}
-                    className="w-full h-16 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-lg relative overflow-hidden group"
+                    className="w-full h-16 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg relative transition-all duration-300"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                    {/* No overlay or white effect for dark mode. Only subtle color change. Uses dark: classes for dark mode hover. */}
                     <div className="flex items-center gap-4 relative z-10">
                       <div className="p-2 bg-white/20 rounded-xl">
                         <Scissors className="h-6 w-6" />
@@ -604,7 +604,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                        (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints)
                     ))
                   }
-                  className="flex-1 h-12 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0"
+                  className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 transition-all duration-300"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -744,7 +744,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <Button
                   onClick={handleCutSubmit}
                   disabled={loading || !cutShares || parseInt(cutShares) <= 0 || !isAuthenticated || isAuthenticating}
-                  className="flex-1 h-12 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0"
+                  className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 transition-all duration-300"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">

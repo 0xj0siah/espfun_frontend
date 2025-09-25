@@ -21,7 +21,7 @@ root.render(
       config={{
         embeddedWallets: {
           ethereum: {
-            createOnLogin: 'users-without-wallets'
+            createOnLogin: 'all-users'
           }
         },
         defaultChain: monadTestnet,

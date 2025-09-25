@@ -108,7 +108,7 @@ export function getContractData(contractName: ContractName) {
 
 // Network configuration (Monad Testnet)
 export const NETWORK_CONFIG = {
-  chainId: 10143, // Actual Monad Testnet chain ID (was 41454)
+  chainId: 10143,
   name: 'Monad Testnet',
   rpcUrl: 'https://testnet-rpc.monad.xyz', // Fixed RPC URL (was https://testnet1.monad.xyz)
   blockExplorer: 'https://testnet.monadexplorer.com',
