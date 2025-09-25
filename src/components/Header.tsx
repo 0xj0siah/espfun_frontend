@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { QRCodeSVG } from 'qrcode.react';
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
@@ -31,6 +31,22 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const [hasCopied, setHasCopied] = useState(false);
 
   const { login, logout, ready, authenticated, user } = usePrivy();
+  const { wallets } = useWallets();
+
+  // Get the embedded wallet address (created by Privy for app usage)
+  const getEmbeddedWalletAddress = () => {
+    if (!wallets || wallets.length === 0) return null;
+    
+    // Find the embedded wallet (Privy creates this automatically)
+    const embeddedWallet = wallets.find(wallet => 
+      wallet.walletClientType === 'privy' || 
+      wallet.connectorType === 'embedded'
+    );
+    
+    return embeddedWallet?.address || null;
+  };
+
+  const embeddedWalletAddress = getEmbeddedWalletAddress();
   const { isAuthenticated, isAuthenticating, error: authError, authenticate } = useAuthentication();
 
   const games = [
@@ -109,8 +125,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   };
 
   const handleCopyAddress = async () => {
-    if (user?.wallet?.address) {
-      await navigator.clipboard.writeText(user.wallet.address);
+    if (embeddedWalletAddress) {
+      await navigator.clipboard.writeText(embeddedWalletAddress);
       setHasCopied(true);
       setTimeout(() => setHasCopied(false), 2000);
     }
@@ -219,8 +235,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="bg-accent/50 border-0 shadow-sm">
                     <User className="w-4 h-4 mr-2" />
-                    {user?.wallet?.address
-                      ? `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`
+                    {embeddedWalletAddress
+                      ? `${embeddedWalletAddress.slice(0, 6)}...${embeddedWalletAddress.slice(-4)}`
                       : "Wallet"}
                   </Button>
                 </DropdownMenuTrigger>
@@ -229,7 +245,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                     <div className="flex flex-col">
                       <span className="text-sm">Wallet Address</span>
                       <span className="text-xs text-muted-foreground">
-                        {user?.wallet?.address}
+                        {embeddedWalletAddress}
                       </span>
                     </div>
                   </DropdownMenuItem>
@@ -331,14 +347,15 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
           <div className="grid gap-4 py-4">
             <Card className="p-4 bg-accent/30">
               <div className="text-center space-y-4">
-                {user?.wallet?.address && (
+                {embeddedWalletAddress && (
                   <div className="bg-background/80 p-4 rounded-lg inline-block mx-auto">
                     <QRCodeSVG
-                      value={user.wallet.address}
+                      value={embeddedWalletAddress}
                       size={180}
                       className="mx-auto"
                       level="H"
                       includeMargin={true}
+                      style={{ borderRadius: '8px' }}
                     />
                   </div>
                 )}
@@ -347,7 +364,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                   <div className="relative">
                     <Input
                       readOnly
-                      value={user?.wallet?.address || ''}
+                      value={embeddedWalletAddress || ''}
                       className="pr-20 font-mono text-xs bg-background/50"
                     />
                     <Button
