@@ -47,7 +47,16 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   };
 
   const embeddedWalletAddress = getEmbeddedWalletAddress();
+
   const { isAuthenticated, isAuthenticating, error: authError, authenticate } = useAuthentication();
+
+  // Auto-authenticate when wallet connects
+  useEffect(() => {
+    if (authenticated && !isAuthenticated && !isAuthenticating && !authError) {
+      console.log('🔐 Auto-authenticating after wallet connection...');
+      authenticate();
+    }
+  }, [authenticated, isAuthenticated, isAuthenticating, authError, authenticate]);
 
   const games = [
     { value: 'CS2', label: 'Counter-Strike 2' },
@@ -223,12 +232,11 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               </Button>
             ) : !isAuthenticated ? (
               <Button 
-                onClick={() => authenticate()} 
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg"
-                disabled={isAuthenticating}
+                disabled
+                className="bg-gradient-to-r from-yellow-600 to-orange-600 text-white border-0 shadow-lg cursor-not-allowed"
               >
                 <Wallet className="w-4 h-4 mr-2" />
-                {isAuthenticating ? "Authenticating..." : "Authenticate"}
+                {isAuthenticating ? "Authenticating..." : "Authenticating..."}
               </Button>
             ) : (
               <DropdownMenu>
