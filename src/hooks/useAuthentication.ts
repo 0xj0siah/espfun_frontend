@@ -17,6 +17,56 @@ export const useAuthentication = () => {
   const { authenticated, user } = usePrivy();
   const { signMessage } = useSignMessage();
 
+  // Clear authentication
+  const clearAuthentication = useCallback(() => {
+    apiService.clearAuthToken();
+    setIsAuthenticated(false);
+    setError(null);
+    setHasAttemptedAuth(false);
+    // Reset global state
+    isGloballyAuthenticating = false;
+    lastAuthAttempt = 0;
+  }, []);
+
+  // Track wallet disconnection and address changes to clear authentication
+  useEffect(() => {
+    const currentWalletAddress = user?.wallet?.address || null;
+    
+    // If wallet was disconnected, clear authentication
+    if (!authenticated && lastWalletAddress) {
+      console.log('🔌 Wallet disconnected, clearing authentication');
+      clearAuthentication();
+      setLastWalletAddress(null);
+      return;
+    }
+    
+    // If wallet address changed (switched wallets), clear authentication
+    if (authenticated && lastWalletAddress && currentWalletAddress && lastWalletAddress !== currentWalletAddress) {
+      console.log('🔄 Wallet address changed, clearing authentication for new wallet');
+      clearAuthentication();
+    }
+    
+    // Update last wallet address
+    if (currentWalletAddress !== lastWalletAddress) {
+      setLastWalletAddress(currentWalletAddress);
+    }
+  }, [authenticated, user?.wallet?.address, lastWalletAddress, clearAuthentication]);
+
+  // Check authentication status when wallet connection changes
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const token = localStorage.getItem('authToken');
+      const shouldBeAuthenticated = !!token && authenticated;
+
+      // Only update state if it actually changed
+      if (shouldBeAuthenticated !== isAuthenticated) {
+        setIsAuthenticated(shouldBeAuthenticated);
+      }
+    };
+
+    checkAuthStatus();
+  }, [authenticated, isAuthenticated]);
+
   // Handle JWT authentication
   const authenticate = useCallback(async () => {
     if (!authenticated || !user?.wallet?.address) {
@@ -117,57 +167,6 @@ export const useAuthentication = () => {
       isGloballyAuthenticating = false;
     }
   }, [authenticated, user?.wallet?.address, signMessage, isAuthenticating, isAuthenticated]);
-
-  // Clear authentication
-  const clearAuthentication = useCallback(() => {
-    apiService.clearAuthToken();
-    setIsAuthenticated(false);
-    setError(null);
-    setHasAttemptedAuth(false);
-    setLastWalletAddress(null);
-    // Reset global state
-    isGloballyAuthenticating = false;
-    lastAuthAttempt = 0;
-  }, []);
-
-  // Check authentication status when wallet connection changes
-  useEffect(() => {
-    const checkAuthStatus = () => {
-      const token = localStorage.getItem('authToken');
-      const currentWalletAddress = user?.wallet?.address || null;
-
-      // If wallet is disconnected, clear authentication
-      if (!authenticated && token) {
-        console.log('🔐 Wallet disconnected, clearing authentication token');
-        clearAuthentication();
-        setLastWalletAddress(null);
-        return;
-      }
-
-      // If wallet address changed while connected, clear authentication
-      if (authenticated && lastWalletAddress && currentWalletAddress && lastWalletAddress !== currentWalletAddress) {
-        console.log('🔐 Wallet address changed, clearing authentication token');
-        clearAuthentication();
-        setLastWalletAddress(currentWalletAddress);
-        return;
-      }
-
-      // Update last wallet address
-      if (currentWalletAddress !== lastWalletAddress) {
-        setLastWalletAddress(currentWalletAddress);
-      }
-
-      // If wallet is connected, check if we should be authenticated
-      const shouldBeAuthenticated = !!token && authenticated;
-
-      // Only update state if it actually changed
-      if (shouldBeAuthenticated !== isAuthenticated) {
-        setIsAuthenticated(shouldBeAuthenticated);
-      }
-    };
-
-    checkAuthStatus();
-  }, [authenticated, isAuthenticated, clearAuthentication, user?.wallet?.address, lastWalletAddress]);
 
   // Validate current token
   const validateToken = useCallback(async (): Promise<boolean> => {
