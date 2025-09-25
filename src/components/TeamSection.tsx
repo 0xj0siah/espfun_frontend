@@ -608,6 +608,27 @@ export default function TeamSection({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
               <span className="ml-2 text-muted-foreground">Loading development players...</span>
             </div>
+          ) : developmentPlayers.totalPlayers === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+              <Users className="w-16 h-16 mb-4 opacity-50" />
+              <h3 className="text-lg font-medium mb-2">No Development Players</h3>
+              <p className="text-sm mb-4 max-w-md">Start developing players to promote them to your active squad</p>
+              <Button 
+                onClick={testContract}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                size="sm"
+              >
+                Test Contract Connection
+              </Button>
+              {testResults && (
+                <div className="mt-4 p-4 bg-accent/50 rounded-lg text-center max-w-md">
+                  <p className="text-sm font-medium">Test Results:</p>
+                  <p className="text-xs">Connected: {testResults.isConnected ? '✅' : '❌'}</p>
+                  <p className="text-xs">Players Found: {testResults.userPlayerIds.length}</p>
+                  {testResults.error && <p className="text-xs text-red-600">Error: {testResults.error}</p>}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {developmentPlayersWithData.map((player, index) => (
@@ -691,29 +712,6 @@ export default function TeamSection({
                   </Card>
                 </motion.div>
               ))}
-              
-              {developmentPlayers.totalPlayers === 0 && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">No Development Players</h3>
-                  <p className="text-sm mb-4">Start developing players to promote them to your active squad</p>
-                  <Button 
-                    onClick={testContract}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                    size="sm"
-                  >
-                    Test Contract Connection
-                  </Button>
-                  {testResults && (
-                    <div className="mt-4 p-4 bg-accent/50 rounded-lg text-left max-w-md mx-auto">
-                      <p className="text-sm font-medium">Test Results:</p>
-                      <p className="text-xs">Connected: {testResults.isConnected ? '✅' : '❌'}</p>
-                      <p className="text-xs">Players Found: {testResults.userPlayerIds.length}</p>
-                      {testResults.error && <p className="text-xs text-red-600">Error: {testResults.error}</p>}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
           {/* PromotionMenu for development players */}
