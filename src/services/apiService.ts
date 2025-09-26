@@ -226,7 +226,7 @@ class ApiService {
           throw new Error('Too many requests. Please wait a moment before trying again.');
         }
         if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
-          throw new Error('Backend server is not available. Please ensure the server is running on http://localhost:5000');
+          throw new Error('Backend server is not available. Please check your connection and try again.');
         }
       }
       throw new Error('Failed to get authentication nonce from backend');
