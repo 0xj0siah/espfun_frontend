@@ -25,7 +25,6 @@ root.render(
           }
         },
         defaultChain: monadTestnet,
-
         supportedChains: [monadTestnet]
       }}
     >
