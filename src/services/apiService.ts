@@ -214,16 +214,40 @@ class ApiService {
   // Authentication - Fixed to match API docs
   async getNonce(address: string): Promise<{ nonce: string; message: string }> {
     try {
+      console.log('🔐 Requesting nonce from backend:', {
+        url: `${API_BASE_URL}/api/auth/nonce`,
+        walletAddress: address
+      });
+
       // According to API docs, this should be POST /api/auth/nonce
       const response = await axios.post(`${API_BASE_URL}/api/auth/nonce`, {
         walletAddress: address
       });
+
+      console.log('🔐 Nonce response received:', {
+        status: response.status,
+        nonce: response.data?.nonce,
+        message: response.data?.message
+      });
+
       return response.data;
     } catch (error) {
-      console.error('Failed to get authentication nonce:', error);
+      console.error('🔐 Nonce request failed:', {
+        url: `${API_BASE_URL}/api/auth/nonce`,
+        error: error,
+        response: axios.isAxiosError(error) ? {
+          status: error.response?.status,
+          data: error.response?.data
+        } : 'Unknown error'
+      });
+
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 429) {
           throw new Error('Too many requests. Please wait a moment before trying again.');
+        }
+        if (error.response?.status === 400) {
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Bad request';
+          throw new Error(`Failed to get nonce: ${errorMessage}`);
         }
         if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
           throw new Error('Backend server is not available. Please check your connection and try again.');
@@ -235,20 +259,53 @@ class ApiService {
 
   async login(address: string, signature: string, message: string): Promise<AuthResponse> {
     try {
+      console.log('🔐 Sending login request to backend:', {
+        url: `${API_BASE_URL}/api/auth/login`,
+        data: {
+          walletAddress: address,
+          signature: signature.substring(0, 20) + '...',
+          message: message
+        }
+      });
+
       const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         walletAddress: address,
         signature,
         message
       });
+
+      console.log('🔐 Login response received:', {
+        status: response.status,
+        hasToken: !!response.data?.token,
+        userId: response.data?.user?.id
+      });
+
       return response.data;
     } catch (error) {
-      console.error('Authentication failed:', error);
+      console.error('🔐 Login request failed:', {
+        url: `${API_BASE_URL}/api/auth/login`,
+        error: error,
+        response: axios.isAxiosError(error) ? {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        } : 'Unknown error'
+      });
+
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 429) {
           throw new Error('Too many requests. Please wait a moment before trying again.');
         }
         if (error.response?.status === 401) {
           throw new Error('Invalid signature. Please try signing again.');
+        }
+        if (error.response?.status === 400) {
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Bad request';
+          throw new Error(`Authentication failed: ${errorMessage}`);
+        }
+        if (error.response?.status === 500) {
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Internal server error';
+          throw new Error(`Backend error: ${errorMessage}`);
         }
       }
       throw new Error('Authentication failed');
