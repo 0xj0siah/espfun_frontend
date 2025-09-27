@@ -135,7 +135,7 @@ export default function PackOpeningSection() {
                 name: 'Pro Pack',
                 type: 'bronze',
                 price: 100, // Correct pricing: 100 tournament points
-                description: '5 Players',
+                description: '4 Players',
                 isActive: true
               },
               {
@@ -143,7 +143,7 @@ export default function PackOpeningSection() {
                 name: 'Epic Pack',
                 type: 'silver',
                 price: 250, // Correct pricing: 250 tournament points
-                description: '5 Players',
+                description: '4 Players',
                 isActive: true
               },
               {
@@ -151,7 +151,7 @@ export default function PackOpeningSection() {
                 name: 'Legendary Pack',
                 type: 'gold',
                 price: 500, // Correct pricing: 500 tournament points
-                description: '5 Players',
+                description: '4 Players',
                 isActive: true
               }
             ];
@@ -167,7 +167,7 @@ export default function PackOpeningSection() {
               name: 'Bronze Pack',
               type: 'bronze',
               price: 50,
-              description: '5 Players',
+              description: '4 Players',
               isActive: true
             },
             {
@@ -175,7 +175,7 @@ export default function PackOpeningSection() {
               name: 'Silver Pack',
               type: 'silver',
               price: 150,
-              description: '5 Players',
+              description: '4 Players',
               isActive: true
             },
             {
@@ -183,7 +183,7 @@ export default function PackOpeningSection() {
               name: 'Gold Pack',
               type: 'gold',
               price: 300,
-              description: '5 Players',
+              description: '4 Players',
               isActive: true
             }
           ]);
@@ -209,7 +209,7 @@ export default function PackOpeningSection() {
             name: 'Pro Pack',
             type: 'bronze',
             price: 100, // Correct pricing: 100 tournament points
-            description: '5 Players',
+            description: '4 Players',
             isActive: true
           },
           {
@@ -217,7 +217,7 @@ export default function PackOpeningSection() {
             name: 'Epic Pack',
             type: 'silver',
             price: 250, // Correct pricing: 250 tournament points
-            description: '5 Players',
+            description: '4 Players',
             isActive: true
           },
           {
@@ -225,7 +225,7 @@ export default function PackOpeningSection() {
             name: 'Legendary Pack',
             type: 'gold',
             price: 500, // Correct pricing: 500 tournament points
-            description: '5 Players',
+            description: '4 Players',
             isActive: true
           }
         ]);
@@ -470,8 +470,7 @@ export default function PackOpeningSection() {
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.2 }}
-                whileHover={{ scale: 1.05, rotateY: 5 }}
-                className="perspective-1000"
+                whileHover={{ scale: 1.05, rotateY: 5, transition: { duration: 0.3, ease: "easeOut" } }}
               >
                 <Card className={`relative overflow-hidden border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer group ${isPurchasing || isAuthenticating || !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
                       onClick={() => !isPurchasing && !isAuthenticating && isAuthenticated && openPack(pack)}
