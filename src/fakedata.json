@@ -4,27 +4,6 @@
   
   {
     "id": 1,
-    "name": "PhoenixRising",
-    "game": "Valorant",
-    "position": "Initiator",
-    "price": "120 USDC",
-    "trend": "up",
-    "points": 298,
-    "rating": 94,
-    "stats": {
-      "kills": 18.5,
-      "deaths": 12.2,
-      "assists": 8.7,
-      "winRate": 75
-    },
-    "recentMatches": [
-      { "opponent": "Team Alpha", "result": "win", "score": "13-9", "performance": 320 },
-      { "opponent": "Beta Squad", "result": "win", "score": "13-11", "performance": 285 },
-      { "opponent": "Gamma Force", "result": "loss", "score": "9-13", "performance": 245 }
-    ]
-  },
-  {
-    "id": 2,
     "name": "IceBreaker",
     "game": "CS2",
     "position": "Entry Fragger",
@@ -45,7 +24,7 @@
     ]
   },
   {
-    "id": 3,
+    "id": 2,
     "name": "StormLord",
     "game": "League of Legends",
     "position": "Jungle",
@@ -63,48 +42,6 @@
       { "opponent": "Hotel Six", "result": "win", "score": "2-1", "performance": 275 },
       { "opponent": "India Seven", "result": "win", "score": "2-0", "performance": 290 },
       { "opponent": "Juliet Eight", "result": "loss", "score": "1-2", "performance": 210 }
-    ]
-  },
-  {
-    "id": 4,
-    "name": "GhostReaper",
-    "game": "Dota 2",
-    "position": "Support",
-    "price": "75 USDC",
-    "trend": "stable",
-    "points": 134,
-    "rating": 79,
-    "stats": {
-      "kills": 3.1,
-      "deaths": 5.2,
-      "assists": 15.8,
-      "winRate": 65
-    },
-    "recentMatches": [
-      { "opponent": "Kilo Nine", "result": "win", "score": "2-1", "performance": 145 },
-      { "opponent": "Lima Ten", "result": "loss", "score": "0-2", "performance": 98 },
-      { "opponent": "Mike Eleven", "result": "win", "score": "2-0", "performance": 167 }
-    ]
-  },
-  {
-    "id": 5,
-    "name": "VoidMaster",
-    "game": "Valorant",
-    "position": "Duelist",
-    "price": "145 USDC",
-    "trend": "up",
-    "points": 342,
-    "rating": 96,
-    "stats": {
-      "kills": 24.3,
-      "deaths": 14.1,
-      "assists": 6.2,
-      "winRate": 78
-    },
-    "recentMatches": [
-      { "opponent": "November", "result": "win", "score": "13-7", "performance": 365 },
-      { "opponent": "Oscar", "result": "win", "score": "13-10", "performance": 340 },
-      { "opponent": "Papa", "result": "win", "score": "13-8", "performance": 321 }
     ]
   }
   

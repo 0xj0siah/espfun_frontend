@@ -51,9 +51,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
 
   const games = [
     { value: 'CS2', label: 'Counter-Strike 2' },
-    { value: 'Valorant', label: 'Valorant' },
-    { value: 'League of Legends', label: 'League of Legends' },
-    { value: 'Dota 2', label: 'Dota 2' }
+    { value: 'League of Legends', label: 'League of Legends' }
   ];
 
   useEffect(() => {

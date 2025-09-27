@@ -7,17 +7,6 @@ export default function LiveScoresSection() {
   const liveMatches = [
     {
       id: 1,
-      game: 'Valorant',
-      tournament: 'VCT Champions',
-      team1: 'Team Liquid',
-      team2: 'FNATIC',
-      score1: 13,
-      score2: 11,
-      status: 'Live',
-      map: 'Ascent'
-    },
-    {
-      id: 2,
       game: 'CS2',
       tournament: 'IEM Katowice',
       team1: 'G2 Esports',
@@ -28,7 +17,7 @@ export default function LiveScoresSection() {
       map: 'Dust2'
     },
     {
-      id: 3,
+      id: 2,
       game: 'League of Legends',
       tournament: 'Worlds 2024',
       team1: 'T1',
@@ -43,24 +32,6 @@ export default function LiveScoresSection() {
   const upcomingMatches = [
     {
       id: 1,
-      game: 'Dota 2',
-      tournament: 'The International',
-      team1: 'Team Spirit',
-      team2: 'PSG.LGD',
-      time: '15:30',
-      date: 'Today'
-    },
-    {
-      id: 2,
-      game: 'Valorant',
-      tournament: 'VCT Masters',
-      team1: 'Sentinels',
-      team2: 'OpTic Gaming',
-      time: '18:00',
-      date: 'Today'
-    },
-    {
-      id: 3,
       game: 'CS2',
       tournament: 'ESL Pro League',
       team1: 'FaZe Clan',

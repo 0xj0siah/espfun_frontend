@@ -220,10 +220,8 @@ export default function TransfersSection() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Games</SelectItem>
-              <SelectItem value="Valorant">Valorant</SelectItem>
               <SelectItem value="CS2">Counter-Strike 2</SelectItem>
               <SelectItem value="League of Legends">League of Legends</SelectItem>
-              <SelectItem value="Dota 2">Dota 2</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
