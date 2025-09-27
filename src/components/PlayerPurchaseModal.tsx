@@ -28,6 +28,7 @@ interface Player {
   trend: 'up' | 'down' | 'stable';
   points: number;
   rating: number;
+  image: string;
   stats: {
     kills: number;
     deaths: number;
@@ -1208,7 +1209,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               <div className="flex items-center space-x-4">
                 <div className="relative">
                   <ImageWithFallback
-                    src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=150&h=150&fit=crop&crop=face&random=${player.id}`}
+                    src={player.image}
                     alt={player.name}
                     className="w-20 h-20 rounded-xl object-cover shadow-lg"
                   />

@@ -24,6 +24,7 @@ interface Player {
   trend: 'up' | 'down' | 'stable';
   points: number;
   rating: number;
+  image: string;
   stats: {
     kills: number;
     deaths: number;
@@ -258,7 +259,7 @@ export default function TransfersSection() {
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <ImageWithFallback
-                        src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                        src={player.image}
                         alt={player.name}
                         className="w-14 h-14 rounded-xl object-cover shadow-md"
                       />

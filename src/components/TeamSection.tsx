@@ -40,6 +40,7 @@ interface Player {
   points: number;
   trend: "up" | "down" | "stable";
   rating: number;
+  image: string;
   stats: PlayerStats;
   recentMatches: MatchResult[];
   level: number;
@@ -266,6 +267,7 @@ export default function TeamSection({
         trend: "stable" as const,
         points: 0,
         rating: 50,
+        image: "/images/default-player.webp",
         stats: {
           kills: 0,
           deaths: 0,
@@ -304,7 +306,7 @@ export default function TeamSection({
       name: player.name,
       position: player.position,
       team: player.game, // Using game as team for esports context
-      image: `https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`,
+      image: player.image,
       tier: 'rookie' as const, // All development players start as rookie
       price: parseFloat(player.price.replace(/[^\d.-]/g, '')) || 0,
       change: 0,
@@ -529,7 +531,7 @@ export default function TeamSection({
                         <div className="flex items-center space-x-3 flex-1">
                           <div className="relative">
                             <ImageWithFallback
-                              src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                              src={player.image}
                               alt={player.name}
                               className="w-14 h-14 rounded-xl object-cover shadow-md ring-2 ring-white/20 group-hover:ring-blue-200 transition-all duration-300"
                             />
@@ -651,7 +653,7 @@ export default function TeamSection({
                         <div className="flex items-center space-x-3 flex-1">
                           <div className="relative">
                             <ImageWithFallback
-                              src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.id}`}
+                              src={player.image}
                               alt={player.name}
                               className="w-14 h-14 rounded-xl object-cover shadow-md ring-2 ring-white/20 group-hover:ring-purple-200 transition-all duration-300"
                             />
