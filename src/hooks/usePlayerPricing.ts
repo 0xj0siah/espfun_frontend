@@ -39,10 +39,9 @@ export function usePlayerPrice(playerId: number) {
         }
 
       } catch (error) {
-        // Fallback to simulated price on error
-        const basePrice = 50 + (playerId % 10) * 20;
-        const fallbackPrice = `${basePrice.toFixed(2)} USDC`;
-        setPrice(fallbackPrice);
+        // Contract call failed - return empty string so components use fake data
+        console.log('⚠️ usePlayerPrice: Contract failed for player', playerId, '- using fake data price');
+        setPrice('');
       } finally {
         setLoading(false);
       }
@@ -85,16 +84,12 @@ export function usePlayerPrices(playerIds: number[]) {
     const fetchPrices = async () => {
       setLoading(true);
       console.log('🚀 usePlayerPrices: Starting price fetch for', playerIds.length, 'players');
-      
+
       try {
         const fdfPairContract = getContractData('FDFPair');
         const newPrices: Record<number, string> = {};
 
-        // Initialize fallback prices first
-        playerIds.forEach((playerId) => {
-          const basePrice = 50 + (playerId % 10) * 20;
-          newPrices[playerId] = `${basePrice.toFixed(2)} USDC`;
-        });
+        // Don't initialize fallback prices - only set prices when contract succeeds
 
         try {
           console.log('🚀 usePlayerPrices: Attempting to fetch from contract...');
@@ -118,21 +113,17 @@ export function usePlayerPrices(playerIds: number[]) {
           }
 
         } catch (error) {
-          console.log('🚀 usePlayerPrices: Contract fetch failed, using fallbacks:', error instanceof Error ? error.message : String(error));
+          console.log('🚀 usePlayerPrices: Contract fetch failed, using fake data prices:', error instanceof Error ? error.message : String(error));
+          // Don't set fallback prices - let components use fake data instead
         }
 
         setPrices(newPrices);
         console.log('✅ usePlayerPrices: Set prices for', Object.keys(newPrices).length, 'players');
       } catch (error) {
         console.log('⚠️ usePlayerPrices: Unexpected error:', error instanceof Error ? error.message : String(error));
-        // Ensure we always have fallback prices
-        const fallbackPrices: Record<number, string> = {};
-        playerIds.forEach(id => {
-          const basePrice = 50 + (id % 10) * 20;
-          fallbackPrices[id] = `${basePrice.toFixed(2)} USDC`;
-        });
-        setPrices(fallbackPrices);
-        console.log('⚠️ usePlayerPrices: Using emergency fallback prices');
+        // Ensure we always have an empty object if something goes wrong
+        setPrices({});
+        console.log('⚠️ usePlayerPrices: Using empty prices object');
       } finally {
         setLoading(false);
       }

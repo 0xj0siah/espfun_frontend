@@ -1208,12 +1208,22 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-4">
                 <div className="relative">
+                  {/* Team logo background */}
+                  <div 
+                    className="absolute inset-0 rounded-xl opacity-50 z-0"
+                    style={{
+                      backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                      backgroundSize: 'contain',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  />
                   <ImageWithFallback
                     src={player.image}
                     alt={player.name}
-                    className="w-20 h-20 rounded-xl object-cover shadow-lg"
+                    className="relative z-10 w-20 h-20 rounded-xl object-contain shadow-lg opacity-85"
                   />
-                  <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)} flex items-center justify-center text-white text-sm font-bold`}>
+                  <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)} flex items-center justify-center text-white text-sm font-bold z-20`}>
                     {player.rating}
                   </div>
                 </div>

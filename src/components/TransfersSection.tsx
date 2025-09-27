@@ -51,33 +51,73 @@ export default function TransfersSection() {
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
+  const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
 
-  // Get player IDs for pricing - use useMemo to prevent recreation
-  const playerIds = useMemo(() => fakeData.teamPlayers.map(player => player.id), []);
-  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
+  // Only fetch prices for active players
+  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
   const { user, ready, authenticated } = usePrivy();
 
   useEffect(() => {
-    // Use fake data and merge with contract prices
-    const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => ({
+    const fetchActivePlayers = async () => {
+      try {
+        const playerContract = getContractData('Player');
+        
+        // Get active player IDs from contract
+        const activePlayerIds = await readContractCached({
+          address: playerContract.address as `0x${string}`,
+          abi: playerContract.abi as any,
+          functionName: 'getActivePlayerIds',
+          args: [],
+        }) as bigint[];
+        
+        console.log('✅ Active player IDs from contract:', activePlayerIds.map(id => Number(id)));
+        
+        // Set active player IDs for pricing hook
+        const activeIds = activePlayerIds.map(id => Number(id));
+        setActivePlayerIds(activeIds);
+      } catch (error) {
+        console.error('❌ Error fetching active player IDs:', error);
+        // If contract call fails, set empty array
+        setActivePlayerIds([]);
+      }
+    };
+    fetchActivePlayers();
+  }, []); // Only run once on mount
+
+  // Create players with pricing when activePlayerIds or playerPrices change
+  const playersWithPricing = useMemo(() => {
+    if (!activePlayerIds.length) return [];
+
+    // Filter fake data to only include active players
+    const activePlayerIdsSet = new Set(activePlayerIds);
+    const activePlayers = fakeData.teamPlayers.filter(player => 
+      activePlayerIdsSet.has(player.id)
+    );
+
+    console.log('✅ Filtered active players:', activePlayers.length, 'out of', fakeData.teamPlayers.length);
+
+    // Merge with contract prices
+    return activePlayers.map(player => ({
       ...player,
-      // Add missing fields for interface compatibility (set to fixed values)
-      level: 1, // Fixed level
-      xp: 50, // Fixed XP value instead of random
-      potential: 50, // Fixed potential
-      // Ensure types are properly cast
+      // Add missing fields for interface compatibility
+      level: 1,
+      xp: 50,
+      potential: 50,
       trend: player.trend as "up" | "down" | "stable",
       recentMatches: player.recentMatches.map(match => ({
         ...match,
         result: match.result as "win" | "loss"
       })),
-      // Price will be updated when contract prices load
-      price: playerPrices[player.id] || player.price
+      // Use contract price or show loading
+      price: playerPrices[player.id] || 'Loading...'
     }));
-    
+  }, [activePlayerIds, playerPrices]);
+
+  // Update available players when playersWithPricing changes
+  useEffect(() => {
     setAvailablePlayers(playersWithPricing);
-    setLoading(false); // Set loading to false regardless of pricesLoading
-  }, [playerPrices]); // Remove pricesLoading from dependencies
+    setLoading(false);
+  }, [playersWithPricing]);
 
   // Check user's USDC balance when authenticated
   useEffect(() => {
@@ -258,12 +298,22 @@ export default function TransfersSection() {
                 <Card className="p-4 border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/20 group-hover:scale-105">
                   <div className="flex items-center space-x-3">
                     <div className="relative">
+                      {/* Team logo background */}
+                      <div 
+                        className="absolute inset-0 rounded-xl opacity-50 z-0"
+                        style={{
+                          backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                          backgroundSize: 'contain',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat'
+                        }}
+                      />
                       <ImageWithFallback
                         src={player.image}
                         alt={player.name}
-                        className="w-14 h-14 rounded-xl object-cover shadow-md"
+                        className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md opacity-85"
                       />
-                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full z-20">
                         {player.rating}
                       </div>
                     </div>

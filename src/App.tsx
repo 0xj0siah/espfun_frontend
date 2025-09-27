@@ -7,21 +7,38 @@ import LeaderboardSection from './components/LeaderboardSection';
 import PackOpeningSection from './components/PackOpeningSection';
 import { usePlayerPrices } from './hooks/usePlayerPricing';
 import fakeData from './fakedata.json';
+import { getActivePlayerIds } from './utils/contractInteractions';
 
 // Import debug utility
 import './utils/contractDebug';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Team');
+  const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
 
-  // Always preload player prices on initial site load for better UX
-  const playerIds = fakeData.teamPlayers.map(player => player.id);
-  const { prices: preloadedPrices, loading: pricesLoading } = usePlayerPrices(playerIds);
+  // Fetch active player IDs on mount
+  useEffect(() => {
+    const fetchActivePlayers = async () => {
+      try {
+        const activeIds = await getActivePlayerIds();
+        console.log('✅ App: Active player IDs from contract:', activeIds.map(id => Number(id)));
+        setActivePlayerIds(activeIds.map(id => Number(id)));
+      } catch (error) {
+        console.error('❌ App: Error fetching active player IDs:', error);
+        // Fallback to all players if contract fails
+        setActivePlayerIds(fakeData.teamPlayers.map(player => player.id));
+      }
+    };
+    fetchActivePlayers();
+  }, []);
+
+  // Only preload prices for active players
+  const { prices: preloadedPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
 
   // Debug logging
+  console.log('🚀 App: activePlayerIds:', activePlayerIds);
   console.log('🚀 App: preloadedPrices keys:', Object.keys(preloadedPrices));
   console.log('🚀 App: pricesLoading:', pricesLoading);
-  console.log('🚀 App: playerIds count:', playerIds.length);
 
   const renderContent = () => {
     switch (activeTab) {

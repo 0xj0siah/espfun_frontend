@@ -198,7 +198,7 @@ export default function TeamSection({
         return {
           ...basePlayerData,
           id: playerIdNum,
-          price: playerPrices[playerIdNum] || '0.000 USDC',
+          price: playerPrices[playerIdNum] || 'Loading...',
           points: 0, // Will be replaced with total value
           ownedShares: balance,
           totalValue: calculateTotalValue(balance, playerIdNum), // Use player ID instead of price
@@ -283,8 +283,8 @@ export default function TeamSection({
         level: 1,
         xp: 50,
         potential: 75, // Higher potential for development players
-        // Update with contract data
-        price: playerPrices[playerIdNum] || basePlayerData.price,
+        // Update with contract data - no fallback to fake data
+        price: playerPrices[playerIdNum] || 'Loading...',
         // Add development-specific info with formatted shares
         lockedShares: formatShares(lockedBalance),
         // Calculate total value using the same logic as active players
@@ -320,14 +320,13 @@ export default function TeamSection({
   };
 
   useEffect(() => {
-    // Use fake data and merge with preloaded contract prices
+    // Use fake data and merge with preloaded contract prices - no fallback to fake data prices
     const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => {
       const preloadedPrice = playerPrices[player.id];
-      const finalPrice = preloadedPrice || player.price;
+      const finalPrice = preloadedPrice || 'Loading...';
 
       console.log(`🎯 Player ${player.id} (${player.name}):`, {
         preloadedPrice,
-        fallbackPrice: player.price,
         finalPrice,
         hasPreloadedPrice: !!preloadedPrice
       });
@@ -344,7 +343,7 @@ export default function TeamSection({
           ...match,
           result: match.result as "win" | "loss"
         })),
-        // Price will be updated when preloaded prices are available
+        // Price will be updated when preloaded prices are available - no fallback
         price: finalPrice
       };
     });
@@ -530,10 +529,20 @@ export default function TeamSection({
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3 flex-1">
                           <div className="relative">
+                            {/* Team logo background */}
+                            <div 
+                              className="absolute inset-0 rounded-xl opacity-50 z-0"
+                              style={{
+                                backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                                backgroundSize: 'contain',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat'
+                              }}
+                            />
                             <ImageWithFallback
                               src={player.image}
                               alt={player.name}
-                              className="w-14 h-14 rounded-xl object-cover shadow-md ring-2 ring-white/20 group-hover:ring-blue-200 transition-all duration-300"
+                              className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md ring-2 ring-white/20 group-hover:ring-blue-200 transition-all duration-300 opacity-85"
                             />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -652,13 +661,23 @@ export default function TeamSection({
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3 flex-1">
                           <div className="relative">
+                            {/* Team logo background */}
+                            <div 
+                              className="absolute inset-0 rounded-xl opacity-50 z-0"
+                              style={{
+                                backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                                backgroundSize: 'contain',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat'
+                              }}
+                            />
                             <ImageWithFallback
                               src={player.image}
                               alt={player.name}
-                              className="w-14 h-14 rounded-xl object-cover shadow-md ring-2 ring-white/20 group-hover:ring-purple-200 transition-all duration-300"
+                              className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md ring-2 ring-white/20 group-hover:ring-purple-200 transition-all duration-300 opacity-85"
                             />
                             {/* Development badge overlay */}
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center z-20">
                               <TrendingUp className="w-3 h-3 text-white" />
                             </div>
                           </div>

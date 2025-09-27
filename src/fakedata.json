@@ -191,6 +191,196 @@
                             "team":  "vitality"
                         },
                         {
+                            "id":  1,
+                            "name":  "apEX",
+                            "game":  "CS2",
+                            "position":  "Rifler",
+                            "price":  "150 USDC",
+                            "trend":  "up",
+                            "points":  285,
+                            "rating":  92,
+                            "image":  "/images/vitality/apEX.webp",
+                            "stats":  {
+                                          "kills":  20.5,
+                                          "deaths":  14.2,
+                                          "assists":  6.8,
+                                          "winRate":  74
+                                      },
+                            "recentMatches":  [
+                                                  {
+                                                      "opponent":  "FaZe Clan",
+                                                      "result":  "win",
+                                                      "score":  "16-12",
+                                                      "performance":  295
+                                                  },
+                                                  {
+                                                      "opponent":  "G2 Esports",
+                                                      "result":  "win",
+                                                      "score":  "16-14",
+                                                      "performance":  280
+                                                  },
+                                                  {
+                                                      "opponent":  "Natus Vincere",
+                                                      "result":  "loss",
+                                                      "score":  "8-16",
+                                                      "performance":  245
+                                                  }
+                                              ],
+                            "team":  "vitality"
+                        },
+                        {
+                            "id":  2,
+                            "name":  "flameZ",
+                            "game":  "CS2",
+                            "position":  "Rifler",
+                            "price":  "135 USDC",
+                            "trend":  "stable",
+                            "points":  268,
+                            "rating":  89,
+                            "image":  "/images/vitality/flameZ.webp",
+                            "stats":  {
+                                          "kills":  19.8,
+                                          "deaths":  13.5,
+                                          "assists":  7.2,
+                                          "winRate":  71
+                                      },
+                            "recentMatches":  [
+                                                  {
+                                                      "opponent":  "FaZe Clan",
+                                                      "result":  "win",
+                                                      "score":  "16-12",
+                                                      "performance":  275
+                                                  },
+                                                  {
+                                                      "opponent":  "G2 Esports",
+                                                      "result":  "win",
+                                                      "score":  "16-14",
+                                                      "performance":  265
+                                                  },
+                                                  {
+                                                      "opponent":  "Natus Vincere",
+                                                      "result":  "loss",
+                                                      "score":  "8-16",
+                                                      "performance":  230
+                                                  }
+                                              ],
+                            "team":  "vitality"
+                        },
+                        {
+                            "id":  3,
+                            "name":  "mezii",
+                            "game":  "CS2",
+                            "position":  "AWPer",
+                            "price":  "125 USDC",
+                            "trend":  "up",
+                            "points":  252,
+                            "rating":  87,
+                            "image":  "/images/vitality/mezii.webp",
+                            "stats":  {
+                                          "kills":  18.9,
+                                          "deaths":  12.8,
+                                          "assists":  5.5,
+                                          "winRate":  69
+                                      },
+                            "recentMatches":  [
+                                                  {
+                                                      "opponent":  "FaZe Clan",
+                                                      "result":  "win",
+                                                      "score":  "16-12",
+                                                      "performance":  260
+                                                  },
+                                                  {
+                                                      "opponent":  "G2 Esports",
+                                                      "result":  "win",
+                                                      "score":  "16-14",
+                                                      "performance":  250
+                                                  },
+                                                  {
+                                                      "opponent":  "Natus Vincere",
+                                                      "result":  "loss",
+                                                      "score":  "8-16",
+                                                      "performance":  215
+                                                  }
+                                              ],
+                            "team":  "vitality"
+                        },
+                        {
+                            "id":  4,
+                            "name":  "ropz",
+                            "game":  "CS2",
+                            "position":  "Rifler",
+                            "price":  "140 USDC",
+                            "trend":  "down",
+                            "points":  275,
+                            "rating":  90,
+                            "image":  "/images/vitality/ropz.webp",
+                            "stats":  {
+                                          "kills":  20.1,
+                                          "deaths":  14.8,
+                                          "assists":  6.2,
+                                          "winRate":  72
+                                      },
+                            "recentMatches":  [
+                                                  {
+                                                      "opponent":  "FaZe Clan",
+                                                      "result":  "win",
+                                                      "score":  "16-12",
+                                                      "performance":  285
+                                                  },
+                                                  {
+                                                      "opponent":  "G2 Esports",
+                                                      "result":  "win",
+                                                      "score":  "16-14",
+                                                      "performance":  270
+                                                  },
+                                                  {
+                                                      "opponent":  "Natus Vincere",
+                                                      "result":  "loss",
+                                                      "score":  "8-16",
+                                                      "performance":  240
+                                                  }
+                                              ],
+                            "team":  "vitality"
+                        },
+                        {
+                            "id":  5,
+                            "name":  "ZywOo",
+                            "game":  "CS2",
+                            "position":  "AWPer",
+                            "price":  "160 USDC",
+                            "trend":  "up",
+                            "points":  298,
+                            "rating":  94,
+                            "image":  "/images/vitality/ZywOo.webp",
+                            "stats":  {
+                                          "kills":  21.2,
+                                          "deaths":  13.9,
+                                          "assists":  5.8,
+                                          "winRate":  76
+                                      },
+                            "recentMatches":  [
+                                                  {
+                                                      "opponent":  "FaZe Clan",
+                                                      "result":  "win",
+                                                      "score":  "16-12",
+                                                      "performance":  310
+                                                  },
+                                                  {
+                                                      "opponent":  "G2 Esports",
+                                                      "result":  "win",
+                                                      "score":  "16-14",
+                                                      "performance":  295
+                                                  },
+                                                  {
+                                                      "opponent":  "Natus Vincere",
+                                                      "result":  "loss",
+                                                      "score":  "8-16",
+                                                      "performance":  260
+                                                  }
+                                              ],
+                            "team":  "vitality"
+                        },
+                        {
                             "id":  100201,
                             "name":  "broky",
                             "game":  "CS2",
