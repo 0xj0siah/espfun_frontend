@@ -12,6 +12,9 @@ import App from './App';
 import { Buffer } from 'buffer';
 (window as any).Buffer = Buffer;
 
+// Set dark mode as default
+document.documentElement.classList.add('dark');
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 
 root.render(
