@@ -9,6 +9,8 @@ import { usePrivy } from '@privy-io/react-auth';
 import { apiService, PackInfo, PackPurchaseResponse, UserPoints } from '../services/apiService';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { toast } from 'sonner';
+import fakeData from '../fakedata.json';
+import { formatEther } from 'viem';
 
 interface Player {
   id: number;
@@ -41,6 +43,43 @@ export default function PackOpeningSection() {
     error: authError,
     walletConnected 
   } = useAuthentication();
+
+  // Helper function to format shares from wei to readable number with decimals
+  const formatShares = (weiValue: string | number): string => {
+    try {
+      // Convert to BigInt if it's a string
+      const wei = typeof weiValue === 'string' ? BigInt(weiValue) : BigInt(weiValue);
+      // Convert from wei (18 decimals) to ether and format with 4 decimal places
+      const etherValue = formatEther(wei);
+      const numValue = parseFloat(etherValue);
+      return numValue.toFixed(4);
+    } catch (error) {
+      console.error('Error formatting shares:', error);
+      return '0.0000';
+    }
+  };
+
+  // Helper function to get player data from fakeData
+  const getPlayerData = (playerId: number) => {
+    return fakeData.teamPlayers.find(player => player.id === playerId) || {
+      id: playerId,
+      name: `Player ${playerId}`,
+      game: 'CS2',
+      position: 'Unknown',
+      price: '0 USDC',
+      trend: 'stable' as const,
+      points: 0,
+      rating: 50,
+      image: '/images/default-player.webp',
+      stats: {
+        kills: 0,
+        deaths: 0,
+        assists: 0,
+        winRate: 0
+      },
+      recentMatches: []
+    };
+  };
 
   // Load available packs and user profile on component mount
   useEffect(() => {
@@ -244,14 +283,17 @@ export default function PackOpeningSection() {
       console.log('🎉 Pack opened successfully:', response);
 
       // Transform API response to Player format using the new response structure
-      const players: Player[] = response.transaction.playerIds.map((playerId, index) => ({
-        id: playerId,
-        name: `Player ${playerId}`,
-        game: 'Esports',
-        position: 'Unknown',
-        rating: Math.floor(Math.random() * 40) + 60, // Random rating 60-99
-        shares: parseInt(response.transaction.shares[index] || '1')
-      }));
+      const players: Player[] = response.transaction.playerIds.map((playerId, index) => {
+        const playerData = getPlayerData(playerId);
+        return {
+          id: playerId,
+          name: playerData.name,
+          game: playerData.game,
+          position: playerData.position,
+          rating: playerData.rating,
+          shares: parseInt(response.transaction.shares[index] || '1')
+        };
+      });
 
       setOpenedCards(players);
       setIsOpening(false);
@@ -624,10 +666,20 @@ export default function PackOpeningSection() {
 
                             <div className="p-3">
                               <div className="relative">
+                                {/* Team logo background */}
+                                <div 
+                                  className="absolute inset-0 rounded opacity-50 z-0"
+                                  style={{
+                                    backgroundImage: `url(${getPlayerData(card.id).image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                                    backgroundSize: 'contain',
+                                    backgroundPosition: 'center',
+                                    backgroundRepeat: 'no-repeat'
+                                  }}
+                                />
                                 <ImageWithFallback
-                                  src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=120&h=120&fit=crop&crop=face&random=${card.id + index}`}
+                                  src={getPlayerData(card.id).image}
                                   alt={card.name}
-                                  className="w-full h-24 object-cover rounded border-2 border-white/50"
+                                  className="relative z-10 w-full h-24 object-contain rounded border-2 border-white/50 shadow-md opacity-85"
                                 />
                                 <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center border-2 border-white">
                                   <span className="text-white font-bold text-xs">{card.rating}</span>
@@ -639,7 +691,7 @@ export default function PackOpeningSection() {
                               <p className="text-white/90 text-xs text-center drop-shadow">{card.game}</p>
                               <p className="text-white/80 text-xs text-center drop-shadow">{card.position}</p>
                               <div className="bg-white/20 backdrop-blur-sm rounded px-2 py-1 mt-2">
-                                <p className="text-white font-semibold text-xs text-center drop-shadow">{card.shares} Shares</p>
+                                <p className="text-white font-semibold text-xs text-center drop-shadow">{formatShares(card.shares)} Shares</p>
                               </div>
                             </div>
                           </div>
