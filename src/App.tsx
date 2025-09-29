@@ -8,6 +8,7 @@ import PackOpeningSection from './components/PackOpeningSection';
 import { usePlayerPrices } from './hooks/usePlayerPricing';
 import fakeData from './fakedata.json';
 import { getActivePlayerIds } from './utils/contractInteractions';
+import { useAuthentication } from './hooks/useAuthentication';
 
 // Import debug utility
 import './utils/contractDebug';
@@ -15,6 +16,35 @@ import './utils/contractDebug';
 export default function App() {
   const [activeTab, setActiveTab] = useState('Team');
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
+
+  // Authentication hook for JWT token validation
+  const { validateToken, isAuthenticated, hasAuthToken } = useAuthentication();
+
+  // Validate JWT token on page load
+  useEffect(() => {
+    const validateExistingToken = async () => {
+      // Only validate if we have a token in localStorage
+      if (hasAuthToken) {
+        console.log('🔐 Validating existing JWT token on page load...');
+        try {
+          const isValid = await validateToken();
+          if (isValid) {
+            console.log('✅ JWT token is still valid');
+          } else {
+            console.log('❌ JWT token has expired or is invalid');
+          }
+        } catch (error) {
+          console.error('❌ Error validating JWT token:', error);
+        }
+      } else {
+        console.log('ℹ️ No existing JWT token found');
+      }
+    };
+
+    // Small delay to ensure Privy is ready
+    const timer = setTimeout(validateExistingToken, 1000);
+    return () => clearTimeout(timer);
+  }, [validateToken, hasAuthToken]);
 
   // Fetch active player IDs on mount
   useEffect(() => {

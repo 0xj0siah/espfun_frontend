@@ -243,6 +243,7 @@ export const useAuthentication = () => {
     authenticate,
     clearAuthentication,
     autoReAuth,
+    validateToken,
     hasAuthToken: !!localStorage.getItem('authToken'),
     walletConnected: authenticated && !!user?.wallet?.address,
     hasAttemptedAuth
