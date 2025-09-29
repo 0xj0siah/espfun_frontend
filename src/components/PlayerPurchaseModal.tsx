@@ -1220,12 +1220,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   // Transform series data into MatchResult format
   const getRealRecentMatches = (): MatchResult[] => {
     if (!player || seriesData.length === 0) {
-      return player?.recentMatches || [];
+      return []; // No fallback to fakedata.json - wait for real data
     }
 
     const matches: MatchResult[] = [];
 
-    for (const series of seriesData.slice(0, 5)) { // Limit to 5 most recent matches
+    for (const series of seriesData.slice(0, 3)) { // Limit to 3 most recent matches
       // Find the player's team in this series
       const playerTeam = series.teams.find(team => team.id === player.teamGridId);
       const opponentTeam = series.teams.find(team => team.id !== player.teamGridId);
@@ -1247,12 +1247,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       });
     }
 
-    // If we don't have enough real matches, fill with static data
-    while (matches.length < 5 && player.recentMatches) {
-      matches.push(...player.recentMatches.slice(0, 5 - matches.length));
-    }
-
-    return matches.slice(0, 5);
+    return matches.slice(0, 3);
   };
 
   return (
@@ -1754,30 +1749,61 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   )}
                 </h3>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">
-                      {gridStats ? gridStats.game.kills.avg.toFixed(1) : player.stats.kills}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Avg Kills</p>
-                  </div>
-                  <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">
-                      {gridStats ? gridStats.game.deaths.avg.toFixed(1) : player.stats.deaths}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Avg Deaths</p>
-                  </div>
-                  <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">
-                      {gridStats ? gridStats.game.killAssistsGiven.avg.toFixed(1) : player.stats.assists}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Avg Assists</p>
-                  </div>
-                  <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">
-                      {gridStats ? `${gridStats.game.wins.find(w => w.value)?.percentage.toFixed(1) || '0.0'}%` : `${player.stats.winRate}%`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Win Rate</p>
-                  </div>
+                  {gridStatsLoading && !gridStats ? (
+                    // Loading state - show skeleton placeholders
+                    <>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
+                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
+                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
+                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
+                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
+                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
+                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
+                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
+                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
+                      </div>
+                    </>
+                  ) : gridStats ? (
+                    // Show real Grid.gg stats
+                    <>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {gridStats.game.kills.avg.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Avg Kills</p>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {gridStats.game.deaths.avg.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Avg Deaths</p>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {gridStats.game.killAssistsGiven.avg.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Avg Assists</p>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {`${gridStats.game.wins.find(w => w.value)?.percentage.toFixed(1) || '0.0'}%`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Win Rate</p>
+                      </div>
+                    </>
+                  ) : (
+                    // No data available yet
+                    <div className="col-span-4 text-center py-4 text-muted-foreground">
+                      <p className="text-sm">No statistics available</p>
+                      <p className="text-xs mt-1">Player stats will appear here when available</p>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="mt-3">
@@ -1802,10 +1828,16 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     Live data from Grid.gg
                   </div>
                 )}
+                {!gridStats && gridStatsLoading && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+                    Loading stats from Grid.gg...
+                  </div>
+                )}
                 {!gridStats && !gridStatsLoading && player.gridID && (
                   <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
-                    Using cached data
+                    <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
+                    Waiting for player stats
                   </div>
                 )}
               </Card>
@@ -1820,27 +1852,53 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   )}
                 </h3>
                 <div className="space-y-2">
-                  {getRealRecentMatches().map((match, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          match.result === 'win' ? 'bg-green-500' : 'bg-red-500'
-                        }`}></div>
-                        <div>
-                          <p className="text-xs font-medium">vs {match.opponent}</p>
-                          <p className="text-[10px] text-muted-foreground">{match.score}</p>
+                  {seriesLoading && getRealRecentMatches().length === 0 ? (
+                    // Loading state - show skeleton placeholders
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg animate-pulse">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                          <div>
+                            <div className="h-3 bg-gray-300 rounded w-20 mb-1"></div>
+                            <div className="h-2 bg-gray-300 rounded w-12"></div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="h-4 bg-gray-300 rounded w-12 mb-1"></div>
+                          <div className="h-2 bg-gray-300 rounded w-8"></div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
-                          {match.result.toUpperCase()}
-                        </Badge>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {match.performance} pts
-                        </p>
+                    ))
+                  ) : getRealRecentMatches().length > 0 ? (
+                    // Show real matches
+                    getRealRecentMatches().map((match, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            match.result === 'win' ? 'bg-green-500' : 'bg-red-500'
+                          }`}></div>
+                          <div>
+                            <p className="text-xs font-medium">vs {match.opponent}</p>
+                            <p className="text-[10px] text-muted-foreground">{match.score}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                            {match.result.toUpperCase()}
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {match.performance} pts
+                          </p>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    // No data available yet
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p className="text-sm">No recent matches available</p>
+                      <p className="text-xs mt-1">Match data will appear here when available</p>
                     </div>
-                  ))}
+                  )}
                 </div>
                 
                 {/* Series Data Source Indicator */}
@@ -1850,10 +1908,16 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     Live series data from Grid.gg
                   </div>
                 )}
+                {seriesData.length === 0 && seriesLoading && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1 animate-pulse"></div>
+                    Loading match data from Grid.gg...
+                  </div>
+                )}
                 {seriesData.length === 0 && !seriesLoading && player.teamGridId && (
                   <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
-                    Using cached match data
+                    <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
+                    Waiting for match data
                   </div>
                 )}
               </Card>
