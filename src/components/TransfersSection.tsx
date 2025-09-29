@@ -40,6 +40,8 @@ interface Player {
   level: number;
   xp: number;
   potential: number;
+  gridID: string;
+  teamGridId: string;
 }
 
 export default function TransfersSection() {
@@ -109,7 +111,10 @@ export default function TransfersSection() {
         result: match.result as "win" | "loss"
       })),
       // Use contract price or show loading
-      price: playerPrices[player.id] || 'Loading...'
+      price: playerPrices[player.id] || 'Loading...',
+      // Add required grid properties
+      gridID: player.gridID || '',
+      teamGridId: player.teamGridId || ''
     }));
   }, [activePlayerIds, playerPrices]);
 
@@ -149,8 +154,7 @@ export default function TransfersSection() {
     const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number): Promise<void> => {
     // Handle the purchase/sale logic here
     console.log('Purchasing player:', player.name, usdcAmount, action, slippage);
-    setIsModalOpen(false);
-    setSelectedPlayer(null);
+    // Note: Modal will be closed by PlayerPurchaseModal component when transaction completes
   };
 
   // Get currency token address from FDFPair contract
