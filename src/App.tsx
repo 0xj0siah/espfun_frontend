@@ -13,6 +13,9 @@ import { useAuthentication } from './hooks/useAuthentication';
 // Import debug utility
 import './utils/contractDebug';
 
+// Import icons
+import { Github, Twitter } from 'lucide-react';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('Team');
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
@@ -88,12 +91,43 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 flex flex-col">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderContent()}
       </main>
+      
+      {/* Footer with Social Links */}
+      <footer className="border-t border-border/50 bg-background/50 backdrop-blur-sm mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="flex items-center space-x-6">
+              <a
+                href="https://github.com/0xj0siah/espfun_frontend"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                <Github className="h-5 w-5" />
+                <span className="text-sm font-medium">GitHub</span>
+              </a>
+              <a
+                href="https://x.com/esp_fun"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                <Twitter className="h-5 w-5" />
+                <span className="text-sm font-medium">X / Twitter</span>
+              </a>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              © 2025 ESP.FUN. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
       
       {/* Background decorative elements */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
