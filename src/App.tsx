@@ -91,17 +91,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
         {renderContent()}
       </main>
       
       {/* Footer with Social Links */}
-      <footer className="border-t border-border/50 bg-background/50 backdrop-blur-sm mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col items-center justify-center space-y-4">
+      <footer className="fixed bottom-0 left-0 right-0 border-t border-border/50 bg-background/95 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col items-center justify-center space-y-3">
             <div className="flex items-center space-x-6">
               <a
                 href="https://github.com/0xj0siah/espfun_frontend"
