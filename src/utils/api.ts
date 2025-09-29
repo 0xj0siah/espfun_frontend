@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://espfun-backend.vercel.app';
+const GRID_API_KEY = import.meta.env.VITE_GRID_API_KEY;
+const GRID_BASE_URL = 'https://api-op.grid.gg';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,6 +11,36 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Grid.gg GraphQL client
+const gridGraphQLRequest = async (endpoint: string, query: string, variables?: any) => {
+  const fullUrl = `${GRID_BASE_URL}${endpoint}`;
+  console.log(`🔗 Making request to: ${fullUrl}`);
+  console.log(`🔑 API Key present: ${!!GRID_API_KEY}`);
+
+  try {
+    const response = await axios.post(fullUrl, {
+      query,
+      variables
+    }, {
+      headers: {
+        'x-api-key': GRID_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+    console.log(`✅ HTTP ${response.status}: ${response.statusText}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Grid.gg API HTTP error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    throw error;
+  }
+};
 
 // API endpoints
 export const endpoints = {
@@ -55,6 +87,102 @@ export interface Player {
   lockedShares?: string;
   ownedShares?: bigint;
   totalValue?: string;
+}
+
+// Grid.gg API interfaces for esports data
+export interface GridPlayerStats {
+  playerId: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  rating: number;
+  winRate: number;
+}
+
+export interface GridDetailedPlayerStats {
+  id: string;
+  series: {
+    count: number;
+    kills: {
+      sum: number;
+      avg: number;
+      min: number;
+      max: number;
+      ratePerMinute: {
+        min: number;
+        max: number;
+        avg: number;
+      };
+    };
+    deaths: {
+      sum: number;
+      avg: number;
+      min: number;
+      max: number;
+      ratePerMinute: {
+        min: number;
+        max: number;
+        avg: number;
+      };
+    };
+    killAssistsGiven: {
+      sum: number;
+      avg: number;
+      min: number;
+      max: number;
+      ratePerMinute: {
+        min: number;
+        max: number;
+        avg: number;
+      };
+    };
+    wins: Array<{
+      value: boolean;
+      count: number;
+      percentage: number;
+    }>;
+  };
+  game: {
+    count: number;
+    kills: {
+      sum: number;
+      avg: number;
+      min: number;
+      max: number;
+      ratePerMinute: {
+        min: number;
+        max: number;
+        avg: number;
+      };
+    };
+    deaths: {
+      sum: number;
+      avg: number;
+      min: number;
+      max: number;
+      ratePerMinute: {
+        min: number;
+        max: number;
+        avg: number;
+      };
+    };
+    killAssistsGiven: {
+      sum: number;
+      avg: number;
+      min: number;
+      max: number;
+      ratePerMinute: {
+        min: number;
+        max: number;
+        avg: number;
+      };
+    };
+    wins: Array<{
+      value: boolean;
+      count: number;
+      percentage: number;
+    }>;
+  };
 }
 
 // API functions
@@ -133,5 +261,164 @@ export const fetchTransfers = async () => {
   } catch (error) {
     console.error('Error fetching transfers:', error);
     throw error;
+  }
+};
+
+// Grid.gg API functions for esports data
+export const getPlayerStatistics = async (playerIds: string[]): Promise<GridPlayerStats[]> => {
+  const query = `
+    query GetPlayerStatistics($playerIds: [ID!]!) {
+      players(ids: $playerIds) {
+        id
+        statistics {
+          kills
+          deaths
+          assists
+          rating
+          winRate
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await gridGraphQLRequest('/statistics-feed/graphql', query, { playerIds });
+    return response.data.players.map((player: any) => ({
+      playerId: player.id,
+      kills: player.statistics.kills,
+      deaths: player.statistics.deaths,
+      assists: player.statistics.assists,
+      rating: player.statistics.rating,
+      winRate: player.statistics.winRate,
+    }));
+  } catch (error) {
+    console.error('Error fetching player statistics:', error);
+    return [];
+  }
+};
+
+export const getDetailedPlayerStatistics = async (playerId: string): Promise<GridDetailedPlayerStats | null> => {
+  const query = `
+    query GetDetailedPlayerStatistics($playerId: ID!, $filter: PlayerStatisticsFilter!) {
+      playerStatistics(playerId: $playerId, filter: $filter) {
+        id
+        series {
+          count
+          kills {
+            sum
+            avg
+            min
+            max
+            ratePerMinute {
+              min
+              max
+              avg
+            }
+          }
+          deaths {
+            sum
+            avg
+            min
+            max
+            ratePerMinute {
+              min
+              max
+              avg
+            }
+          }
+          killAssistsGiven {
+            sum
+            avg
+            min
+            max
+            ratePerMinute {
+              min
+              max
+              avg
+            }
+          }
+          wins {
+            value
+            count
+            percentage
+          }
+        }
+        game {
+          count
+          kills {
+            sum
+            avg
+            min
+            max
+            ratePerMinute {
+              min
+              max
+              avg
+            }
+          }
+          deaths {
+            sum
+            avg
+            min
+            max
+            ratePerMinute {
+              min
+              max
+              avg
+            }
+          }
+          killAssistsGiven {
+            sum
+            avg
+            min
+            max
+            ratePerMinute {
+              min
+              max
+              avg
+            }
+          }
+          wins {
+            value
+            count
+            percentage
+          }
+        }
+      }
+    }
+  `;
+
+  // Filter for last 6 months of data
+  const variables = {
+    playerId,
+    filter: {
+      startedAt: {
+        period: "LAST_6_MONTHS"
+      }
+    }
+  };
+
+  try {
+    const response = await gridGraphQLRequest('/statistics-feed/graphql', query, variables);
+
+    if (!response) {
+      console.error('No response from Grid.gg API');
+      return null;
+    }
+
+    if (!response.data) {
+      console.error('No data property in Grid.gg API response');
+      return null;
+    }
+
+    if (response.data.errors) {
+      console.error('GraphQL errors in response:', response.data.errors);
+      return null;
+    }
+
+    return response.data.playerStatistics;
+  } catch (error) {
+    console.error('Error fetching detailed player statistics:', error);
+    return null;
   }
 };

@@ -17,6 +17,7 @@ import { usePoolInfo } from '../hooks/usePoolInfo';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams, createPlayerEIP712Domain, createSellTokensTypedData, validateSellSignatureParams } from '../utils/signatures';
 import { apiService, SellTokensRequest } from '../services/apiService';
 import { AuthenticationStatus } from './AuthenticationStatus';
+import { getDetailedPlayerStatistics, GridDetailedPlayerStats } from '../utils/api';
 import { readContractCached } from '../utils/contractCache';
 
 interface Player {
@@ -29,6 +30,7 @@ interface Player {
   points: number;
   rating: number;
   image: string;
+  gridID: string;
   stats: {
     kills: number;
     deaths: number;
@@ -71,6 +73,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const previousStatusRef = useRef<'idle' | 'pending' | 'success' | 'error'>('idle'); // Track previous status
   const isClosingRef = useRef(false); // Track if modal is closing to prevent showing buy/sell menu
   const [isModalContentVisible, setIsModalContentVisible] = useState(true); // Control modal content animation
+  const [gridStats, setGridStats] = useState<GridDetailedPlayerStats | null>(null);
+  const [gridStatsLoading, setGridStatsLoading] = useState(false);
 
   // Helper function to safely update alert state and prevent overlap
   const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
@@ -1024,14 +1028,30 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const priceImpact = realPriceImpactData ? realPriceImpactData.priceImpact.toFixed(2) : '0.00';
   const isPriceImpactHigh = parseFloat(priceImpact) > 5;
 
-  // Debug: Log pool data
+  // Fetch Grid.gg statistics when modal opens
   useEffect(() => {
-    if (player) {
-      const poolInfo = poolData.get(player.id);
-      console.log('Pool info for player', player.id, ':', poolInfo);
-      console.log('Price impact data:', realPriceImpactData);
-    }
-  }, [poolData, player?.id, realPriceImpactData, player]);
+    const fetchGridStats = async () => {
+      if (isOpen && player && player.gridID && !gridStats) {
+        setGridStatsLoading(true);
+        try {
+          console.log(`📊 Fetching Grid.gg stats for player ${player.name} (ID: ${player.gridID})`);
+          const stats = await getDetailedPlayerStatistics(player.gridID);
+          if (stats) {
+            console.log(`✅ Grid.gg stats loaded for ${player.name}:`, stats);
+            setGridStats(stats);
+          } else {
+            console.warn(`⚠️ No Grid.gg stats found for player ${player.name} (ID: ${player.gridID})`);
+          }
+        } catch (error) {
+          console.error(`❌ Error fetching Grid.gg stats for ${player.name}:`, error);
+        } finally {
+          setGridStatsLoading(false);
+        }
+      }
+    };
+
+    fetchGridStats();
+  }, [isOpen, player?.gridID, gridStats]);
 
   // Format numbers with commas
   const formatNumber = (num: number) => {
@@ -1652,22 +1672,33 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 <h3 className="mb-3 flex items-center text-sm">
                   <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
                   Player Statistics
+                  {gridStatsLoading && (
+                    <div className="ml-2 w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                  )}
                 </h3>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">{player.stats.kills}</p>
+                    <p className="text-lg font-bold text-primary">
+                      {gridStats ? gridStats.game.kills.avg.toFixed(1) : player.stats.kills}
+                    </p>
                     <p className="text-xs text-muted-foreground">Avg Kills</p>
                   </div>
                   <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">{player.stats.deaths}</p>
+                    <p className="text-lg font-bold text-primary">
+                      {gridStats ? gridStats.game.deaths.avg.toFixed(1) : player.stats.deaths}
+                    </p>
                     <p className="text-xs text-muted-foreground">Avg Deaths</p>
                   </div>
                   <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">{player.stats.assists}</p>
+                    <p className="text-lg font-bold text-primary">
+                      {gridStats ? gridStats.game.killAssistsGiven.avg.toFixed(1) : player.stats.assists}
+                    </p>
                     <p className="text-xs text-muted-foreground">Avg Assists</p>
                   </div>
                   <div className="text-center p-2 bg-accent/50 rounded-lg">
-                    <p className="text-lg font-bold text-primary">{player.stats.winRate}%</p>
+                    <p className="text-lg font-bold text-primary">
+                      {gridStats ? `${gridStats.game.wins.find(w => w.value)?.percentage.toFixed(1) || '0.0'}%` : `${player.stats.winRate}%`}
+                    </p>
                     <p className="text-xs text-muted-foreground">Win Rate</p>
                   </div>
                 </div>
@@ -1686,6 +1717,20 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     {player.rating}/100 Overall Rating
                   </p>
                 </div>
+                
+                {/* Grid.gg Data Source Indicator */}
+                {gridStats && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                    Live data from Grid.gg
+                  </div>
+                )}
+                {!gridStats && !gridStatsLoading && player.gridID && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                    Using cached data
+                  </div>
+                )}
               </Card>
 
               {/* Recent Matches */}
