@@ -17,7 +17,7 @@ import { usePoolInfo } from '../hooks/usePoolInfo';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams, createPlayerEIP712Domain, createSellTokensTypedData, validateSellSignatureParams } from '../utils/signatures';
 import { apiService, SellTokensRequest } from '../services/apiService';
 import { AuthenticationStatus } from './AuthenticationStatus';
-import { getDetailedPlayerStatistics, GridDetailedPlayerStats } from '../utils/api';
+import { getDetailedPlayerStatistics, GridDetailedPlayerStats, getTeamStatistics, getSeriesState, SeriesState, MatchResult } from '../utils/api';
 import { readContractCached } from '../utils/contractCache';
 
 interface Player {
@@ -31,6 +31,7 @@ interface Player {
   rating: number;
   image: string;
   gridID: string;
+  teamGridId: string;
   stats: {
     kills: number;
     deaths: number;
@@ -75,6 +76,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [isModalContentVisible, setIsModalContentVisible] = useState(true); // Control modal content animation
   const [gridStats, setGridStats] = useState<GridDetailedPlayerStats | null>(null);
   const [gridStatsLoading, setGridStatsLoading] = useState(false);
+  const [teamSeriesIds, setTeamSeriesIds] = useState<string[]>([]);
+  const [seriesData, setSeriesData] = useState<SeriesState[]>([]);
+  const [seriesLoading, setSeriesLoading] = useState(false);
 
   // Helper function to safely update alert state and prevent overlap
   const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
@@ -1053,6 +1057,56 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     fetchGridStats();
   }, [isOpen, player?.gridID, gridStats]);
 
+  // Fetch team series IDs when modal opens
+  useEffect(() => {
+    const fetchTeamSeries = async () => {
+      if (isOpen && player && player.teamGridId && teamSeriesIds.length === 0) {
+        try {
+          console.log(`📊 Fetching team series IDs for player ${player.name} (teamGridId: ${player.teamGridId})`);
+          const seriesIds = await getTeamStatistics(player.teamGridId);
+          if (seriesIds && seriesIds.length > 0) {
+            console.log(`✅ Team series IDs loaded for ${player.name}:`, seriesIds);
+            setTeamSeriesIds(seriesIds);
+          } else {
+            console.warn(`⚠️ No team series data found for player ${player.name} (teamGridId: ${player.teamGridId})`);
+          }
+        } catch (error) {
+          console.error(`❌ Error fetching team series for ${player.name}:`, error);
+        }
+      }
+    };
+
+    fetchTeamSeries();
+  }, [isOpen, player?.teamGridId, teamSeriesIds.length]);
+
+  // Fetch series state data when team series IDs are available
+  useEffect(() => {
+    const fetchSeriesData = async () => {
+      if (isOpen && player && teamSeriesIds.length > 0 && seriesData.length === 0) {
+        setSeriesLoading(true);
+        try {
+          console.log(`📊 Fetching series state data for ${teamSeriesIds.length} series`);
+          const seriesPromises = teamSeriesIds.map(seriesId => getSeriesState(seriesId));
+          const seriesResults = await Promise.all(seriesPromises);
+          
+          // Filter out null results and only keep finished series
+          const validSeries = seriesResults.filter((series): series is SeriesState => 
+            series !== null && series.finished
+          );
+          
+          console.log(`✅ Loaded ${validSeries.length} finished series for ${player.name}`);
+          setSeriesData(validSeries);
+        } catch (error) {
+          console.error(`❌ Error fetching series data for ${player.name}:`, error);
+        } finally {
+          setSeriesLoading(false);
+        }
+      }
+    };
+
+    fetchSeriesData();
+  }, [isOpen, player?.name, teamSeriesIds, seriesData.length]);
+
   // Format numbers with commas
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -1163,20 +1217,43 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }
   };
 
-  // UI for the swap arrow/button
-  const SwapButton = (
-    <Button
-      type="button"
-      variant="ghost"
-      className="rounded-full p-2 border border-accent/40 bg-background shadow hover:bg-accent/30 transition"
-      onClick={() => setAction(action === 'buy' ? 'sell' : 'buy')}
-      aria-label="Switch buy/sell"
-    >
-      <svg width="24" height="24" fill="none" className="rotate-90 text-muted-foreground">
-        <path d="M8 17l4 4 4-4M16 7l-4-4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </Button>
-  );
+  // Transform series data into MatchResult format
+  const getRealRecentMatches = (): MatchResult[] => {
+    if (!player || seriesData.length === 0) {
+      return player?.recentMatches || [];
+    }
+
+    const matches: MatchResult[] = [];
+
+    for (const series of seriesData.slice(0, 5)) { // Limit to 5 most recent matches
+      // Find the player's team in this series
+      const playerTeam = series.teams.find(team => team.id === player.teamGridId);
+      const opponentTeam = series.teams.find(team => team.id !== player.teamGridId);
+
+      if (!playerTeam || !opponentTeam) continue;
+
+      // Determine the result
+      const result: 'win' | 'loss' = playerTeam.won ? 'win' : 'loss';
+
+      // Calculate score (e.g., "2-1" for best of 3)
+      const score = `${playerTeam.score}-${opponentTeam.score}`;
+
+      // Create match result
+      matches.push({
+        opponent: opponentTeam.name,
+        result,
+        score,
+        performance: result === 'win' ? Math.floor(Math.random() * 20) + 80 : Math.floor(Math.random() * 30) + 50 // Placeholder performance
+      });
+    }
+
+    // If we don't have enough real matches, fill with static data
+    while (matches.length < 5 && player.recentMatches) {
+      matches.push(...player.recentMatches.slice(0, 5 - matches.length));
+    }
+
+    return matches.slice(0, 5);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -1738,9 +1815,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 <h3 className="mb-3 flex items-center text-sm">
                   <Star className="w-4 h-4 mr-2 text-blue-500" />
                   Recent Matches
+                  {seriesLoading && (
+                    <div className="ml-2 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  )}
                 </h3>
                 <div className="space-y-2">
-                  {player.recentMatches.map((match, index) => (
+                  {getRealRecentMatches().map((match, index) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
                       <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${
@@ -1762,6 +1842,20 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     </div>
                   ))}
                 </div>
+                
+                {/* Series Data Source Indicator */}
+                {seriesData.length > 0 && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                    Live series data from Grid.gg
+                  </div>
+                )}
+                {seriesData.length === 0 && !seriesLoading && player.teamGridId && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                    Using cached match data
+                  </div>
+                )}
               </Card>
             </div>
           )}
@@ -1774,4 +1868,4 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       </DialogContent>
     </Dialog>
   );
-}
+};

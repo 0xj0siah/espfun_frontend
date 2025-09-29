@@ -422,3 +422,132 @@ export const getDetailedPlayerStatistics = async (playerId: string): Promise<Gri
     return null;
   }
 };
+
+// Get team statistics to retrieve recent series IDs for matches
+export const getTeamStatistics = async (teamId: string): Promise<string[]> => {
+  const query = `
+    query GetTeamStatistics($teamId: ID!, $filter: TeamStatisticsFilter!) {
+      teamStatistics(teamId: $teamId, filter: $filter) {
+        id
+        aggregationSeriesIds
+      }
+    }
+  `;
+
+  // Filter for last 3 months of data to get recent matches
+  const variables = {
+    teamId,
+    filter: {
+      startedAt: {
+        period: "LAST_3_MONTHS"
+      }
+    }
+  };
+
+  try {
+    const response = await gridGraphQLRequest('/statistics-feed/graphql', query, variables);
+
+    if (!response) {
+      console.error('No response from Grid.gg API for team statistics');
+      return [];
+    }
+
+    if (!response.data) {
+      console.error('No data property in Grid.gg API response for team statistics');
+      return [];
+    }
+
+    if (response.data.errors) {
+      console.error('GraphQL errors in team statistics response:', response.data.errors);
+      return [];
+    }
+
+    const teamStats = response.data.teamStatistics;
+    if (!teamStats || !teamStats.aggregationSeriesIds) {
+      console.warn(`No aggregation series IDs found for team ${teamId}`);
+      return [];
+    }
+
+    console.log(`✅ Found ${teamStats.aggregationSeriesIds.length} series IDs for team ${teamId}`);
+    return teamStats.aggregationSeriesIds;
+  } catch (error) {
+    console.error('Error fetching team statistics:', error);
+    return [];
+  }
+};
+
+// Grid.gg Series State API interfaces
+export interface SeriesTeam {
+  id: string;
+  name: string;
+  won: boolean;
+  score: number;
+}
+
+export interface SeriesGame {
+  finished: boolean;
+  teams: Array<{
+    name: string;
+    won: boolean;
+  }>;
+}
+
+export interface SeriesState {
+  valid: boolean;
+  format: string;
+  finished: boolean;
+  teams: SeriesTeam[];
+  games: SeriesGame[];
+}
+
+// Get series state for live match data
+export const getSeriesState = async (seriesId: string): Promise<SeriesState | null> => {
+  const query = `
+    query GetSeriesState($id: ID!) {
+      seriesState(id: $id) {
+        valid
+        format
+        finished
+        teams {
+          id
+          name
+          won
+          score
+        }
+        games {
+          finished
+          teams {
+            name
+            won
+          }
+        }
+      }
+    }
+  `;
+
+  const variables = { id: seriesId };
+
+  try {
+    const response = await gridGraphQLRequest('/live-data-feed/series-state/graphql', query, variables);
+
+    if (!response) {
+      console.error('No response from Grid.gg Series State API');
+      return null;
+    }
+
+    if (!response.data) {
+      console.error('No data property in Grid.gg Series State API response');
+      return null;
+    }
+
+    if (response.data.errors) {
+      console.error('GraphQL errors in series state response:', response.data.errors);
+      return null;
+    }
+
+    return response.data.seriesState;
+  } catch (error) {
+    console.error('Error fetching series state:', error);
+    return null;
+  }
+};
