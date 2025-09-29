@@ -1,4 +1,4 @@
-﻿{
+{
   "teamPlayers": [
     {
       "id": 100101,
@@ -37,7 +37,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120868"
+      "gridID": "120868",
+      "teamGridId": "51818"
     },
     {
       "id": 100102,
@@ -76,7 +77,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120866"
+      "gridID": "120866",
+      "teamGridId": "51818"
     },
     {
       "id": 100103,
@@ -115,7 +117,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120864"
+      "gridID": "120864",
+      "teamGridId": "51818"
     },
     {
       "id": 100104,
@@ -154,7 +157,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120875"
+      "gridID": "120875",
+      "teamGridId": "51818"
     },
     {
       "id": 100105,
@@ -193,7 +197,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120872"
+      "gridID": "120872",
+      "teamGridId": "51818"
     },
     {
       "id": 1,
@@ -232,7 +237,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120868"
+      "gridID": "120868",
+      "teamGridId": "51818"
     },
     {
       "id": 2,
@@ -271,7 +277,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120866"
+      "gridID": "120866",
+      "teamGridId": "51818"
     },
     {
       "id": 3,
@@ -310,7 +317,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120864"
+      "gridID": "120864",
+      "teamGridId": "51818"
     },
     {
       "id": 4,
@@ -349,7 +357,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120875"
+      "gridID": "120875",
+      "teamGridId": "51818"
     },
     {
       "id": 5,
@@ -388,7 +397,8 @@
         }
       ],
       "team": "vitality",
-      "gridID": "120872"
+      "gridID": "120872",
+      "teamGridId": "51818"
     },
     {
       "id": 100201,
@@ -427,7 +437,8 @@
         }
       ],
       "team": "faze",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51812"
     },
     {
       "id": 100202,
@@ -466,7 +477,8 @@
         }
       ],
       "team": "faze",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51812"
     },
     {
       "id": 100203,
@@ -505,7 +517,8 @@
         }
       ],
       "team": "faze",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51812"
     },
     {
       "id": 100204,
@@ -544,7 +557,8 @@
         }
       ],
       "team": "faze",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51812"
     },
     {
       "id": 100205,
@@ -583,7 +597,8 @@
         }
       ],
       "team": "faze",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51812"
     },
     {
       "id": 100301,
@@ -622,7 +637,8 @@
         }
       ],
       "team": "g2",
-      "gridID": "114698"
+      "gridID": "114698",
+      "teamGridId": "51822"
     },
     {
       "id": 100302,
@@ -661,7 +677,8 @@
         }
       ],
       "team": "g2",
-      "gridID": "121165"
+      "gridID": "121165",
+      "teamGridId": "51822"
     },
     {
       "id": 100303,
@@ -700,7 +717,8 @@
         }
       ],
       "team": "g2",
-      "gridID": "121169"
+      "gridID": "121169",
+      "teamGridId": "51822"
     },
     {
       "id": 100304,
@@ -739,7 +757,8 @@
         }
       ],
       "team": "g2",
-      "gridID": "112883"
+      "gridID": "112883",
+      "teamGridId": "51822"
     },
     {
       "id": 100305,
@@ -778,7 +797,8 @@
         }
       ],
       "team": "g2",
-      "gridID": "123522"
+      "gridID": "123522",
+      "teamGridId": "51822"
     },
     {
       "id": 100401,
@@ -792,7 +812,7 @@
       "image": "/images/natus-vincere/Aleksib.webp",
       "stats": {
         "kills": 19.3,
-        "deaths": 13.0,
+        "deaths": 13,
         "assists": 6.9,
         "winRate": 70
       },
@@ -817,7 +837,8 @@
         }
       ],
       "team": "natus-vincere",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51814"
     },
     {
       "id": 100402,
@@ -856,7 +877,8 @@
         }
       ],
       "team": "natus-vincere",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51814"
     },
     {
       "id": 100403,
@@ -871,7 +893,7 @@
       "stats": {
         "kills": 18.5,
         "deaths": 12.7,
-        "assists": 7.0,
+        "assists": 7,
         "winRate": 67
       },
       "recentMatches": [
@@ -895,7 +917,8 @@
         }
       ],
       "team": "natus-vincere",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51814"
     },
     {
       "id": 100404,
@@ -934,7 +957,8 @@
         }
       ],
       "team": "natus-vincere",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51814"
     },
     {
       "id": 100405,
@@ -973,7 +997,8 @@
         }
       ],
       "team": "natus-vincere",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51814"
     },
     {
       "id": 100501,
@@ -987,7 +1012,7 @@
       "image": "/images/spirit/chopper.webp",
       "stats": {
         "kills": 20.4,
-        "deaths": 14.0,
+        "deaths": 14,
         "assists": 6.6,
         "winRate": 73
       },
@@ -1012,7 +1037,8 @@
         }
       ],
       "team": "spirit",
-      "gridID": "121153"
+      "gridID": "121153",
+      "teamGridId": "49586"
     },
     {
       "id": 100502,
@@ -1051,7 +1077,8 @@
         }
       ],
       "team": "spirit",
-      "gridID": "121157"
+      "gridID": "121157",
+      "teamGridId": "49586"
     },
     {
       "id": 100503,
@@ -1090,7 +1117,8 @@
         }
       ],
       "team": "spirit",
-      "gridID": "121155"
+      "gridID": "121155",
+      "teamGridId": "49586"
     },
     {
       "id": 100504,
@@ -1129,7 +1157,8 @@
         }
       ],
       "team": "spirit",
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49586"
     },
     {
       "id": 100505,
@@ -1168,7 +1197,8 @@
         }
       ],
       "team": "spirit",
-      "gridID": "113587"
+      "gridID": "113587",
+      "teamGridId": "49586"
     },
     {
       "id": 100601,
@@ -1207,7 +1237,8 @@
         }
       ],
       "team": "heroic",
-      "gridID": "114392"
+      "gridID": "114392",
+      "teamGridId": "49627"
     },
     {
       "id": 100602,
@@ -1246,7 +1277,8 @@
         }
       ],
       "team": "heroic",
-      "gridID": "112887"
+      "gridID": "112887",
+      "teamGridId": "49627"
     },
     {
       "id": 100603,
@@ -1285,7 +1317,8 @@
         }
       ],
       "team": "heroic",
-      "gridID": "112099"
+      "gridID": "112099",
+      "teamGridId": "49627"
     },
     {
       "id": 100604,
@@ -1324,7 +1357,8 @@
         }
       ],
       "team": "heroic",
-      "gridID": "112891"
+      "gridID": "112891",
+      "teamGridId": "49627"
     },
     {
       "id": 100605,
@@ -1363,7 +1397,8 @@
         }
       ],
       "team": "heroic",
-      "gridID": "112895"
+      "gridID": "112895",
+      "teamGridId": "49627"
     },
     {
       "id": 100701,
@@ -1402,7 +1437,8 @@
         }
       ],
       "team": "ence",
-      "gridID": "113742"
+      "gridID": "113742",
+      "teamGridId": "49553"
     },
     {
       "id": 100702,
@@ -1441,7 +1477,8 @@
         }
       ],
       "team": "ence",
-      "gridID": "112723"
+      "gridID": "112723",
+      "teamGridId": "49553"
     },
     {
       "id": 100703,
@@ -1480,7 +1517,8 @@
         }
       ],
       "team": "ence",
-      "gridID": "113682"
+      "gridID": "113682",
+      "teamGridId": "49553"
     },
     {
       "id": 100704,
@@ -1519,7 +1557,8 @@
         }
       ],
       "team": "ence",
-      "gridID": "114592"
+      "gridID": "114592",
+      "teamGridId": "49553"
     },
     {
       "id": 100705,
@@ -1558,7 +1597,8 @@
         }
       ],
       "team": "ence",
-      "gridID": "113678"
+      "gridID": "113678",
+      "teamGridId": "49553"
     },
     {
       "id": 100801,
@@ -1572,9 +1612,9 @@
       "team": "1win",
       "image": "/images/1win/cronuss.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1597,7 +1637,8 @@
           "performance": 240
         }
       ],
-      "gridID": "136724"
+      "gridID": "136724",
+      "teamGridId": "49786"
     },
     {
       "id": 100802,
@@ -1611,9 +1652,9 @@
       "team": "1win",
       "image": "/images/1win/HObbit.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1636,7 +1677,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112650"
+      "gridID": "112650",
+      "teamGridId": "49786"
     },
     {
       "id": 100803,
@@ -1650,9 +1692,9 @@
       "team": "1win",
       "image": "/images/1win/interz.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1675,7 +1717,8 @@
           "performance": 240
         }
       ],
-      "gridID": "114702"
+      "gridID": "114702",
+      "teamGridId": "49786"
     },
     {
       "id": 100804,
@@ -1689,9 +1732,9 @@
       "team": "1win",
       "image": "/images/1win/lattykk.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1714,7 +1757,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112656"
+      "gridID": "112656",
+      "teamGridId": "49786"
     },
     {
       "id": 100805,
@@ -1728,9 +1772,9 @@
       "team": "1win",
       "image": "/images/1win/oz1k.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1753,7 +1797,8 @@
           "performance": 240
         }
       ],
-      "gridID": "136728"
+      "gridID": "136728",
+      "teamGridId": "49786"
     },
     {
       "id": 100901,
@@ -1767,9 +1812,9 @@
       "team": "2game-esports-cs",
       "image": "/images/2game-esports-cs/detr0ittJ.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1792,7 +1837,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "53792"
     },
     {
       "id": 100902,
@@ -1806,9 +1852,9 @@
       "team": "2game-esports-cs",
       "image": "/images/2game-esports-cs/hardzao.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1831,7 +1877,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "53792"
     },
     {
       "id": 100903,
@@ -1845,9 +1892,9 @@
       "team": "2game-esports-cs",
       "image": "/images/2game-esports-cs/lukiz.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1870,7 +1917,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "53792"
     },
     {
       "id": 100904,
@@ -1884,9 +1932,9 @@
       "team": "2game-esports-cs",
       "image": "/images/2game-esports-cs/PKL.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1909,7 +1957,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "53792"
     },
     {
       "id": 100905,
@@ -1923,9 +1972,9 @@
       "team": "2game-esports-cs",
       "image": "/images/2game-esports-cs/xureba.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1948,7 +1997,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "53792"
     },
     {
       "id": 101001,
@@ -1962,9 +2012,9 @@
       "team": "3dmax",
       "image": "/images/3dmax/bodyy.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -1987,7 +2037,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112879"
+      "gridID": "112879",
+      "teamGridId": "51793"
     },
     {
       "id": 101002,
@@ -2001,9 +2052,9 @@
       "team": "3dmax",
       "image": "/images/3dmax/Ex3rcice.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2026,7 +2077,8 @@
           "performance": 240
         }
       ],
-      "gridID": "114188"
+      "gridID": "114188",
+      "teamGridId": "51793"
     },
     {
       "id": 101003,
@@ -2040,9 +2092,9 @@
       "team": "3dmax",
       "image": "/images/3dmax/Graviti.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2065,7 +2117,8 @@
           "performance": 240
         }
       ],
-      "gridID": "114190"
+      "gridID": "114190",
+      "teamGridId": "51793"
     },
     {
       "id": 101004,
@@ -2079,9 +2132,9 @@
       "team": "3dmax",
       "image": "/images/3dmax/Lucky.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2104,7 +2157,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51793"
     },
     {
       "id": 101005,
@@ -2118,9 +2172,9 @@
       "team": "3dmax",
       "image": "/images/3dmax/Nivera.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2143,7 +2197,8 @@
           "performance": 240
         }
       ],
-      "gridID": "88945"
+      "gridID": "88945",
+      "teamGridId": "51793"
     },
     {
       "id": 101101,
@@ -2157,9 +2212,9 @@
       "team": "500-cs-go",
       "image": "/images/500-cs-go/CeRq.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2196,9 +2251,9 @@
       "team": "500-cs-go",
       "image": "/images/500-cs-go/hampus.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2235,9 +2290,9 @@
       "team": "500-cs-go",
       "image": "/images/500-cs-go/Rainwaker.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2274,9 +2329,9 @@
       "team": "500-cs-go",
       "image": "/images/500-cs-go/REDSTAR.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2313,9 +2368,9 @@
       "team": "500-cs-go",
       "image": "/images/500-cs-go/volt.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2352,9 +2407,9 @@
       "team": "9ine",
       "image": "/images/9ine/cej0t.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2377,7 +2432,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49865"
     },
     {
       "id": 101202,
@@ -2391,9 +2447,9 @@
       "team": "9ine",
       "image": "/images/9ine/faveN.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2416,7 +2472,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49865"
     },
     {
       "id": 101203,
@@ -2430,9 +2487,9 @@
       "team": "9ine",
       "image": "/images/9ine/kraghen.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2455,7 +2512,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49865"
     },
     {
       "id": 101204,
@@ -2469,9 +2527,9 @@
       "team": "9ine",
       "image": "/images/9ine/MoDo.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2494,7 +2552,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49865"
     },
     {
       "id": 101205,
@@ -2508,9 +2567,9 @@
       "team": "9ine",
       "image": "/images/9ine/raalz.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2533,7 +2592,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49865"
     },
     {
       "id": 101301,
@@ -2547,9 +2607,9 @@
       "team": "9-pandas",
       "image": "/images/9-pandas/Krad.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2572,7 +2632,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50375"
     },
     {
       "id": 101302,
@@ -2586,9 +2647,9 @@
       "team": "9-pandas",
       "image": "/images/9-pandas/player_1.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2611,7 +2672,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50375"
     },
     {
       "id": 101303,
@@ -2625,9 +2687,9 @@
       "team": "9-pandas",
       "image": "/images/9-pandas/player_2.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2650,7 +2712,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50375"
     },
     {
       "id": 101304,
@@ -2664,9 +2727,9 @@
       "team": "9-pandas",
       "image": "/images/9-pandas/player_3.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2689,7 +2752,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50375"
     },
     {
       "id": 101305,
@@ -2703,9 +2767,9 @@
       "team": "9-pandas",
       "image": "/images/9-pandas/player_4.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2728,7 +2792,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50375"
     },
     {
       "id": 101401,
@@ -2742,9 +2807,9 @@
       "team": "9z",
       "image": "/images/9z/HUASOPEEK.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2767,7 +2832,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112792"
+      "gridID": "112792",
+      "teamGridId": "51864"
     },
     {
       "id": 101402,
@@ -2781,9 +2847,9 @@
       "team": "9z",
       "image": "/images/9z/levi.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2806,7 +2872,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "51864"
     },
     {
       "id": 101403,
@@ -2820,9 +2887,9 @@
       "team": "9z",
       "image": "/images/9z/Luken.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2845,7 +2912,8 @@
           "performance": 240
         }
       ],
-      "gridID": "113710"
+      "gridID": "113710",
+      "teamGridId": "51864"
     },
     {
       "id": 101404,
@@ -2859,9 +2927,9 @@
       "team": "9z",
       "image": "/images/9z/max.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2884,7 +2952,8 @@
           "performance": 240
         }
       ],
-      "gridID": "113247"
+      "gridID": "113247",
+      "teamGridId": "51864"
     },
     {
       "id": 101405,
@@ -2898,9 +2967,9 @@
       "team": "9z",
       "image": "/images/9z/urban0.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2923,7 +2992,8 @@
           "performance": 240
         }
       ],
-      "gridID": "111597"
+      "gridID": "111597",
+      "teamGridId": "51864"
     },
     {
       "id": 101501,
@@ -2937,9 +3007,9 @@
       "team": "alliance-cs",
       "image": "/images/alliance-cs/Avid.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -2962,7 +3032,8 @@
           "performance": 240
         }
       ],
-      "gridID": "113332"
+      "gridID": "113332",
+      "teamGridId": "52337"
     },
     {
       "id": 101502,
@@ -2976,9 +3047,9 @@
       "team": "alliance-cs",
       "image": "/images/alliance-cs/eraa.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3001,7 +3072,8 @@
           "performance": 240
         }
       ],
-      "gridID": "113216"
+      "gridID": "113216",
+      "teamGridId": "52337"
     },
     {
       "id": 101503,
@@ -3015,9 +3087,9 @@
       "team": "alliance-cs",
       "image": "/images/alliance-cs/poiii.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3040,7 +3112,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112823"
+      "gridID": "112823",
+      "teamGridId": "52337"
     },
     {
       "id": 101504,
@@ -3054,9 +3127,9 @@
       "team": "alliance-cs",
       "image": "/images/alliance-cs/twist.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3079,7 +3152,8 @@
           "performance": 240
         }
       ],
-      "gridID": "113326"
+      "gridID": "113326",
+      "teamGridId": "52337"
     },
     {
       "id": 101505,
@@ -3093,9 +3167,9 @@
       "team": "alliance-cs",
       "image": "/images/alliance-cs/upE.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3118,7 +3192,8 @@
           "performance": 240
         }
       ],
-      "gridID": "113330"
+      "gridID": "113330",
+      "teamGridId": "52337"
     },
     {
       "id": 101601,
@@ -3132,9 +3207,9 @@
       "team": "arcred",
       "image": "/images/arcred/DSSj.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3157,7 +3232,8 @@
           "performance": 240
         }
       ],
-      "gridID": "117148"
+      "gridID": "117148",
+      "teamGridId": "52078"
     },
     {
       "id": 101602,
@@ -3171,9 +3247,9 @@
       "team": "arcred",
       "image": "/images/arcred/Get_Jeka.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3196,7 +3272,8 @@
           "performance": 240
         }
       ],
-      "gridID": "117144"
+      "gridID": "117144",
+      "teamGridId": "52078"
     },
     {
       "id": 101603,
@@ -3210,9 +3287,9 @@
       "team": "arcred",
       "image": "/images/arcred/player_4.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3235,7 +3312,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52078"
     },
     {
       "id": 101604,
@@ -3249,9 +3327,9 @@
       "team": "arcred",
       "image": "/images/arcred/Raijin.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3274,7 +3352,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112206"
+      "gridID": "112206",
+      "teamGridId": "52078"
     },
     {
       "id": 101605,
@@ -3288,9 +3367,9 @@
       "team": "arcred",
       "image": "/images/arcred/Ryujin.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3313,7 +3392,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112653"
+      "gridID": "112653",
+      "teamGridId": "52078"
     },
     {
       "id": 101701,
@@ -3327,9 +3407,9 @@
       "team": "astralis",
       "image": "/images/astralis/dev1ce.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3352,7 +3432,8 @@
           "performance": 240
         }
       ],
-      "gridID": "123597"
+      "gridID": "123597",
+      "teamGridId": "49528"
     },
     {
       "id": 101702,
@@ -3366,9 +3447,9 @@
       "team": "astralis",
       "image": "/images/astralis/HooXi.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3391,7 +3472,8 @@
           "performance": 240
         }
       ],
-      "gridID": "143123"
+      "gridID": "143123",
+      "teamGridId": "49528"
     },
     {
       "id": 101703,
@@ -3405,9 +3487,9 @@
       "team": "astralis",
       "image": "/images/astralis/jabbi.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3430,7 +3512,8 @@
           "performance": 240
         }
       ],
-      "gridID": "121185"
+      "gridID": "121185",
+      "teamGridId": "49528"
     },
     {
       "id": 101704,
@@ -3444,9 +3527,9 @@
       "team": "astralis",
       "image": "/images/astralis/Magisk.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3469,7 +3552,8 @@
           "performance": 240
         }
       ],
-      "gridID": "118691"
+      "gridID": "118691",
+      "teamGridId": "49528"
     },
     {
       "id": 101705,
@@ -3483,9 +3567,9 @@
       "team": "astralis",
       "image": "/images/astralis/Staehr.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3508,7 +3592,8 @@
           "performance": 240
         }
       ],
-      "gridID": "121181"
+      "gridID": "121181",
+      "teamGridId": "49528"
     },
     {
       "id": 101801,
@@ -3522,9 +3607,9 @@
       "team": "astrum",
       "image": "/images/astrum/player_0.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3547,7 +3632,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "55435"
     },
     {
       "id": 101802,
@@ -3561,9 +3647,9 @@
       "team": "astrum",
       "image": "/images/astrum/player_1.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3586,7 +3672,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "55435"
     },
     {
       "id": 101803,
@@ -3600,9 +3687,9 @@
       "team": "astrum",
       "image": "/images/astrum/player_2.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3625,7 +3712,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "55435"
     },
     {
       "id": 101804,
@@ -3639,9 +3727,9 @@
       "team": "astrum",
       "image": "/images/astrum/player_3.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3664,7 +3752,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "55435"
     },
     {
       "id": 101805,
@@ -3678,9 +3767,9 @@
       "team": "astrum",
       "image": "/images/astrum/player_4.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3703,7 +3792,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "55435"
     },
     {
       "id": 101901,
@@ -3717,9 +3807,9 @@
       "team": "aurora-gaming",
       "image": "/images/aurora-gaming/jottAAA.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3742,7 +3832,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50074"
     },
     {
       "id": 101902,
@@ -3756,9 +3847,9 @@
       "team": "aurora-gaming",
       "image": "/images/aurora-gaming/MAJ3R.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3781,7 +3872,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50074"
     },
     {
       "id": 101903,
@@ -3795,9 +3887,9 @@
       "team": "aurora-gaming",
       "image": "/images/aurora-gaming/Wicadia.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3820,7 +3912,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50074"
     },
     {
       "id": 101904,
@@ -3834,9 +3927,9 @@
       "team": "aurora-gaming",
       "image": "/images/aurora-gaming/woxic.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3859,7 +3952,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50074"
     },
     {
       "id": 101905,
@@ -3873,9 +3967,9 @@
       "team": "aurora-gaming",
       "image": "/images/aurora-gaming/XANTARES.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3898,7 +3992,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "50074"
     },
     {
       "id": 102001,
@@ -3912,9 +4007,9 @@
       "team": "b8",
       "image": "/images/b8/alex666.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3937,7 +4032,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112817"
+      "gridID": "112817",
+      "teamGridId": "51885"
     },
     {
       "id": 102002,
@@ -3951,9 +4047,9 @@
       "team": "b8",
       "image": "/images/b8/esenthial.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -3976,7 +4072,8 @@
           "performance": 240
         }
       ],
-      "gridID": "44232"
+      "gridID": "44232",
+      "teamGridId": "51885"
     },
     {
       "id": 102003,
@@ -3990,9 +4087,9 @@
       "team": "b8",
       "image": "/images/b8/headtr1ck.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4015,7 +4112,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112821"
+      "gridID": "112821",
+      "teamGridId": "51885"
     },
     {
       "id": 102004,
@@ -4029,9 +4127,9 @@
       "team": "b8",
       "image": "/images/b8/kensizor.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4054,7 +4152,8 @@
           "performance": 240
         }
       ],
-      "gridID": "110994"
+      "gridID": "110994",
+      "teamGridId": "51885"
     },
     {
       "id": 102005,
@@ -4068,9 +4167,9 @@
       "team": "b8",
       "image": "/images/b8/npl.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4093,7 +4192,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112819"
+      "gridID": "112819",
+      "teamGridId": "51885"
     },
     {
       "id": 102101,
@@ -4107,9 +4207,9 @@
       "team": "bc-game",
       "image": "/images/bc-game/aNdu.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4146,9 +4246,9 @@
       "team": "bc-game",
       "image": "/images/bc-game/CacaNito.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4185,9 +4285,9 @@
       "team": "bc-game",
       "image": "/images/bc-game/nexa.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4224,9 +4324,9 @@
       "team": "bc-game",
       "image": "/images/bc-game/pr1metapz.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4263,9 +4363,9 @@
       "team": "bc-game",
       "image": "/images/bc-game/s1mple.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4302,9 +4402,9 @@
       "team": "bestia",
       "image": "/images/bestia/cass1n.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4327,7 +4427,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52060"
     },
     {
       "id": 102202,
@@ -4341,9 +4442,9 @@
       "team": "bestia",
       "image": "/images/bestia/luchov.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4366,7 +4467,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52060"
     },
     {
       "id": 102203,
@@ -4380,9 +4482,9 @@
       "team": "bestia",
       "image": "/images/bestia/Noktse.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4405,7 +4507,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52060"
     },
     {
       "id": 102204,
@@ -4419,9 +4522,9 @@
       "team": "bestia",
       "image": "/images/bestia/timo.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4444,7 +4547,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52060"
     },
     {
       "id": 102205,
@@ -4458,9 +4562,9 @@
       "team": "bestia",
       "image": "/images/bestia/tomaszin.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4483,7 +4587,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52060"
     },
     {
       "id": 102301,
@@ -4497,9 +4602,9 @@
       "team": "betboom-team",
       "image": "/images/betboom-team/Artfr0st.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4522,7 +4627,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52232"
     },
     {
       "id": 102302,
@@ -4536,9 +4642,9 @@
       "team": "betboom-team",
       "image": "/images/betboom-team/Boombl4.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4561,7 +4667,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52232"
     },
     {
       "id": 102303,
@@ -4575,9 +4682,9 @@
       "team": "betboom-team",
       "image": "/images/betboom-team/d1Ledez.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4600,7 +4707,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52232"
     },
     {
       "id": 102304,
@@ -4614,9 +4722,9 @@
       "team": "betboom-team",
       "image": "/images/betboom-team/Magnojez.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4639,7 +4747,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52232"
     },
     {
       "id": 102305,
@@ -4653,9 +4762,9 @@
       "team": "betboom-team",
       "image": "/images/betboom-team/s1ren.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4678,7 +4787,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "52232"
     },
     {
       "id": 102401,
@@ -4692,9 +4802,9 @@
       "team": "betclic-apogee-esports",
       "image": "/images/betclic-apogee-esports/Demho.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4717,7 +4827,8 @@
           "performance": 240
         }
       ],
-      "gridID": "111406"
+      "gridID": "111406",
+      "teamGridId": "55653"
     },
     {
       "id": 102402,
@@ -4731,9 +4842,9 @@
       "team": "betclic-apogee-esports",
       "image": "/images/betclic-apogee-esports/dycha.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4756,7 +4867,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112727"
+      "gridID": "112727",
+      "teamGridId": "55653"
     },
     {
       "id": 102403,
@@ -4770,9 +4882,9 @@
       "team": "betclic-apogee-esports",
       "image": "/images/betclic-apogee-esports/player_3.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4795,7 +4907,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "55653"
     },
     {
       "id": 102404,
@@ -4809,9 +4922,9 @@
       "team": "betclic-apogee-esports",
       "image": "/images/betclic-apogee-esports/player_4.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4834,7 +4947,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "55653"
     },
     {
       "id": 102405,
@@ -4848,9 +4962,9 @@
       "team": "betclic-apogee-esports",
       "image": "/images/betclic-apogee-esports/Prism.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4873,7 +4987,8 @@
           "performance": 240
         }
       ],
-      "gridID": "114787"
+      "gridID": "114787",
+      "teamGridId": "55653"
     },
     {
       "id": 102501,
@@ -4887,9 +5002,9 @@
       "team": "betera",
       "image": "/images/betera/H1te.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4912,7 +5027,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112115"
+      "gridID": "112115",
+      "teamGridId": "55738"
     },
     {
       "id": 102502,
@@ -4926,9 +5042,9 @@
       "team": "betera",
       "image": "/images/betera/MaSvAl.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4951,7 +5067,8 @@
           "performance": 240
         }
       ],
-      "gridID": "143697"
+      "gridID": "143697",
+      "teamGridId": "55738"
     },
     {
       "id": 102503,
@@ -4965,9 +5082,9 @@
       "team": "betera",
       "image": "/images/betera/synyx.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -4990,7 +5107,8 @@
           "performance": 240
         }
       ],
-      "gridID": "117142"
+      "gridID": "117142",
+      "teamGridId": "55738"
     },
     {
       "id": 102504,
@@ -5004,9 +5122,9 @@
       "team": "betera",
       "image": "/images/betera/tENZY.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5029,7 +5147,8 @@
           "performance": 240
         }
       ],
-      "gridID": "143696"
+      "gridID": "143696",
+      "teamGridId": "55738"
     },
     {
       "id": 102505,
@@ -5043,9 +5162,9 @@
       "team": "betera",
       "image": "/images/betera/Vert.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5068,7 +5187,8 @@
           "performance": 240
         }
       ],
-      "gridID": "112032"
+      "gridID": "112032",
+      "teamGridId": "55738"
     },
     {
       "id": 102601,
@@ -5082,9 +5202,9 @@
       "team": "big",
       "image": "/images/big/hyped.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5107,7 +5227,8 @@
           "performance": 240
         }
       ],
-      "gridID": "111766"
+      "gridID": "111766",
+      "teamGridId": "51830"
     },
     {
       "id": 102602,
@@ -5121,9 +5242,9 @@
       "team": "big",
       "image": "/images/big/JDC.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5146,7 +5267,8 @@
           "performance": 240
         }
       ],
-      "gridID": "114588"
+      "gridID": "114588",
+      "teamGridId": "51830"
     },
     {
       "id": 102603,
@@ -5160,9 +5282,9 @@
       "team": "big",
       "image": "/images/big/Krimbo.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5185,7 +5307,8 @@
           "performance": 240
         }
       ],
-      "gridID": "114590"
+      "gridID": "114590",
+      "teamGridId": "51830"
     },
     {
       "id": 102604,
@@ -5199,9 +5322,9 @@
       "team": "big",
       "image": "/images/big/prosus.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5224,7 +5347,8 @@
           "performance": 240
         }
       ],
-      "gridID": "122196"
+      "gridID": "122196",
+      "teamGridId": "51830"
     },
     {
       "id": 102605,
@@ -5238,9 +5362,9 @@
       "team": "big",
       "image": "/images/big/tabseN.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5263,7 +5387,8 @@
           "performance": 240
         }
       ],
-      "gridID": "114584"
+      "gridID": "114584",
+      "teamGridId": "51830"
     },
     {
       "id": 102701,
@@ -5277,9 +5402,9 @@
       "team": "bluejays",
       "image": "/images/bluejays/player_0.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5302,7 +5427,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49611"
     },
     {
       "id": 102702,
@@ -5316,9 +5442,9 @@
       "team": "bluejays",
       "image": "/images/bluejays/player_1.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5341,7 +5467,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49611"
     },
     {
       "id": 102703,
@@ -5355,9 +5482,9 @@
       "team": "bluejays",
       "image": "/images/bluejays/player_2.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5380,7 +5507,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49611"
     },
     {
       "id": 102704,
@@ -5394,9 +5522,9 @@
       "team": "bluejays",
       "image": "/images/bluejays/player_3.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5419,7 +5547,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49611"
     },
     {
       "id": 102705,
@@ -5433,9 +5562,9 @@
       "team": "bluejays",
       "image": "/images/bluejays/player_4.webp",
       "stats": {
-        "kills": 18.0,
-        "deaths": 13.0,
-        "assists": 6.0,
+        "kills": 18,
+        "deaths": 13,
+        "assists": 6,
         "winRate": 65
       },
       "recentMatches": [
@@ -5458,7 +5587,8 @@
           "performance": 240
         }
       ],
-      "gridID": null
+      "gridID": null,
+      "teamGridId": "49611"
     }
   ]
 }
