@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useIsMobile } from './ui/use-mobile';
+import { Sheet, SheetContent } from './ui/sheet';
+import { MobileSidebar } from './MobileSidebar';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Button } from './ui/button';
@@ -29,6 +32,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { login, logout, ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
@@ -138,39 +143,73 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
           {/* Logo and Navigation */}
           <div className="flex items-center space-x-8">
             <div className="flex items-center">
-              <div className="relative">
-                <ImageWithFallback
-                  src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
-                  alt="Crypto Esports Fantasy Logo"
-                  className="h-10 w-10 object-contain shadow-lg"
-                />
-              </div>
+              {/* On mobile, logo is a button to open sidebar */}
+              {isMobile ? (
+                <button
+                  className="relative focus:outline-none"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open navigation menu"
+                >
+                  <ImageWithFallback
+                    src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
+                    alt="Crypto Esports Fantasy Logo"
+                    className="h-10 w-10 object-contain shadow-lg"
+                  />
+                </button>
+              ) : (
+                <div className="relative">
+                  <ImageWithFallback
+                    src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
+                    alt="Crypto Esports Fantasy Logo"
+                    className="h-10 w-10 object-contain shadow-lg"
+                  />
+                </div>
+              )}
               <div className="ml-3">
-                <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">ESP.fun</h1>
-                <p className="text-xs text-muted-foreground">Fantasy League</p>
+                <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent hidden sm:block">ESP.fun</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">Fantasy League</p>
               </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="hidden md:flex space-x-1">
-              {navItems.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => onTabChange(item)}
-                  className={`px-4 py-2 rounded-lg transition-all duration-200 relative overflow-hidden ${
-                    activeTab === item
-                      ? 'text-primary bg-accent shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                  }`}
-                >
-                  {activeTab === item && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-600/10 rounded-lg"></div>
-                  )}
-                  <span className="relative z-10">{item}</span>
-                </button>
-              ))}
-            </nav>
+            {/* Navigation: hidden on mobile, visible on desktop */}
+            {!isMobile && (
+              <nav className="flex space-x-1">
+                {navItems.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => onTabChange(item)}
+                    className={`px-4 py-2 rounded-lg transition-all duration-200 relative overflow-hidden ${
+                      activeTab === item
+                        ? 'text-primary bg-accent shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    {activeTab === item && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-600/10 rounded-lg"></div>
+                    )}
+                    <span className="relative z-10">{item}</span>
+                  </button>
+                ))}
+              </nav>
+            )}
           </div>
+        {/* Mobile Sidebar Drawer */}
+        {isMobile && (
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent
+              side="left"
+              className="p-0 w-64"
+              aria-labelledby="mobile-sidebar-title"
+              aria-describedby="mobile-sidebar-desc"
+            >
+              <MobileSidebar
+                onClose={() => setSidebarOpen(false)}
+                activeTab={activeTab}
+                onTabChange={onTabChange}
+              />
+            </SheetContent>
+          </Sheet>
+        )}
 
           {/* Right Section - Controls */}
           <div className="flex items-center space-x-4">
@@ -200,7 +239,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               variant="outline"
               size="icon"
               onClick={toggleDarkMode}
-              className="h-9 w-9 bg-accent/50 border-0 shadow-sm"
+              className="h-9 w-9 bg-accent/50 border-0 shadow-sm hidden md:inline-flex"
             >
               {isDarkMode ? (
                 <Sun className="h-4 w-4" />
