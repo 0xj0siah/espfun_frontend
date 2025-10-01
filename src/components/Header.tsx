@@ -310,9 +310,9 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
         <DialogContent className="max-w-[300px] w-[90vw]">
           <DialogHeader className="space-y-2">
-            <DialogTitle>Send ETH</DialogTitle>
+            <DialogTitle>Send MON</DialogTitle>
             <DialogDescription>
-              Send ETH to any Ethereum address
+              Send MON to any Monad address
             </DialogDescription>
           </DialogHeader>
           
@@ -320,7 +320,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
             <Card className="p-4 bg-accent/30">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Recipient Address</label>
+                  <label className="text-sm font-medium">Recipient Monad Address</label>
                   <Input
                     placeholder="0x..."
                     value={recipientAddress}
@@ -329,7 +329,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Amount (ETH)</label>
+                  <label className="text-sm font-medium">Amount (MON)</label>
                   <Input
                     type="number"
                     placeholder="0.0"
@@ -364,7 +364,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               disabled={isLoading || !sendAmount || !recipientAddress}
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
             >
-              {isLoading ? "Sending..." : "Send ETH"}
+              {isLoading ? "Sending..." : "Send MON"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </DialogFooter>
