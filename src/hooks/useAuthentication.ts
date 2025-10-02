@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePrivy, useSignMessage } from '@privy-io/react-auth';
 import { authenticateWallet } from '../services/authService';
 import { apiService } from '../services/apiService';
+import { useAuthContext } from '../context/AuthContext';
 
 // Global rate limiting - prevent multiple authentication attempts
 let isGloballyAuthenticating = false;
@@ -16,6 +17,7 @@ export const useAuthentication = () => {
   const [lastWalletAddress, setLastWalletAddress] = useState<string | null>(null);
   const { authenticated, user } = usePrivy();
   const { signMessage } = useSignMessage();
+  const { setGlobalAuthState } = useAuthContext();
 
   // Clear authentication
   const clearAuthentication = useCallback(() => {
@@ -23,10 +25,11 @@ export const useAuthentication = () => {
     setIsAuthenticated(false);
     setError(null);
     setHasAttemptedAuth(false);
-    // Reset global state
+    // Reset both local and global state
+    setGlobalAuthState(false);
     isGloballyAuthenticating = false;
     lastAuthAttempt = 0;
-  }, []);
+  }, [setGlobalAuthState]);
 
   // Track wallet disconnection and address changes to clear authentication
   useEffect(() => {
@@ -145,6 +148,7 @@ export const useAuthentication = () => {
       console.log('🔐 Calling authenticateWallet with:', { address: user.wallet.address, signerExists: !!signer });
       await authenticateWallet(user.wallet.address, signer);
       setIsAuthenticated(true);
+      setGlobalAuthState(true); // Update global auth state
       return true;
     } catch (err: any) {
       console.error('Authentication failed:', err);

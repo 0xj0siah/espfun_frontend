@@ -10,6 +10,7 @@ import { usePlayerPrices } from './hooks/usePlayerPricing';
 import fakeData from './fakedata.json';
 import { getActivePlayerIds } from './utils/contractInteractions';
 import { useAuthentication } from './hooks/useAuthentication';
+import { AuthProvider } from './context/AuthContext';
 
 // Import debug utility
 import './utils/contractDebug';
@@ -93,8 +94,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
-      <Header activeTab={activeTab} onTabChange={setActiveTab} />
+    <AuthProvider>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
+        <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
         {renderContent()}
@@ -139,5 +141,6 @@ export default function App() {
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-500/5 to-emerald-600/5 rounded-full blur-3xl"></div>
       </div>
     </div>
+    </AuthProvider>
   );
 }

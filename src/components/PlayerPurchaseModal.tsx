@@ -14,6 +14,7 @@ import { usePrivy, useSendTransaction, useWallets, useSignTypedData } from '@pri
 import { createPublicClient, createWalletClient, http, parseUnits, formatUnits, custom, encodeFunctionData } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { usePoolInfo } from '../hooks/usePoolInfo';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams, createPlayerEIP712Domain, createSellTokensTypedData, validateSellSignatureParams } from '../utils/signatures';
 import { apiService, SellTokensRequest } from '../services/apiService';
 import { AuthenticationStatus } from './AuthenticationStatus';
@@ -142,12 +143,29 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     if (!hash || hash.length < 10) return hash;
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
   };
+
+  // Update TUSDC balance after successful transactions
+  const updateBalanceAfterTransaction = async () => {
+    if (isAuthenticated && user?.wallet?.address) {
+      console.log('🔄 Updating TUSDC balance after transaction...');
+      await checkUserUsdcBalance();
+    }
+  };
   
-  const { user, ready, authenticated } = usePrivy();
+  const { user, ready } = usePrivy();
   const { sendTransaction } = useSendTransaction();
   const { wallets } = useWallets();
   const { signTypedData } = useSignTypedData();
   const { poolData, loading: poolLoading, error: poolError, fetchPoolInfo, calculatePriceImpact } = usePoolInfo();
+  
+  // Authentication states from useAuthentication hook
+  const { 
+    isAuthenticated, 
+    isAuthenticating, 
+    authenticate, 
+    error: authError,
+    walletConnected 
+  } = useAuthentication();
 
   // Create clients for contract interactions
   const publicClient = createPublicClient({
@@ -261,39 +279,38 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }
   };
 
-  // Check user's USDC balance
+  // Check user's USDC balance using TUSDC contract directly
   const checkUserUsdcBalance = async (): Promise<void> => {
-    if (!user?.wallet?.address || !authenticated) return;
+    if (!user?.wallet?.address) {
+      console.log('⚠️ No wallet address available for TUSDC balance check');
+      return;
+    }
     
     try {
-      const currencyAddress = await getCurrencyTokenAddress();
+      console.log('🔍 Checking TUSDC balance for:', user.wallet.address);
+      const tusdcContract = getContractData('TUSDC');
+      console.log('📜 Using TUSDC contract at:', tusdcContract.address);
+      
       const balance = await readContractCached({
-        address: currencyAddress as `0x${string}`,
-        abi: [
-          {
-            name: 'balanceOf',
-            type: 'function',
-            inputs: [{ name: 'account', type: 'address' }],
-            outputs: [{ name: '', type: 'uint256' }],
-            stateMutability: 'view'
-          }
-        ],
+        address: tusdcContract.address as `0x${string}`,
+        abi: tusdcContract.abi as any,
         functionName: 'balanceOf',
         args: [user.wallet.address as `0x${string}`],
       });
       
       const formattedBalance = formatUnits(balance as bigint, 6);
+      console.log('💰 Raw TUSDC balance:', balance.toString());
+      console.log('💰 Formatted TUSDC balance:', formattedBalance);
       setUserUsdcBalance(formattedBalance);
-      console.log('💰 User USDC balance:', formattedBalance);
     } catch (error) {
-      console.error('Error checking USDC balance:', error);
+      console.error('❌ Error checking TUSDC balance:', error);
       setUserUsdcBalance('0');
     }
   };
 
   // Approve USDC spending for FDFPair contract
   const approveUSDC = async (amount: bigint): Promise<void> => {
-    if (!user?.wallet?.address || !authenticated) {
+    if (!user?.wallet?.address || !isAuthenticated) {
       throw new Error('Wallet not connected');
     }
 
@@ -384,7 +401,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   // Buy tokens using FDFPair contract with proper EIP-712 signature
   const buyTokens = async (playerTokenId: number, tokenAmountToBuy: string, maxCurrencySpend: string): Promise<void> => {
-    if (!user?.wallet?.address || !authenticated) {
+    if (!user?.wallet?.address || !isAuthenticated) {
       throw new Error('Wallet not connected');
     }
 
@@ -642,11 +659,14 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     
     // Set success status with detailed info
     updateAlertState('success', `✅ Successfully bought player tokens!`, hash);
+
+    // Update TUSDC balance after successful transaction
+    await updateBalanceAfterTransaction();
   };
 
   // Sell tokens using Player contract with proper EIP-712 signature
   const sellTokens = async (playerTokenId: number, tokenAmountToSell: string, minCurrencyToReceive: string): Promise<void> => {
-    if (!user?.wallet?.address || !authenticated) {
+    if (!user?.wallet?.address || !isAuthenticated) {
       throw new Error('Wallet not connected');
     }
 
@@ -919,6 +939,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     
     // Set success status with detailed info
     updateAlertState('success', `✅ Successfully sold player tokens!`, hash);
+
+    // Update TUSDC balance after successful transaction
+    await updateBalanceAfterTransaction();
   };
 
   const getRatingColor = (rating: number) => {
@@ -944,26 +967,32 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   // Early return if no player - prevents hooks from being called in different orders
   if (!player) return null;
 
-  // Fetch pool information when modal opens
+  // Fetch initial data when modal opens
   useEffect(() => {
-    if (isOpen && player && !fetchedPlayerIds.current.has(player.id)) {
-      console.log('Modal opened, fetching pool info for player:', player.id);
-      fetchedPlayerIds.current.add(player.id);
-      fetchPoolInfo([player.id]);
+    if (isOpen && player) {
+      console.log('🔄 Modal opened, initializing data...');
       
-      // Reset closing state and show modal content when modal opens
+      // Reset closing state and show modal content
       isClosingRef.current = false;
       setIsModalContentVisible(true);
       
-      // Reset form state when switching to a new player to prevent cached input issues
+      // Reset form state
       setUsdcAmount('');
       setAction('buy');
       setSlippage(0.5);
       setShowBuySellMenu(false);
       updateAlertState('idle');
       
-      // Check user's USDC balance
-      if (authenticated && user?.wallet?.address) {
+      // Fetch pool info if needed
+      if (!fetchedPlayerIds.current.has(player.id)) {
+        console.log('📊 Fetching pool info for player:', player.id);
+        fetchedPlayerIds.current.add(player.id);
+        fetchPoolInfo([player.id]);
+      }
+
+      // Always check TUSDC balance when modal opens
+      if (isAuthenticated && user?.wallet?.address) {
+        console.log('💰 Checking initial TUSDC balance...');
         checkUserUsdcBalance();
       }
       
@@ -979,7 +1008,23 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     if (!isOpen) {
       fetchedPlayerIds.current.clear();
     }
-  }, [isOpen, player, authenticated, user?.wallet?.address]); // Added auth dependencies
+  }, [isOpen, player, isAuthenticated, user?.wallet?.address]); // Added auth dependencies
+  
+  // Auto-authenticate when wallet is connected
+  useEffect(() => {
+    const autoAuthenticate = async () => {
+      if (!isAuthenticated && walletConnected && !isAuthenticating) {
+        console.log('🔐 Auto-authenticating for PlayerPurchaseModal...');
+        try {
+          await authenticate();
+        } catch (error) {
+          console.error('Failed to auto-authenticate:', error);
+        }
+      }
+    };
+
+    autoAuthenticate();
+  }, [isAuthenticated, walletConnected, isAuthenticating, authenticate]);
 
   // Parse player.price (e.g. "1.2 USDC") to number - but prefer real pool price
   const playerPrice = player ? parseFloat(player.price) : 0;
@@ -1081,7 +1126,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       return;
     }
 
-    if (!authenticated || !user?.wallet?.address) {
+    if (!isAuthenticated || !user?.wallet?.address) {
       updateAlertState('error', 'Please connect your wallet first');
       return;
     }
@@ -1309,9 +1354,59 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           </DialogHeader>
 
         {/* Authentication Status */}
-        <div className="px-1">
-          <AuthenticationStatus />
-        </div>
+        {!walletConnected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mx-1"
+          >
+            <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Wallet Not Connected</span>
+            </div>
+            <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+              Please connect your wallet to purchase players and view your balance.
+            </p>
+          </motion.div>
+        )}
+
+        {walletConnected && !isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mx-1"
+          >
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300">
+              {isAuthenticating ? (
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">
+                {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
+              </span>
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+              {isAuthenticating 
+                ? 'Please wait while we authenticate your wallet...' 
+                : 'Authenticating automatically...'
+              }
+            </p>
+            {authError && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                {authError}
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {isAuthenticated && (
+          <div className="px-1">
+            <AuthenticationStatus />
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Price and Purchase */}

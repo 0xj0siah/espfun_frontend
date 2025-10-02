@@ -14,6 +14,7 @@ import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { useAuthentication } from '../hooks/useAuthentication';
+import { useAuthContext } from '../context/AuthContext';
 
 interface HeaderProps {
   activeTab: string;
@@ -37,6 +38,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
 
   const { login, logout, ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
+  const { globalAuthState } = useAuthContext();
 
   // Get the embedded wallet address (created by Privy for app usage)
   const getEmbeddedWalletAddress = () => {
@@ -258,7 +260,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                 <Wallet className="w-4 h-4 mr-2" />
                 Connect Wallet
               </Button>
-            ) : !isAuthenticated ? (
+            ) : !globalAuthState ? (
               <Button 
                 onClick={() => authenticate()} 
                 className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg"
