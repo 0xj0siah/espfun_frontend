@@ -17,7 +17,8 @@ import { usePoolInfo } from '../hooks/usePoolInfo';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams, createPlayerEIP712Domain, createSellTokensTypedData, validateSellSignatureParams } from '../utils/signatures';
 import { apiService, SellTokensRequest } from '../services/apiService';
 import { AuthenticationStatus } from './AuthenticationStatus';
-import { getDetailedPlayerStatistics, GridDetailedPlayerStats, getTeamStatistics, getSeriesState, SeriesState, MatchResult } from '../utils/api';
+import { GridDetailedPlayerStats, SeriesState, MatchResult } from '../utils/api';
+import { useGridCache } from '../hooks/useGridCache';
 import { readContractCached } from '../utils/contractCache';
 
 interface Player {
@@ -1032,80 +1033,39 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const priceImpact = realPriceImpactData ? realPriceImpactData.priceImpact.toFixed(2) : '0.00';
   const isPriceImpactHigh = parseFloat(priceImpact) > 5;
 
-  // Fetch Grid.gg statistics when modal opens
+  const { loadPlayerData, error: gridError } = useGridCache();
+
+  // Fetch all Grid.gg data when modal opens
   useEffect(() => {
-    const fetchGridStats = async () => {
-      if (isOpen && player && player.gridID && !gridStats) {
+    const fetchAllGridData = async () => {
+      if (isOpen && player && player.gridID && player.teamGridId) {
         setGridStatsLoading(true);
+        setSeriesLoading(true);
+        
         try {
-          console.log(`📊 Fetching Grid.gg stats for player ${player.name} (ID: ${player.gridID})`);
-          const stats = await getDetailedPlayerStatistics(player.gridID);
+          console.log(`📊 Loading all Grid.gg data for player ${player.name}`);
+          const { stats, seriesStates } = await loadPlayerData(player.gridID, player.teamGridId);
+          
           if (stats) {
-            console.log(`✅ Grid.gg stats loaded for ${player.name}:`, stats);
+            console.log(`✅ Grid.gg stats loaded for ${player.name}`);
             setGridStats(stats);
-          } else {
-            console.warn(`⚠️ No Grid.gg stats found for player ${player.name} (ID: ${player.gridID})`);
+          }
+          
+          if (seriesStates.length > 0) {
+            console.log(`✅ Loaded ${seriesStates.length} series for ${player.name}`);
+            setSeriesData(seriesStates);
           }
         } catch (error) {
-          console.error(`❌ Error fetching Grid.gg stats for ${player.name}:`, error);
+          console.error(`❌ Error loading Grid.gg data for ${player.name}:`, error);
         } finally {
           setGridStatsLoading(false);
-        }
-      }
-    };
-
-    fetchGridStats();
-  }, [isOpen, player?.gridID, gridStats]);
-
-  // Fetch team series IDs when modal opens
-  useEffect(() => {
-    const fetchTeamSeries = async () => {
-      if (isOpen && player && player.teamGridId && teamSeriesIds.length === 0) {
-        try {
-          console.log(`📊 Fetching team series IDs for player ${player.name} (teamGridId: ${player.teamGridId})`);
-          const seriesIds = await getTeamStatistics(player.teamGridId);
-          if (seriesIds && seriesIds.length > 0) {
-            console.log(`✅ Team series IDs loaded for ${player.name}:`, seriesIds);
-            setTeamSeriesIds(seriesIds);
-          } else {
-            console.warn(`⚠️ No team series data found for player ${player.name} (teamGridId: ${player.teamGridId})`);
-          }
-        } catch (error) {
-          console.error(`❌ Error fetching team series for ${player.name}:`, error);
-        }
-      }
-    };
-
-    fetchTeamSeries();
-  }, [isOpen, player?.teamGridId, teamSeriesIds.length]);
-
-  // Fetch series state data when team series IDs are available
-  useEffect(() => {
-    const fetchSeriesData = async () => {
-      if (isOpen && player && teamSeriesIds.length > 0 && seriesData.length === 0) {
-        setSeriesLoading(true);
-        try {
-          console.log(`📊 Fetching series state data for ${teamSeriesIds.length} series`);
-          const seriesPromises = teamSeriesIds.map(seriesId => getSeriesState(seriesId));
-          const seriesResults = await Promise.all(seriesPromises);
-          
-          // Filter out null results and only keep finished series
-          const validSeries = seriesResults.filter((series): series is SeriesState => 
-            series !== null && series.finished
-          );
-          
-          console.log(`✅ Loaded ${validSeries.length} finished series for ${player.name}`);
-          setSeriesData(validSeries);
-        } catch (error) {
-          console.error(`❌ Error fetching series data for ${player.name}:`, error);
-        } finally {
           setSeriesLoading(false);
         }
       }
     };
 
-    fetchSeriesData();
-  }, [isOpen, player?.name, teamSeriesIds, seriesData.length]);
+    fetchAllGridData();
+  }, [isOpen, player?.gridID, player?.teamGridId, player?.name, loadPlayerData]);
 
   // Format numbers with commas
   const formatNumber = (num: number) => {
