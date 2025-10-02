@@ -260,7 +260,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                 <Wallet className="w-4 h-4 mr-2" />
                 Connect Wallet
               </Button>
-            ) : !globalAuthState ? (
+            ) : !globalAuthState && !isAuthenticated ? (
               <Button 
                 onClick={() => authenticate()} 
                 className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg"
