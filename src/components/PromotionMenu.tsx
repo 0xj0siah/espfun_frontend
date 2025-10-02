@@ -311,12 +311,22 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
             {/* Player info */}
             <div className="flex items-center space-x-4 mt-2">
               <div className="relative">
+                {/* Team logo background */}
+                <div 
+                  className="absolute inset-0 rounded-xl opacity-50 z-0"
+                  style={{
+                    backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                  }}
+                />
                 <ImageWithFallback
                   src={player.image}
                   alt={player.name}
-                  className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-2 ring-white/20"
+                  className="relative z-10 w-16 h-16 rounded-xl object-contain shadow-lg opacity-85"
                 />
-                <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r ${tierColors[player.tier]} flex items-center justify-center shadow-lg`}>
+                <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-r ${tierColors[player.tier]} flex items-center justify-center shadow-lg`}>
                   <Star className="w-3 h-3 text-white" />
                 </div>
               </div>
