@@ -2,8 +2,21 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { motion } from 'motion/react';
 import { Activity, Clock, Trophy, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { fetchUpcomingMatches } from '../utils/gridApi';
+import { GridMatch } from '../types/grid';
 
 export default function LiveScoresSection() {
+  const [upcomingMatches, setUpcomingMatches] = useState<GridMatch[]>([]);
+
+  useEffect(() => {
+    const fetchMatches = async () => {
+      const matches = await fetchUpcomingMatches();
+      setUpcomingMatches(matches);
+    };
+    fetchMatches();
+  }, []);
+
   const liveMatches = [
     {
       id: 1,
@@ -15,29 +28,6 @@ export default function LiveScoresSection() {
       score2: 8,
       status: 'Finished',
       map: 'Dust2'
-    },
-    {
-      id: 2,
-      game: 'League of Legends',
-      tournament: 'Worlds 2024',
-      team1: 'T1',
-      team2: 'JDG',
-      score1: 2,
-      score2: 1,
-      status: 'Live',
-      map: 'Game 4'
-    }
-  ];
-
-  const upcomingMatches = [
-    {
-      id: 1,
-      game: 'CS2',
-      tournament: 'ESL Pro League',
-      team1: 'FaZe Clan',
-      team2: 'Vitality',
-      time: '20:30',
-      date: 'Tomorrow'
     }
   ];
 

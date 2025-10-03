@@ -348,7 +348,7 @@ export default function PackOpeningSection() {
           Choose Your Pack
         </h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Select a pack to reveal 5 esports player cards!
+          Select a pack to reveal 4 esports player cards!
         </p>
         
         {/* User Points Display */}
