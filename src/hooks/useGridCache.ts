@@ -77,12 +77,24 @@ export function useGridCache() {
 
       // Only cache if we get valid, non-empty data
       if (isValidPlayerStats(stats)) {
-        console.log('📝 Updating cached player stats with new data');
-        playerStatsCache.set(gridId, {
-          timestamp: now,
-          stats: stats
-        });
-        saveCache(STORAGE_KEYS.PLAYER_STATS, playerStatsCache);
+        // Check if data has changed compared to cached version
+        const dataChanged = !cached || JSON.stringify(cached.stats) !== JSON.stringify(stats);
+        
+        if (dataChanged) {
+          console.log('📝 Updating cached player stats with new data');
+          playerStatsCache.set(gridId, {
+            timestamp: now,
+            stats: stats
+          });
+          saveCache(STORAGE_KEYS.PLAYER_STATS, playerStatsCache);
+        } else {
+          console.log('✓ Data unchanged, refreshing timestamp only');
+          playerStatsCache.set(gridId, {
+            timestamp: now,
+            stats: cached.stats
+          });
+          saveCache(STORAGE_KEYS.PLAYER_STATS, playerStatsCache);
+        }
         return stats;
       }
       
@@ -130,12 +142,24 @@ export function useGridCache() {
 
       // Only cache if we get valid, non-empty data
       if (isValidTeamSeries(seriesIds)) {
-        console.log('📝 Updating cached team series with new data');
-        teamSeriesCache.set(teamGridId, {
-          timestamp: now,
-          seriesIds
-        });
-        saveCache(STORAGE_KEYS.TEAM_SERIES, teamSeriesCache);
+        // Check if data has changed compared to cached version
+        const dataChanged = !cached || JSON.stringify(cached.seriesIds) !== JSON.stringify(seriesIds);
+        
+        if (dataChanged) {
+          console.log('📝 Updating cached team series with new data');
+          teamSeriesCache.set(teamGridId, {
+            timestamp: now,
+            seriesIds
+          });
+          saveCache(STORAGE_KEYS.TEAM_SERIES, teamSeriesCache);
+        } else {
+          console.log('✓ Data unchanged, refreshing timestamp only');
+          teamSeriesCache.set(teamGridId, {
+            timestamp: now,
+            seriesIds: cached.seriesIds
+          });
+          saveCache(STORAGE_KEYS.TEAM_SERIES, teamSeriesCache);
+        }
         return seriesIds;
       }
       
@@ -183,12 +207,24 @@ export function useGridCache() {
 
       // Only cache if we get valid, non-empty data
       if (isValidSeriesState(state)) {
-        console.log('📝 Updating cached series state with new data');
-        seriesStateCache.set(seriesId, {
-          timestamp: now,
-          data: state
-        });
-        saveCache(STORAGE_KEYS.SERIES_STATE, seriesStateCache);
+        // Check if data has changed compared to cached version
+        const dataChanged = !cached || JSON.stringify(cached.data) !== JSON.stringify(state);
+        
+        if (dataChanged) {
+          console.log('📝 Updating cached series state with new data');
+          seriesStateCache.set(seriesId, {
+            timestamp: now,
+            data: state
+          });
+          saveCache(STORAGE_KEYS.SERIES_STATE, seriesStateCache);
+        } else {
+          console.log('✓ Data unchanged, refreshing timestamp only');
+          seriesStateCache.set(seriesId, {
+            timestamp: now,
+            data: cached.data
+          });
+          saveCache(STORAGE_KEYS.SERIES_STATE, seriesStateCache);
+        }
         return state;
       }
       

@@ -31,6 +31,7 @@ export default function LiveScoresSection() {
   const [upcomingMatches, setUpcomingMatches] = useState<GridMatch[]>([]);
   const [liveAndRecentMatches, setLiveAndRecentMatches] = useState<MatchWithScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Fetch series state from Grid.gg Live Data Feed API
   const fetchSeriesState = async (seriesId: string): Promise<SeriesState | null> => {
@@ -151,7 +152,11 @@ export default function LiveScoresSection() {
 
   useEffect(() => {
     const fetchMatches = async () => {
-      setLoading(true);
+      // Only show loading state on initial load
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+      
       try {
         // Fetch both upcoming and live/recent matches in parallel
         const [upcoming, liveRecent] = await Promise.all([
@@ -159,16 +164,20 @@ export default function LiveScoresSection() {
           fetchLiveAndRecentMatches()
         ]);
         
-        setUpcomingMatches(upcoming);
-        
         // Enrich live/recent matches with real-time scores
         console.log('📊 Fetching live scores for recent matches...');
         const enrichedMatches = await enrichMatchesWithScores(liveRecent);
+        
+        // Update state after all data is fetched
+        setUpcomingMatches(upcoming);
         setLiveAndRecentMatches(enrichedMatches);
       } catch (error) {
         console.error('Error fetching matches:', error);
       } finally {
-        setLoading(false);
+        if (isInitialLoad) {
+          setLoading(false);
+          setIsInitialLoad(false);
+        }
       }
     };
     
@@ -205,7 +214,7 @@ export default function LiveScoresSection() {
             Live & Recent (Last 12 Hours)
           </h3>
           <div className="space-y-4">
-            {loading ? (
+            {loading && liveAndRecentMatches.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Loading matches...
               </p>
@@ -272,7 +281,7 @@ export default function LiveScoresSection() {
             Upcoming Matches
           </h3>
           <div className="space-y-4">
-            {loading ? (
+            {loading && upcomingMatches.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Loading matches...
               </p>
