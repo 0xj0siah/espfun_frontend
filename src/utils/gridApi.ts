@@ -118,6 +118,7 @@ export async function fetchLiveAndRecentMatches(): Promise<GridMatch[]> {
             gte: "${twelveHoursAgo.toISOString()}",
             lte: "${currentDate.toISOString()}"
           }
+          types: ESPORTS
         },
         orderBy: StartTimeScheduled,
         orderDirection: DESC,
