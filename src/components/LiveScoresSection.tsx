@@ -229,7 +229,7 @@ export default function LiveScoresSection() {
                         variant={match.status === 'live' ? 'default' : 'secondary'}
                         className={match.status === 'live' ? 'bg-red-500 animate-pulse' : ''}
                       >
-                        {match.status === 'live' ? 'LIVE' : match.status === 'finished' ? 'Finished' : 'Recent'}
+                        {match.status === 'live' ? 'LIVE' : match.status === 'finished' ? 'Finished' : 'Upcoming'}
                       </Badge>
                     </div>
                     <div className="text-right">
