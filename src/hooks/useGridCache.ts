@@ -75,38 +75,44 @@ export function useGridCache() {
       console.log('🔄 Fetching fresh player stats for', gridId);
       const stats = await getDetailedPlayerStatistics(gridId);
 
-      // If we get valid data from the API, update the cache
+      // Only cache if we get valid, non-empty data
       if (isValidPlayerStats(stats)) {
-        // Only update cache if data is different
-        if (!cached || JSON.stringify(cached.stats) !== JSON.stringify(stats)) {
-          console.log('📝 Updating cached player stats with new data');
-          playerStatsCache.set(gridId, {
-            timestamp: now,
-            stats: stats
-          });
-          saveCache(STORAGE_KEYS.PLAYER_STATS, playerStatsCache);
-        }
+        console.log('📝 Updating cached player stats with new data');
+        playerStatsCache.set(gridId, {
+          timestamp: now,
+          stats: stats
+        });
+        saveCache(STORAGE_KEYS.PLAYER_STATS, playerStatsCache);
         return stats;
       }
       
-      // If API returns invalid data but we have valid cached data, keep using cache
+      // If API returns invalid/empty data, return cached data if available
+      // but DON'T update the cache with invalid data
       if (cached) {
-        console.log('⚠️ API returned invalid data, using cached data');
+        console.log('⚠️ API returned invalid data, using stale cached data');
         return cached.stats;
       }
 
-      // No valid data from API and no cache
+      // No valid data from API and no cache - return null but don't cache
+      console.log('❌ No valid data available for', gridId);
       return null;
     } catch (err) {
       console.error('Error fetching player stats:', err);
       setError(err as Error);
-      // Return cached data if available on error
-      return cached ? cached.stats : null;
+      
+      // On error, return cached data if available but DON'T cache the error
+      if (cached) {
+        console.log('⚠️ Using cached data due to API error');
+        return cached.stats;
+      }
+      
+      // No cache available and error occurred - return null but don't cache
+      return null;
     }
   }, []);
 
   const isValidTeamSeries = (seriesIds: string[] | null): seriesIds is string[] => {
-    return Array.isArray(seriesIds) && seriesIds.every(id => typeof id === 'string');
+    return Array.isArray(seriesIds) && seriesIds.length > 0 && seriesIds.every(id => typeof id === 'string');
   };
 
   const getCachedTeamSeries = useCallback(async (teamGridId: string): Promise<string[]> => {
@@ -122,33 +128,39 @@ export function useGridCache() {
       console.log('🔄 Fetching fresh team series IDs for', teamGridId);
       const seriesIds = await getTeamStatistics(teamGridId);
 
-      // If we get valid data from the API, update the cache
+      // Only cache if we get valid, non-empty data
       if (isValidTeamSeries(seriesIds)) {
-        // Only update cache if data is different
-        if (!cached || JSON.stringify(cached.seriesIds) !== JSON.stringify(seriesIds)) {
-          console.log('📝 Updating cached team series with new data');
-          teamSeriesCache.set(teamGridId, {
-            timestamp: now,
-            seriesIds
-          });
-          saveCache(STORAGE_KEYS.TEAM_SERIES, teamSeriesCache);
-        }
+        console.log('📝 Updating cached team series with new data');
+        teamSeriesCache.set(teamGridId, {
+          timestamp: now,
+          seriesIds
+        });
+        saveCache(STORAGE_KEYS.TEAM_SERIES, teamSeriesCache);
         return seriesIds;
       }
       
-      // If API returns invalid data but we have valid cached data, keep using cache
+      // If API returns invalid/empty data, return cached data if available
+      // but DON'T update the cache with invalid data
       if (cached) {
-        console.log('⚠️ API returned invalid data, using cached data');
+        console.log('⚠️ API returned invalid data, using stale cached data');
         return cached.seriesIds;
       }
 
-      // No valid data from API and no cache
+      // No valid data from API and no cache - return empty array but don't cache
+      console.log('❌ No valid data available for', teamGridId);
       return [];
     } catch (err) {
       console.error('Error fetching team series:', err);
       setError(err as Error);
-      // Return cached data if available on error
-      return cached ? cached.seriesIds : [];
+      
+      // On error, return cached data if available but DON'T cache the error
+      if (cached) {
+        console.log('⚠️ Using cached data due to API error');
+        return cached.seriesIds;
+      }
+      
+      // No cache available and error occurred - return empty array but don't cache
+      return [];
     }
   }, []);
 
@@ -169,33 +181,39 @@ export function useGridCache() {
       console.log('🔄 Fetching fresh series state for', seriesId);
       const state = await getSeriesState(seriesId);
 
-      // If we get valid data from the API, update the cache
+      // Only cache if we get valid, non-empty data
       if (isValidSeriesState(state)) {
-        // Only update cache if data is different
-        if (!cached || JSON.stringify(cached.data) !== JSON.stringify(state)) {
-          console.log('📝 Updating cached series state with new data');
-          seriesStateCache.set(seriesId, {
-            timestamp: now,
-            data: state
-          });
-          saveCache(STORAGE_KEYS.SERIES_STATE, seriesStateCache);
-        }
+        console.log('📝 Updating cached series state with new data');
+        seriesStateCache.set(seriesId, {
+          timestamp: now,
+          data: state
+        });
+        saveCache(STORAGE_KEYS.SERIES_STATE, seriesStateCache);
         return state;
       }
       
-      // If API returns invalid data but we have valid cached data, keep using cache
+      // If API returns invalid/empty data, return cached data if available
+      // but DON'T update the cache with invalid data
       if (cached) {
-        console.log('⚠️ API returned invalid data, using cached data');
+        console.log('⚠️ API returned invalid data, using stale cached data');
         return cached.data;
       }
 
-      // No valid data from API and no cache
+      // No valid data from API and no cache - return null but don't cache
+      console.log('❌ No valid data available for', seriesId);
       return null;
     } catch (err) {
       console.error('Error fetching series state:', err);
       setError(err as Error);
-      // Return cached data if available on error
-      return cached ? cached.data : null;
+      
+      // On error, return cached data if available but DON'T cache the error
+      if (cached) {
+        console.log('⚠️ Using cached data due to API error');
+        return cached.data;
+      }
+      
+      // No cache available and error occurred - return null but don't cache
+      return null;
     }
   }, []);
 
