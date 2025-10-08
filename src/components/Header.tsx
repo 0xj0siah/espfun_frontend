@@ -291,7 +291,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setIsSendModalOpen(true)}>
                     <Send className="w-4 h-4 mr-2" />
-                    Send ETH
+                    Send MON
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setIsDepositModalOpen(true)}>
                     <ArrowDownToLine className="w-4 h-4 mr-2" />
