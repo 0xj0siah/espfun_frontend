@@ -14,6 +14,7 @@ export async function fetchUpcomingMatches(): Promise<GridMatch[]> {
             gte: "${currentDate.toISOString()}",
             lte: "${nextMonth.toISOString()}"
           }
+            types: ESPORTS
         },
         orderBy: StartTimeScheduled,
         orderDirection: ASC,
