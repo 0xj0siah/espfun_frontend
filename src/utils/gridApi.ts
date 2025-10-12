@@ -15,10 +15,11 @@ export async function fetchUpcomingMatches(): Promise<GridMatch[]> {
             lte: "${nextMonth.toISOString()}"
           }
             types: ESPORTS
+            titleId: 28
         },
         orderBy: StartTimeScheduled,
         orderDirection: ASC,
-        first: 50
+        first: 10
       ) {
         edges {
           node {
@@ -120,10 +121,11 @@ export async function fetchLiveAndRecentMatches(): Promise<GridMatch[]> {
             lte: "${currentDate.toISOString()}"
           }
           types: ESPORTS
+          titleId: 28
         },
         orderBy: StartTimeScheduled,
         orderDirection: DESC,
-        first: 50
+        first: 10
       ) {
         edges {
           node {
