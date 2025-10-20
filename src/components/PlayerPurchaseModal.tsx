@@ -386,6 +386,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // Use unified wallet transaction system (automatically handles embedded vs external wallets)
     console.log('📤 Sending USDC approval transaction...');
+    updateAlertState('pending', '⏳ Waiting for approval confirmation...', '');
     const result = await sendTransactionWithWallet(transactionRequest);
     const hash = result.hash;
     updateTransactionHash(hash);
@@ -394,6 +395,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     // Wait for transaction confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     console.log('✅ USDC approval confirmed:', receipt.transactionHash);
+    
+    // Update status to show approval succeeded and purchase is next
+    updateAlertState('pending', '✅ Approval confirmed! Please confirm the purchase transaction...', hash);
+    
+    // Small delay to ensure user sees the approval success message
+    // Especially important for external wallets so they know to look for the next prompt
+    await new Promise(resolve => setTimeout(resolve, 1500));
   };
 
   // Buy tokens using FDFPair contract with proper EIP-712 signature
@@ -447,8 +455,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     // First approve USDC spending
     console.log('💰 Approving USDC spending...');
+    updateAlertState('pending', '💰 Step 1/2: Approving USDC spending...', '');
     await approveUSDC(maxCurrencySpendBigInt);
 
+    // After approval, update status for the buy transaction
+    updateAlertState('pending', '🛒 Step 2/2: Preparing purchase transaction...', '');
+    
     // Set deadline (recommended: 5-15 minutes as per setup.md)
     const deadline = Math.floor(Date.now() / 1000) + 300; // 5 minutes
     console.log('⏰ Transaction deadline:', new Date(deadline * 1000).toLocaleString());
@@ -615,6 +627,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     };
 
     console.log('📤 Sending buyTokens transaction...');
+    updateAlertState('pending', '🛒 Confirming purchase... Please check your wallet!', '');
 
     // Use unified wallet transaction system (automatically handles embedded vs external wallets)
     const result = await sendTransactionWithWallet(transactionRequest);
@@ -622,6 +635,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     updateTransactionHash(hash);
 
     console.log('⏳ Transaction sent, hash:', hash);
+    updateAlertState('pending', '⏳ Waiting for purchase confirmation...', hash);
 
     // Wait for transaction confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -888,6 +902,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     };
 
     console.log('📤 Sending sellTokens transaction...');
+    updateAlertState('pending', '💰 Confirming sale... Please check your wallet!', '');
 
     // Use unified wallet transaction system (automatically handles embedded vs external wallets)
     const result = await sendTransactionWithWallet(transactionRequest);
@@ -895,6 +910,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     updateTransactionHash(hash);
 
     console.log('⏳ Transaction sent, hash:', hash);
+    updateAlertState('pending', '⏳ Waiting for sale confirmation...', hash);
 
     // Wait for transaction confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
