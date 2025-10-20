@@ -41,6 +41,8 @@ interface Player {
   trend: "up" | "down" | "stable";
   rating: number;
   image: string;
+  gridID?: string; // Optional - from GRID API
+  teamGridId?: string; // Optional - from GRID API
   stats: PlayerStats;
   recentMatches: MatchResult[];
   level: number;
@@ -91,13 +93,6 @@ export default function TeamSection({
   });
   const [developmentLoading, setDevelopmentLoading] = useState(false);
   const { user, authenticated } = usePrivy();
-  const [testResults, setTestResults] = useState<{
-    contractAddress: string;
-    isConnected: boolean;
-    userPlayerIds: bigint[];
-    sampleLockedBalance?: bigint;
-    error?: string;
-  } | null>(null);
 
   // Add pool data hook for accurate pricing
   const { poolData, fetchPoolInfo } = usePoolInfo();
@@ -206,6 +201,9 @@ export default function TeamSection({
           level: 1,
           xp: 50,
           potential: 75,
+          // Add GRID fields with defaults
+          gridID: basePlayerData.gridID || undefined,
+          teamGridId: basePlayerData.teamGridId || undefined,
           // Ensure types are properly cast
           trend: (basePlayerData.trend as "up" | "down" | "stable") || "stable",
           recentMatches: basePlayerData.recentMatches.map(match => ({
@@ -225,29 +223,6 @@ export default function TeamSection({
     } catch (error) {
       console.error('Error fetching owned players:', error);
       setOwnedPlayers([]);
-    }
-  };
-
-  // Test contract function
-  const testContract = async () => {
-    if (!authenticated || !user?.wallet?.address) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
-
-    try {
-      const results = await testDevelopmentPlayersContract(user.wallet.address);
-      setTestResults(results);
-      console.log('Contract test results:', results);
-
-      if (results.isConnected) {
-        toast.success(`Contract connected! Found ${results.userPlayerIds.length} players`);
-      } else {
-        toast.error(`Contract test failed: ${results.error}`);
-      }
-    } catch (error) {
-      console.error('Test failed:', error);
-      toast.error('Contract test failed');
     }
   };
 
@@ -337,6 +312,9 @@ export default function TeamSection({
         level: 1, // Fixed level
         xp: 50, // Fixed XP value instead of random
         potential: 50, // Fixed potential
+        // Add GRID fields with defaults
+        gridID: player.gridID || undefined,
+        teamGridId: player.teamGridId || undefined,
         // Ensure types are properly cast
         trend: player.trend as "up" | "down" | "stable",
         recentMatches: player.recentMatches.map(match => ({
@@ -624,21 +602,6 @@ export default function TeamSection({
               <Users className="w-16 h-16 mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No Development Players</h3>
               <p className="text-sm mb-4 max-w-md">Start developing players to promote them to your active squad</p>
-              <Button 
-                onClick={testContract}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                size="sm"
-              >
-                Test Contract Connection
-              </Button>
-              {testResults && (
-                <div className="mt-4 p-4 bg-accent/50 rounded-lg text-center max-w-md">
-                  <p className="text-sm font-medium">Test Results:</p>
-                  <p className="text-xs">Connected: {testResults.isConnected ? '✅' : '❌'}</p>
-                  <p className="text-xs">Players Found: {testResults.userPlayerIds.length}</p>
-                  {testResults.error && <p className="text-xs text-red-600">Error: {testResults.error}</p>}
-                </div>
-              )}
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

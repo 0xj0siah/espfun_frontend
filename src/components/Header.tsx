@@ -44,20 +44,15 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   // Transaction handling with new unified system
   const { sendTransactionWithWallet, isEmbeddedWallet } = useWalletTransactions();
 
-  // Get the embedded wallet address (created by Privy for app usage)
-  const getEmbeddedWalletAddress = () => {
+  // Get the active wallet address (works for both embedded and external wallets)
+  const getActiveWalletAddress = () => {
     if (!wallets || wallets.length === 0) return null;
     
-    // Find the embedded wallet (Privy creates this automatically)
-    const embeddedWallet = wallets.find(wallet => 
-      wallet.walletClientType === 'privy' || 
-      wallet.connectorType === 'embedded'
-    );
-    
-    return embeddedWallet?.address || null;
+    // Return the first connected wallet's address (embedded or external)
+    return wallets[0]?.address || null;
   };
 
-  const embeddedWalletAddress = getEmbeddedWalletAddress();
+  const activeWalletAddress = getActiveWalletAddress();
   const { isAuthenticated, isAuthenticating, error: authError, authenticate } = useAuthentication();
 
   const games = [
@@ -132,8 +127,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   };
 
   const handleCopyAddress = async () => {
-    if (embeddedWalletAddress) {
-      await navigator.clipboard.writeText(embeddedWalletAddress);
+    if (activeWalletAddress) {
+      await navigator.clipboard.writeText(activeWalletAddress);
       setHasCopied(true);
       setTimeout(() => setHasCopied(false), 2000);
     }
@@ -276,8 +271,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="bg-accent/50 border-0 shadow-sm">
                     <User className="w-4 h-4 mr-2" />
-                    {embeddedWalletAddress
-                      ? `${embeddedWalletAddress.slice(0, 6)}...${embeddedWalletAddress.slice(-4)}`
+                    {activeWalletAddress
+                      ? `${activeWalletAddress.slice(0, 6)}...${activeWalletAddress.slice(-4)}`
                       : "Wallet"}
                   </Button>
                 </DropdownMenuTrigger>
@@ -286,20 +281,25 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                     <div className="flex flex-col">
                       <span className="text-sm">Wallet Address</span>
                       <span className="text-xs text-muted-foreground">
-                        {embeddedWalletAddress}
+                        {activeWalletAddress}
                       </span>
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setIsSendModalOpen(true)}>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send MON
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsDepositModalOpen(true)}>
-                    <ArrowDownToLine className="w-4 h-4 mr-2" />
-                    Deposit
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {/* Only show Send and Deposit for embedded wallets */}
+                  {isEmbeddedWallet && (
+                    <>
+                      <DropdownMenuItem onClick={() => setIsSendModalOpen(true)}>
+                        <Send className="w-4 h-4 mr-2" />
+                        Send MON
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setIsDepositModalOpen(true)}>
+                        <ArrowDownToLine className="w-4 h-4 mr-2" />
+                        Deposit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem onClick={logout}>
                     Disconnect Wallet
                   </DropdownMenuItem>
@@ -388,10 +388,10 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
           <div className="grid gap-4 py-4">
             <Card className="p-4 bg-accent/30">
               <div className="text-center space-y-4">
-                {embeddedWalletAddress && (
+                {activeWalletAddress && (
                   <div className="bg-background/80 p-4 rounded-lg inline-block mx-auto">
                     <QRCodeSVG
-                      value={embeddedWalletAddress}
+                      value={activeWalletAddress}
                       size={180}
                       className="mx-auto"
                       level="H"
@@ -405,7 +405,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                   <div className="relative">
                     <Input
                       readOnly
-                      value={embeddedWalletAddress || ''}
+                      value={activeWalletAddress || ''}
                       className="pr-20 font-mono text-xs bg-background/50"
                     />
                     <Button

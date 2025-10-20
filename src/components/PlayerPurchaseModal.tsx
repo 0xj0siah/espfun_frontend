@@ -33,8 +33,8 @@ interface Player {
   points: number;
   rating: number;
   image: string;
-  gridID: string;
-  teamGridId: string;
+  gridID?: string; // Optional - from GRID API
+  teamGridId?: string; // Optional - from GRID API
   stats: {
     kills: number;
     deaths: number;
