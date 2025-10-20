@@ -11,6 +11,7 @@ import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { usePrivy, useSendTransaction, useWallets, useSignTypedData } from '@privy-io/react-auth';
+import { useWalletTransactions } from '../hooks/useWalletTransactions';
 import { createPublicClient, createWalletClient, http, parseUnits, formatUnits, custom, encodeFunctionData } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { usePoolInfo } from '../hooks/usePoolInfo';
@@ -157,6 +158,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const { wallets } = useWallets();
   const { signTypedData } = useSignTypedData();
   const { poolData, loading: poolLoading, error: poolError, fetchPoolInfo, calculatePriceImpact } = usePoolInfo();
+  
+  // Transaction handling with new unified wallet system
+  const { sendTransactionWithWallet, isEmbeddedWallet } = useWalletTransactions();
   
   // Authentication states from useAuthentication hook
   const { 
@@ -380,17 +384,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       data: data,
     };
 
-    const options = {
-      uiOptions: {
-        header: 'Approve USDC Spending',
-        description: `Approve ${formatUnits(amount, 6)} USDC for trading`,
-        buttonText: 'Approve'
-      }
-    };
-
-    // Use Privy's sendTransaction hook
+    // Use unified wallet transaction system (automatically handles embedded vs external wallets)
     console.log('📤 Sending USDC approval transaction...');
-    const { hash } = await sendTransaction(transactionRequest, options);
+    const result = await sendTransactionWithWallet(transactionRequest);
+    const hash = result.hash;
     updateTransactionHash(hash);
 
     console.log('⏳ Waiting for approval confirmation...');
@@ -617,18 +614,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       data: data,
     };
 
-    const options = {
-      uiOptions: {
-        header: 'Buy Player Tokens',
-        description: `Buy ${tokenAmountToBuy} tokens for ${maxCurrencySpend} USDC`,
-        buttonText: 'Buy Tokens'
-      }
-    };
-
     console.log('📤 Sending buyTokens transaction...');
 
-    // Use Privy's sendTransaction hook
-    const { hash } = await sendTransaction(transactionRequest, options);
+    // Use unified wallet transaction system (automatically handles embedded vs external wallets)
+    const result = await sendTransactionWithWallet(transactionRequest);
+    const hash = result.hash;
     updateTransactionHash(hash);
 
     console.log('⏳ Transaction sent, hash:', hash);
@@ -897,18 +887,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       data: data,
     };
 
-    const options = {
-      uiOptions: {
-        header: 'Sell Player Tokens',
-        description: `Sell ${tokenAmountToSell} tokens for minimum ${minCurrencyToReceive} USDC`,
-        buttonText: 'Sell Tokens'
-      }
-    };
-
     console.log('📤 Sending sellTokens transaction...');
 
-    // Use Privy's sendTransaction hook
-    const { hash } = await sendTransaction(transactionRequest, options);
+    // Use unified wallet transaction system (automatically handles embedded vs external wallets)
+    const result = await sendTransactionWithWallet(transactionRequest);
+    const hash = result.hash;
     updateTransactionHash(hash);
 
     console.log('⏳ Transaction sent, hash:', hash);

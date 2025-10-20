@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { usePrivy, useSignMessage } from '@privy-io/react-auth';
+import { usePrivy, useSignMessage, useWallets } from '@privy-io/react-auth';
 import { authenticateWallet } from '../services/authService';
 import { apiService } from '../services/apiService';
 import { useAuthContext } from '../context/AuthContext';
@@ -17,7 +17,15 @@ export const useAuthentication = () => {
   const [lastWalletAddress, setLastWalletAddress] = useState<string | null>(null);
   const { authenticated, user } = usePrivy();
   const { signMessage } = useSignMessage();
+  const { wallets } = useWallets();
   const { setGlobalAuthState } = useAuthContext();
+
+  // Helper to detect if we're using an embedded wallet
+  const isEmbeddedWallet = useCallback(() => {
+    const activeWallet = wallets[0];
+    if (!activeWallet) return false;
+    return activeWallet.walletClientType === 'privy';
+  }, [wallets]);
 
   // Clear authentication
   const clearAuthentication = useCallback(() => {
@@ -130,18 +138,67 @@ export const useAuthentication = () => {
     setHasAttemptedAuth(true);
 
     try {
-      // Create a signer interface that uses Privy's signMessage hook
+      const activeWallet = wallets[0];
+      const isEmbedded = isEmbeddedWallet();
+      
+      console.log('🔐 Wallet type:', isEmbedded ? 'Embedded (Privy)' : 'External (MetaMask, etc.)');
+      console.log('🔐 Wallet client type:', activeWallet?.walletClientType);
+
+      // Create a signer interface that handles both embedded and external wallets
       const signer = {
         signMessage: async (message: string): Promise<string> => {
-          console.log('🔏 Privy signing message:', message);
-          const result = await signMessage({ message });
-          console.log('🔏 Privy signature result:', result);
-          // Handle both possible return types from Privy
-          const signature = typeof result === 'string' ? result : result.signature;
-          if (!signature) {
-            throw new Error('Failed to get signature from Privy');
+          console.log('🔏 Signing message:', message);
+          
+          if (!activeWallet) {
+            throw new Error('No wallet connected');
           }
-          return signature;
+          
+          if (isEmbedded) {
+            // For embedded wallets, use Privy's signMessage hook (seamless)
+            console.log('🔏 Using Privy signMessage for embedded wallet');
+            const result = await signMessage({ message });
+            const signature = typeof result === 'string' ? result : result.signature;
+            if (!signature) {
+              throw new Error('Failed to get signature from Privy');
+            }
+            console.log('🔏 Embedded wallet signature received');
+            return signature;
+          } else {
+            // For external wallets, we need to use the wallet's native signing capability
+            console.log('🔏 Using external wallet signMessage (will show wallet prompt)');
+            
+            try {
+              // Get a wallet client to sign with the external wallet
+              const walletClient = await activeWallet.getEthereumProvider();
+              
+              if (!walletClient) {
+                throw new Error('Could not get wallet provider');
+              }
+
+              // Use the wallet's personal_sign method directly
+              console.log('🔏 Requesting signature from external wallet...');
+              const signature = await walletClient.request({
+                method: 'personal_sign',
+                params: [message, activeWallet.address],
+              });
+              
+              if (!signature || typeof signature !== 'string') {
+                throw new Error('Failed to get signature from wallet');
+              }
+              
+              console.log('🔏 External wallet signature received');
+              return signature;
+            } catch (error: any) {
+              console.error('🔏 External wallet signing error:', error);
+              
+              // Handle user rejection
+              if (error.code === 4001 || error.message?.includes('User rejected') || error.message?.includes('denied')) {
+                throw new Error('Signature request was rejected. Please approve the signature in your wallet to authenticate.');
+              }
+              
+              throw error;
+            }
+          }
         }
       };
 
@@ -160,6 +217,9 @@ export const useAuthentication = () => {
         setError('Backend server unavailable. The app will use local signatures instead.');
       } else if (err.message.includes('Invalid signature')) {
         setError('Invalid signature. Please try again.');
+      } else if (err.message.includes('rejected') || err.message.includes('denied')) {
+        // User rejected signature in their wallet
+        setError('Signature request rejected. Please approve the signature request in your wallet to continue.');
       } else {
         setError(err.message || "Authentication failed");
       }
@@ -170,7 +230,7 @@ export const useAuthentication = () => {
       setIsAuthenticating(false);
       isGloballyAuthenticating = false;
     }
-  }, [authenticated, user?.wallet?.address, signMessage, isAuthenticating, isAuthenticated]);
+  }, [authenticated, user?.wallet?.address, signMessage, wallets, isEmbeddedWallet, isAuthenticating, isAuthenticated, setGlobalAuthState]);
 
   // Validate current token
   const validateToken = useCallback(async (): Promise<boolean> => {

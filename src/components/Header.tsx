@@ -4,11 +4,12 @@ import { Sheet, SheetContent } from './ui/sheet';
 import { MobileSidebar } from './MobileSidebar';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Button } from './ui/button';
+import { Button } from './ui/button'; 
 import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { QRCodeSVG } from 'qrcode.react';
 import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useWalletTransactions } from "../hooks/useWalletTransactions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
@@ -39,6 +40,9 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const { login, logout, ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
   const { globalAuthState } = useAuthContext();
+  
+  // Transaction handling with new unified system
+  const { sendTransactionWithWallet, isEmbeddedWallet } = useWalletTransactions();
 
   // Get the embedded wallet address (created by Privy for app usage)
   const getEmbeddedWalletAddress = () => {
@@ -99,16 +103,14 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
         return;
       }
 
-      // Cast wallet to any to access internal methods
-      const wallet = user.wallet as any;
-      
-      // Send transaction using Privy wallet
-      const tx = await wallet.sendTransaction({
-        to: recipientAddress,
-        value: BigInt(parseFloat(sendAmount) * 1e18), // Convert ETH to Wei
+      // Send transaction using the unified wallet system
+      // This will automatically handle embedded wallets seamlessly and show prompts for external wallets
+      const result = await sendTransactionWithWallet({
+        to: recipientAddress as `0x${string}`,
+        value: BigInt(Math.floor(parseFloat(sendAmount) * 1e18)), // Convert ETH to Wei
       });
 
-      await tx.wait();
+      console.log('Transaction sent:', result.hash);
       setIsSendModalOpen(false);
       setSendAmount('');
       setRecipientAddress('');

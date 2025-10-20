@@ -22,13 +22,22 @@ root.render(
     <PrivyProvider
       appId="cmevnrbmy00hwl80de1pooh7m"
       config={{
+        // Create embedded wallets only for users without wallets
         embeddedWallets: {
           ethereum: {
-            createOnLogin: 'all-users'
+            createOnLogin: 'users-without-wallets'
           }
         },
+        // Allow users to connect external wallets (MetaMask, WalletConnect, etc.)
+        loginMethods: ['wallet', 'email', 'sms'],
+        // Configure supported chains
         defaultChain: monadTestnet,
-        supportedChains: [monadTestnet]
+        supportedChains: [monadTestnet],
+        // Customize appearance
+        appearance: {
+          theme: 'dark',
+          accentColor: '#676FFF',
+        }
       }}
     >
       <App />
