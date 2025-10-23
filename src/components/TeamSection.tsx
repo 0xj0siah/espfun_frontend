@@ -598,10 +598,10 @@ export default function TeamSection({
               <span className="ml-2 text-muted-foreground">Loading development players...</span>
             </div>
           ) : developmentPlayers.totalPlayers === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-              <Users className="w-16 h-16 mb-4 opacity-50" />
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No Development Players</h3>
-              <p className="text-sm mb-4 max-w-md">Start developing players to promote them to your active squad</p>
+              <p className="text-muted-foreground">Start developing players to promote them to your active squad</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
