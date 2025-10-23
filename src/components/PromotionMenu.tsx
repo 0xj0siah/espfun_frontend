@@ -278,7 +278,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md mx-auto p-0 bg-gradient-to-br from-background via-background to-accent/10 border-0 shadow-2xl overflow-hidden">
+      <DialogContent className="max-w-md mx-auto p-0 bg-gradient-to-br from-background via-background to-accent/10 border-0 shadow-2xl overflow-hidden" hideCloseButton>
         <AnimatePresence mode="wait">
           {/* Header with Player Info */}
           <motion.div

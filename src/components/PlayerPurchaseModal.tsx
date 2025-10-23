@@ -1256,7 +1256,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl border-0 shadow-2xl">
+      <DialogContent className="max-w-4xl border-0 shadow-2xl" hideCloseButton>
         <div className="relative">
           {/* Close button - hide during closing animation */}
           <Button
