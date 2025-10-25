@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
+import MobilePlayerPurchaseModal from './MobilePlayerPurchaseModal';
 import { motion } from 'motion/react';
 import { Search, Filter, TrendingUp, TrendingDown, ShoppingCart, DollarSign, Users, Star } from 'lucide-react';
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
@@ -14,6 +15,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { formatUnits } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
+import { useIsMobile } from './ui/use-mobile';
 
 interface Player {
   id: number;
@@ -40,8 +42,8 @@ interface Player {
   level: number;
   xp: number;
   potential: number;
-  gridID: string;
-  teamGridId: string;
+  gridID?: string;
+  teamGridId?: string;
 }
 
 export default function TransfersSection() {
@@ -54,6 +56,7 @@ export default function TransfersSection() {
   const [loading, setLoading] = useState(true);
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
+  const isMobile = useIsMobile();
 
   // Only fetch prices for active players
   const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
@@ -347,15 +350,27 @@ export default function TransfersSection() {
       </div>
   
       {selectedPlayer && (
-        <PlayerPurchaseModal
-          player={selectedPlayer}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedPlayer(null);
-          }}
-          onPurchase={handlePurchase}
-        />
+        isMobile ? (
+          <MobilePlayerPurchaseModal
+            player={selectedPlayer}
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedPlayer(null);
+            }}
+            onPurchase={handlePurchase}
+          />
+        ) : (
+          <PlayerPurchaseModal
+            player={selectedPlayer}
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedPlayer(null);
+            }}
+            onPurchase={handlePurchase}
+          />
+        )
       )}
     </div>
   );
