@@ -18,6 +18,7 @@ import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import fakeData from '../fakedata.json';
 import { getDevelopmentPlayersData, testDevelopmentPlayersContract, getActivePlayerIds, getPlayerBalance } from '../utils/contractInteractions';
 import { usePoolInfo } from '../hooks/usePoolInfo';
+import { useGridCache } from '../hooks/useGridCache';
 
 interface PlayerStats {
   kills: number;
@@ -96,6 +97,7 @@ export default function TeamSection({
   const [developmentLoading, setDevelopmentLoading] = useState(false);
   const { user, authenticated } = usePrivy();
   const isMobile = useIsMobile();
+  const { preloadPlayersData } = useGridCache();
 
   // Add pool data hook for accurate pricing
   const { poolData, fetchPoolInfo } = usePoolInfo();
@@ -223,6 +225,12 @@ export default function TeamSection({
       if (playerIdsForPool.length > 0) {
         await fetchPoolInfo(playerIdsForPool);
       }
+
+      // Preload Grid.gg data for owned players (with delay to avoid connection issues)
+      setTimeout(() => {
+        console.log('🔄 Starting Grid.gg data preload for owned players...');
+        preloadPlayersData(ownedPlayersList, 150); // 150ms delay between requests
+      }, 500); // Wait 500ms after component loads before starting preload
     } catch (error) {
       console.error('Error fetching owned players:', error);
       setOwnedPlayers([]);

@@ -287,11 +287,41 @@ export function useGridCache() {
     }
   }, [getCachedPlayerStats, getCachedTeamSeries, getCachedSeriesState]);
 
+  // Batch preload player data with staggered requests to avoid rate limiting
+  const preloadPlayersData = useCallback(async (
+    players: Array<{ gridID?: string; teamGridId?: string }>,
+    delayMs: number = 100
+  ) => {
+    console.log(`🚀 Starting preload for ${players.length} players with ${delayMs}ms delay between requests`);
+    
+    const validPlayers = players.filter(p => p.gridID && p.teamGridId);
+    
+    for (let i = 0; i < validPlayers.length; i++) {
+      const player = validPlayers[i];
+      
+      // Add delay between requests to avoid overwhelming the API
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+      
+      try {
+        console.log(`📥 Preloading player ${i + 1}/${validPlayers.length}: ${player.gridID}`);
+        await loadPlayerData(player.gridID!, player.teamGridId!);
+      } catch (err) {
+        console.warn(`⚠️ Failed to preload player ${player.gridID}:`, err);
+        // Continue with next player even if one fails
+      }
+    }
+    
+    console.log(`✅ Completed preloading ${validPlayers.length} players`);
+  }, [loadPlayerData]);
+
   return {
     getCachedPlayerStats,
     getCachedTeamSeries,
     getCachedSeriesState,
     loadPlayerData,
+    preloadPlayersData,
     isLoading,
     error
   };

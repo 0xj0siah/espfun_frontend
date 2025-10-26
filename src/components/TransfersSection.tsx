@@ -16,6 +16,7 @@ import { formatUnits } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
 import { useIsMobile } from './ui/use-mobile';
+import { useGridCache } from '../hooks/useGridCache';
 
 interface Player {
   id: number;
@@ -57,6 +58,7 @@ export default function TransfersSection() {
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
   const isMobile = useIsMobile();
+  const { preloadPlayersData } = useGridCache();
 
   // Only fetch prices for active players
   const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
@@ -125,7 +127,15 @@ export default function TransfersSection() {
   useEffect(() => {
     setAvailablePlayers(playersWithPricing);
     setLoading(false);
-  }, [playersWithPricing]);
+
+    // Preload Grid.gg data for available players (with delay to avoid connection issues)
+    if (playersWithPricing.length > 0) {
+      setTimeout(() => {
+        console.log('🔄 Starting Grid.gg data preload for available players...');
+        preloadPlayersData(playersWithPricing, 150); // 150ms delay between requests
+      }, 500); // Wait 500ms after component loads before starting preload
+    }
+  }, [playersWithPricing, preloadPlayersData]);
 
   // Check user's USDC balance when authenticated
   useEffect(() => {
