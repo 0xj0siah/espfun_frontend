@@ -151,14 +151,38 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
   const getCurrentNonce = async (userAddress: string): Promise<number> => {
     try {
       const fdfPairContract = getContractData('FDFPair');
-      const usedNonce = await readContractCached({
-        address: fdfPairContract.address as `0x${string}`,
-        abi: fdfPairContract.abi as any,
-        functionName: 'usedNonces',
-        args: [userAddress],
-      });
-      return Number(usedNonce) + 1;
-    } catch {
+      
+      console.log('🔍 Fetching buy nonce from contract for:', userAddress);
+      
+      // Try getCurrentNonce function (preferred method)
+      try {
+        const currentNonce = await readContractCached({
+          address: fdfPairContract.address as `0x${string}`,
+          abi: fdfPairContract.abi as any,
+          functionName: 'getCurrentNonce',
+          args: [userAddress],
+        });
+        const nextNonce = Number(currentNonce);
+        console.log('✅ getCurrentNonce() returned:', nextNonce, '(this is the next nonce to use)');
+        return nextNonce;
+      } catch (getCurrentNonceError) {
+        console.warn('⚠️ getCurrentNonce() not available, trying usedNonces...');
+        
+        // Fallback to usedNonces + 1
+        const usedNonce = await readContractCached({
+          address: fdfPairContract.address as `0x${string}`,
+          abi: fdfPairContract.abi as any,
+          functionName: 'usedNonces',
+          args: [userAddress],
+        });
+        
+        const nextNonce = Number(usedNonce) + 1;
+        console.log('✅ usedNonces returned:', Number(usedNonce), '-> Using nextNonce:', nextNonce);
+        return nextNonce;
+      }
+    } catch (error) {
+      console.error('❌ Error getting current nonce:', error);
+      console.log('🔄 Using fallback nonce: 1');
       return 1;
     }
   };
@@ -166,14 +190,22 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
   const getCurrentSellNonce = async (userAddress: string): Promise<number> => {
     try {
       const playerContract = getContractData('Player');
+      
+      // Player contract uses getCurrentNonce function
       const currentNonce = await readContractCached({
         address: playerContract.address as `0x${string}`,
         abi: playerContract.abi as any,
         functionName: 'getCurrentNonce',
         args: [userAddress],
       });
-      return Number(currentNonce) + 1;
-    } catch {
+      
+      const nextNonce = Number(currentNonce) + 1; // Next nonce to use
+      console.log('✅ Current sell nonce for', userAddress, ':', Number(currentNonce), '-> Using:', nextNonce);
+      return nextNonce;
+    } catch (error) {
+      console.error('Error getting current sell nonce:', error);
+      // More conservative fallback - start from 1 if we can't get the nonce
+      console.log('🔄 Using fallback sell nonce: 1');
       return 1;
     }
   };
@@ -226,38 +258,209 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
     const maxCurrencySpendBigInt = parseUnits(maxCurrencySpend, 6);
     const tokenAmountBigInt = parseUnits(tokenAmountToBuy, 18);
 
-    await approveUSDC(maxCurrencySpendBigInt);
-    updateAlertState('pending', '🛒 Preparing purchase...', '');
+    console.log('🔄 Starting buyTokens transaction...');
+    console.log('🎯 Buy Tokens Parameters:');
+    console.log('- Player IDs:', [playerTokenId]);
+    console.log('- Amounts (tokens):', [tokenAmountToBuy]);
+    console.log('- Amounts (wei):', [tokenAmountBigInt.toString()]);
+    console.log('- Max spend (USDC):', maxCurrencySpend);
+    console.log('- Max spend (wei):', maxCurrencySpendBigInt.toString());
 
-    const deadline = Math.floor(Date.now() / 1000) + 300;
-    const nonce = await getCurrentNonce(user.wallet.address);
-
-    const signatureData = {
-      buyer: user.wallet.address,
-      playerTokenIds: [playerTokenId],
-      amounts: [tokenAmountBigInt.toString()],
-      maxCurrencySpend: maxCurrencySpendBigInt.toString(),
-      deadline,
-      nonce
-    };
-
-    const domain = createEIP712Domain(fdfPairContract.address);
-    const typedData = createBuyTokensTypedData(domain, signatureData);
-    validateSignatureParams(signatureData);
-
-    const signResult = await signTypedData(typedData, {
-      uiOptions: { title: 'Sign Transaction', description: 'Sign to complete your purchase', buttonText: 'Sign' }
-    });
-
-    let signature: string;
-    if (typeof signResult === 'string') {
-      signature = signResult;
-    } else if (signResult && typeof signResult === 'object') {
-      signature = (signResult as any).signature || (signResult as any).sig || (signResult as any).data || signResult.toString();
-    } else {
-      throw new Error('Invalid signature response');
+    // Validate minimum amounts
+    if (maxCurrencySpendBigInt <= 0n) {
+      throw new Error('Currency spend amount must be greater than 0');
+    }
+    if (tokenAmountBigInt <= 0n) {
+      throw new Error('Token amount must be greater than 0');
     }
 
+    // Check if player token pool exists
+    try {
+      const poolInfo = await readContractCached({
+        address: fdfPairContract.address as `0x${string}`,
+        abi: fdfPairContract.abi as any,
+        functionName: 'getPoolInfo',
+        args: [[BigInt(playerTokenId)]],
+      });
+      
+      const [currencyReserves, playerTokenReserves] = poolInfo as [bigint[], bigint[]];
+      console.log('Pool reserves:', {
+        currency: currencyReserves[0]?.toString(),
+        playerToken: playerTokenReserves[0]?.toString()
+      });
+      
+      if (!currencyReserves[0] || currencyReserves[0] === 0n) {
+        throw new Error(`No liquidity pool found for player ${playerTokenId}`);
+      }
+    } catch (poolError) {
+      console.error('Pool validation error:', poolError);
+      throw new Error(`Player ${playerTokenId} is not available for trading`);
+    }
+
+    // First approve USDC spending
+    console.log('💰 Approving USDC spending...');
+    updateAlertState('pending', '💰 Step 1/2: Approving USDC spending...', '');
+    await approveUSDC(maxCurrencySpendBigInt);
+    
+    // After approval, update status for the buy transaction
+    updateAlertState('pending', '🛒 Step 2/2: Preparing purchase transaction...', '');
+
+    const deadline = Math.floor(Date.now() / 1000) + 300;
+    console.log('⏰ Transaction deadline:', new Date(deadline * 1000).toLocaleString());
+    
+    // Try backend signature generation first, fallback to local if unavailable
+    let signature: string;
+    let nonce: number;
+    let transactionId: string | null = null;
+
+    try {
+      // Check if we have authentication for backend API
+      const hasAuthToken = localStorage.getItem('authToken');
+      if (!hasAuthToken) {
+        throw new Error('No authentication token found - backend signatures require authentication');
+      }
+
+      console.log('🌐 Attempting backend signature generation...');
+      
+      // Prepare request data for backend signature generation
+      const signatureRequest = {
+        playerTokenIds: [playerTokenId.toString()], // Convert to string array
+        amounts: [tokenAmountBigInt.toString()], // BigInt as string
+        maxCurrencySpend: maxCurrencySpendBigInt.toString(), // BigInt as string
+        deadline
+      };
+
+      console.log('📝 Requesting EIP712 signature from backend API:', signatureRequest);
+
+      // Get signature from backend API
+      const signatureResponse = await apiService.prepareSignature(signatureRequest);
+      
+      console.log('✅ Backend signature response received:', {
+        transactionId: signatureResponse.transactionId,
+        signatureLength: signatureResponse.signature.length,
+        nonce: signatureResponse.txData.nonce
+      });
+
+      // Extract signature and transaction data from backend response
+      signature = signatureResponse.signature;
+      nonce = signatureResponse.txData.nonce;
+      transactionId = signatureResponse.transactionId;
+      
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format from backend: ${signature}`);
+      }
+      
+      console.log('✅ Using backend-generated EIP712 signature:', signature.slice(0, 10) + '...');
+
+    } catch (backendError) {
+      console.warn('⚠️ Backend signature generation failed, falling back to local generation:', backendError);
+
+      // If error mentions authentication, inform user
+      if (backendError instanceof Error && (backendError.message.includes('Authentication') || backendError.message.includes('token'))) {
+        console.log('🔐 Authentication issue detected - user may need to re-authenticate for backend features');
+      }
+
+      // Fallback to local signature generation
+      console.log('� Falling back to local EIP712 signature generation...');
+
+      // Get current nonce for signature (CRITICAL for transaction ordering)
+      nonce = await getCurrentNonce(user.wallet.address);
+      console.log('🔢 Current nonce (local):', nonce);
+      
+      // Verify nonce one more time to ensure it hasn't changed
+      try {
+        const verifyNonce = await getCurrentNonce(user.wallet.address);
+        if (verifyNonce !== nonce) {
+          console.warn('⚠️ WARNING: Nonce changed between calls!', nonce, '->', verifyNonce);
+        } else {
+          console.log('✅ Nonce verified, using:', nonce);
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not verify nonce:', err);
+      }
+
+      // Prepare signature data for local generation
+      const signatureData = {
+        buyer: user.wallet.address,
+        playerTokenIds: [playerTokenId], // Array with actual number
+        amounts: [tokenAmountBigInt.toString()], // Array with BigInt string
+        maxCurrencySpend: maxCurrencySpendBigInt.toString(), // BigInt string, not decimal
+        deadline,
+        nonce
+      };
+
+      console.log('📝 Preparing local EIP712 signature with data:', signatureData);
+
+      // Validate all values are safe for JSON serialization
+      const testData = {
+        playerTokenIds: signatureData.playerTokenIds,
+        amounts: signatureData.amounts,
+        maxCurrencySpend: signatureData.maxCurrencySpend,
+        deadline: signatureData.deadline,
+        nonce: signatureData.nonce
+      };
+      
+      try {
+        JSON.stringify(testData);
+        console.log('✅ Pre-signature data serialization test passed');
+      } catch (preSerializationError) {
+        console.error('❌ Pre-signature data serialization failed:', preSerializationError);
+        throw new Error(`Invalid data types before signature: ${preSerializationError instanceof Error ? preSerializationError.message : 'Unknown serialization error'}`);
+      }
+
+      // Generate EIP-712 signature using Privy's useSignTypedData hook
+      const domain = createEIP712Domain(fdfPairContract.address);
+      const typedData = createBuyTokensTypedData(domain, signatureData);
+      
+      // Validate signature parameters
+      validateSignatureParams(signatureData);
+
+      console.log('🔐 Creating local EIP712 signature... (requires txSigner wallet)');
+      
+      // Test JSON serialization before passing to Privy
+      try {
+        const testSerialization = JSON.stringify(typedData);
+        console.log('✅ JSON serialization test passed, data length:', testSerialization.length);
+      } catch (serializationError) {
+        console.error('❌ JSON serialization failed:', serializationError);
+        throw new Error(`Cannot serialize typed data for signing: ${serializationError instanceof Error ? serializationError.message : 'Unknown serialization error'}`);
+      }
+
+      // Use Privy's signTypedData hook
+      console.log('🔏 Requesting signature...');
+      const signResult = await signTypedData(typedData, {
+        uiOptions: { title: 'Sign Transaction', description: 'Sign to complete your purchase', buttonText: 'Sign' }
+      });
+
+      // Extract signature from result (handles various response formats)
+      if (typeof signResult === 'string') {
+        signature = signResult;
+      } else if (signResult && typeof signResult === 'object') {
+        signature = (signResult as any).signature || (signResult as any).sig || (signResult as any).data || signResult.toString();
+      } else {
+        throw new Error('Invalid signature response');
+      }
+      
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format: ${signature}`);
+      }
+      
+      console.log('✅ Local EIP712 signature generated:', signature.slice(0, 10) + '...');
+    }
+    
+    console.log('✅ Signature received:', signature.substring(0, 10) + '...');
+
+    // Encode function call
+    console.log('🔧 Encoding buyTokens function call...');
+    console.log('📋 Transaction parameters:');
+    console.log('  - playerTokenIds:', [playerTokenId]);
+    console.log('  - amounts (BigInt):', tokenAmountBigInt.toString());
+    console.log('  - maxCurrencySpend (BigInt):', maxCurrencySpendBigInt.toString());
+    console.log('  - deadline:', deadline);
+    console.log('  - recipient:', user.wallet.address);
+    console.log('  - signature:', signature.substring(0, 20) + '...');
+    console.log('  - nonce:', nonce);
+    
     const data = encodeFunctionData({
       abi: fdfPairContract.abi,
       functionName: 'buyTokens',
@@ -272,11 +475,39 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
       ]
     });
 
+    console.log('✅ Encoded transaction data (first 100 chars):', data.substring(0, 100) + '...');
+    console.log('📤 Sending buyTokens transaction to contract:', fdfPairContract.address);
+    
     updateAlertState('pending', '🛒 Confirming purchase...', '');
     const result = await sendTransactionWithWallet({ to: fdfPairContract.address as `0x${string}`, data });
-    updateAlertState('pending', '⏳ Waiting for confirmation...', result.hash);
-    await publicClient.waitForTransactionReceipt({ hash: result.hash });
-    updateAlertState('success', '✅ Purchase successful!', result.hash);
+    const hash = result.hash;
+    
+    console.log('⏳ Transaction sent, hash:', hash);
+    updateAlertState('pending', '⏳ Waiting for confirmation...', hash);
+    
+    // Wait for transaction confirmation
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    
+    console.log('✅ Transaction confirmed!');
+    console.log('- Transaction Hash:', receipt.transactionHash);
+    console.log('- Block Number:', receipt.blockNumber);
+    console.log('- Gas Used:', receipt.gasUsed.toString());
+
+    // Confirm transaction with backend if we used backend signature generation
+    if (transactionId) {
+      try {
+        console.log('📤 Confirming transaction with backend...');
+        await apiService.confirmTransaction(transactionId, hash);
+        console.log('✅ Transaction confirmed with backend');
+      } catch (confirmError) {
+        console.error('⚠️ Failed to confirm transaction with backend:', confirmError);
+        // Don't throw error here as the transaction itself was successful
+      }
+    } else {
+      console.log('ℹ️ Using local signature generation, skipping backend confirmation');
+    }
+    
+    updateAlertState('success', '✅ Purchase successful!', hash);
     await checkUserUsdcBalance();
   };
 
@@ -477,35 +708,51 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
       return;
     }
 
-    const userBalance = parseFloat(userUsdcBalance);
-    const requiredAmount = parseFloat(usdcAmount);
-    if (action === 'buy' && userBalance < requiredAmount) {
-      updateAlertState('error', `Insufficient USDC balance. You have ${userBalance.toFixed(2)} USDC`);
-      return;
-    }
-
     setIsLoading(true);
     updateAlertState('pending', `${action === 'buy' ? 'Purchasing' : 'Selling'} ${player.name} tokens...`);
     
     try {
+      console.log('🔄 UPDATED CODE RUNNING - handleConfirm function with slippage fix');
+      
       if (action === 'buy') {
+        // Calculate token amount to buy using real pool price
         const tokenAmount = (parseFloat(usdcAmount) / currentPrice).toString();
+        
+        // Calculate max currency spend with slippage protection
+        // User wants to spend 'usdcAmount', but due to slippage, they might need to spend more
         const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
+        
+        console.log(`💰 Buy calculation: ${usdcAmount} USDC / ${currentPrice.toFixed(8)} price = ${tokenAmount} tokens`);
+        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage = ${maxCurrencyWithSlippage} USDC max spend`);
+        console.log(`📊 Price check: Current pool price ${currentPrice.toFixed(8)} USDC/token`);
+        console.log(`⚠️  Warning: AMM price impact may require more than ${maxCurrencyWithSlippage} USDC for ${tokenAmount} tokens`);
+        
+        // Check if user has sufficient balance for the slippage-adjusted amount
+        const userBalance = parseFloat(userUsdcBalance);
         const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
         if (userBalance < maxSpendAmount) {
-          updateAlertState('error', `Insufficient USDC for slippage. Need up to ${maxSpendAmount.toFixed(2)} USDC`);
+          updateAlertState('error', `Insufficient USDC balance for slippage. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage`);
+          setIsLoading(false);
           return;
         }
+        
+        console.log(`🚀 CALLING buyTokens with maxCurrencyWithSlippage: ${maxCurrencyWithSlippage}`);
         await buyTokens(player.id, tokenAmount, maxCurrencyWithSlippage);
       } else {
+        // For selling, usdcAmount represents the number of tokens to sell
         const minCurrency = (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
+        console.log(`💰 Sell calculation: ${usdcAmount} tokens * ${currentPrice.toFixed(8)} price * ${1 - slippage / 100} slippage = ${minCurrency} USDC`);
         await sellTokens(player.id, usdcAmount, minCurrency);
       }
+      
+      // Call optional callback
       if (onPurchase) {
         await onPurchase(player, usdcAmount, action, slippage);
       }
+      
+      // No automatic form reset or modal close - user controls when to close
     } catch (error) {
-      console.error('Transaction failed:', error);
+      console.error('❌ Transaction failed:', error);
       let errorMessage = 'Unknown error occurred';
       if (error instanceof Error) {
         if (error.message.includes('User rejected')) {
