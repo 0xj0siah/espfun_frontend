@@ -23,7 +23,7 @@ interface HeaderProps {
 }
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
-  const navItems = ['Team', 'Transfers', 'Live Scores', 'Pack Opening'];
+  const navItems = ['Team', 'Transfers', 'Live Scores'];
   const [selectedGame, setSelectedGame] = useState('CS2');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -56,8 +56,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const { isAuthenticated, isAuthenticating, error: authError, authenticate } = useAuthentication();
 
   const games = [
-    { value: 'CS2', label: 'Counter-Strike 2' },
-    { value: 'League of Legends', label: 'League of Legends' }
+    { value: 'CS2', label: 'Counter-Strike 2' }//,
+  //{ value: 'League of Legends', label: 'League of Legends' }
   ];
 
   useEffect(() => {

@@ -95,8 +95,6 @@ export const useAuthentication = () => {
       return false;
     }
 
-    console.log('🔐 Starting authentication with address:', user.wallet.address);
-
     // Global rate limiting
     const now = Date.now();
     if (isGloballyAuthenticating) {
@@ -141,6 +139,10 @@ export const useAuthentication = () => {
       const activeWallet = wallets[0];
       const isEmbedded = isEmbeddedWallet();
       
+      // Use the correct address: activeWallet.address for external wallets, user.wallet.address for embedded
+      const walletAddress = activeWallet?.address || user.wallet.address;
+      console.log('🔐 Starting authentication with address:', walletAddress);
+      
       console.log('🔐 Wallet type:', isEmbedded ? 'Embedded (Privy)' : 'External (MetaMask, etc.)');
       console.log('🔐 Wallet client type:', activeWallet?.walletClientType);
 
@@ -175,11 +177,19 @@ export const useAuthentication = () => {
                 throw new Error('Could not get wallet provider');
               }
 
-              // Use the wallet's personal_sign method directly
+              // Convert message to hex for personal_sign
+              // personal_sign expects: personal_sign(hexMessage, address)
+              const hexMessage = '0x' + Array.from(new TextEncoder().encode(message))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+              
               console.log('🔏 Requesting signature from external wallet...');
+              console.log('🔏 Message (UTF-8):', message);
+              console.log('🔏 Message (Hex):', hexMessage);
+              
               const signature = await walletClient.request({
                 method: 'personal_sign',
-                params: [message, activeWallet.address],
+                params: [hexMessage, activeWallet.address],
               });
               
               if (!signature || typeof signature !== 'string') {
@@ -202,8 +212,8 @@ export const useAuthentication = () => {
         }
       };
 
-      console.log('🔐 Calling authenticateWallet with:', { address: user.wallet.address, signerExists: !!signer });
-      await authenticateWallet(user.wallet.address, signer);
+      console.log('🔐 Calling authenticateWallet with:', { address: walletAddress, signerExists: !!signer });
+      await authenticateWallet(walletAddress, signer);
       setIsAuthenticated(true);
       setGlobalAuthState(true); // Update global auth state
       return true;

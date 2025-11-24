@@ -84,10 +84,10 @@ export default function App() {
         return <TransfersSection />;
       case 'Live Scores':
         return <LiveScoresSection />;
-      case 'Leaderboard':
-        return <LeaderboardSection />;
-      case 'Pack Opening':
-        return <PackOpeningSection />;
+     // case 'Leaderboard':
+      //  return <LeaderboardSection />;
+     // case 'Pack Opening':
+      //  return <PackOpeningSection />;
       default:
         return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
     }

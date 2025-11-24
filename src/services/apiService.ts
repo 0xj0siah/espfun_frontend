@@ -264,7 +264,9 @@ class ApiService {
         data: {
           walletAddress: address,
           signature: signature.substring(0, 20) + '...',
-          message: message
+          message: message,
+          messageLength: message.length,
+          signatureLength: signature.length
         }
       });
 
@@ -285,10 +287,14 @@ class ApiService {
       console.error('🔐 Login request failed:', {
         url: `${API_BASE_URL}/api/auth/login`,
         error: error,
+        walletAddress: address,
+        messageUsed: message,
+        signatureUsed: signature,
         response: axios.isAxiosError(error) ? {
           status: error.response?.status,
           statusText: error.response?.statusText,
-          data: error.response?.data
+          data: error.response?.data,
+          errorMessage: error.response?.data?.error || error.response?.data?.message
         } : 'Unknown error'
       });
 
@@ -297,7 +303,8 @@ class ApiService {
           throw new Error('Too many requests. Please wait a moment before trying again.');
         }
         if (error.response?.status === 401) {
-          throw new Error('Invalid signature. Please try signing again.');
+          const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Invalid signature';
+          throw new Error(`Authentication failed: ${errorMsg}. Please try signing again.`);
         }
         if (error.response?.status === 400) {
           const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Bad request';

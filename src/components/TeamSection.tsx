@@ -8,9 +8,10 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
-import { Users, TrendingUp, Zap, Star, Trophy, Target, Activity } from 'lucide-react';
+import { Users, TrendingUp, Zap, Star, Trophy, Target, FileText, Clock } from 'lucide-react';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
 import MobilePlayerPurchaseModal from './MobilePlayerPurchaseModal';
+import ContractExtensionModal from './ContractExtensionModal';
 import { PromotionMenu } from './PromotionMenu';
 import { toast } from "sonner";
 import { useIsMobile } from './ui/use-mobile';
@@ -54,6 +55,7 @@ interface Player {
   lockedShares?: string; // Optional property for development players
   ownedShares?: bigint; // Owned shares from Player contract
   totalValue?: string; // Total value of owned shares
+  gamesRemaining?: number; // Games remaining on contract
 }
 
 // Type for Privy's wallet
@@ -83,6 +85,8 @@ export default function TeamSection({
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [selectedContractPlayer, setSelectedContractPlayer] = useState<Player | null>(null);
   const [isPromotionMenuOpen, setIsPromotionMenuOpen] = useState(false);
   const [selectedPromotionPlayer, setSelectedPromotionPlayer] = useState<any | null>(null);
   const [developmentPlayers, setDevelopmentPlayers] = useState<{
@@ -202,6 +206,7 @@ export default function TeamSection({
           points: 0, // Will be replaced with total value
           ownedShares: balance,
           totalValue: calculateTotalValue(balance, playerIdNum), // Use player ID instead of price
+          gamesRemaining: Math.floor(Math.random() * 10) + 1, // Filler data: 1-10 games (will be replaced with backend data)
           // Add required fields for Player interface
           level: 1,
           xp: 50,
@@ -443,6 +448,45 @@ export default function TeamSection({
     }
   };
 
+  const handleContractExtension = async (player: Player, numberOfGames: number, totalCost: string) => {
+    if (!authenticated || !user?.wallet?.address) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    try {
+      // TODO: Integrate with PlayerContracts contract
+      // This will call the renewContract function:
+      // renewContract(address _user, uint256 _playerId, uint256 _price, uint256 _numberOfMatches, address _paymentToken)
+      
+      console.log('Extending contract:', {
+        player: player.name,
+        playerId: player.id,
+        numberOfGames,
+        totalCost,
+        userAddress: user.wallet.address
+      });
+
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Update local state to reflect extension
+      setOwnedPlayers(prevPlayers => 
+        prevPlayers.map(p => 
+          p.id === player.id 
+            ? { ...p, gamesRemaining: (p.gamesRemaining || 0) + numberOfGames }
+            : p
+        )
+      );
+
+      toast.success(`Successfully extended ${player.name}'s contract by ${numberOfGames} games!`);
+
+    } catch (error) {
+      console.error("Contract extension failed:", error);
+      throw error; // Re-throw to be handled by modal
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -479,10 +523,12 @@ export default function TeamSection({
             <TrendingUp className="w-4 h-4 mr-2" />
             Development
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-            <Activity className="w-4 h-4 mr-2" />
-            Analytics
+          {/* Contracts tab temporarily hidden - keeping code for future use
+          <TabsTrigger value="contracts" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <FileText className="w-4 h-4 mr-2" />
+            Contracts
           </TabsTrigger>
+          */}
         </TabsList>
 
         <TabsContent value="squad" className="space-y-6">
@@ -732,78 +778,172 @@ export default function TeamSection({
           />
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">1,227</p>
-                  <p className="text-sm text-muted-foreground">Total Points</p>
-                </div>
-                <Trophy className="w-8 h-8 text-blue-500" />
-              </div>
-              <div className="mt-4 flex items-center text-sm">
-                <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                <span className="text-green-600">+12% this week</span>
-              </div>
-            </Card>
-
-            <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">#15</p>
-                  <p className="text-sm text-muted-foreground">League Rank</p>
-                </div>
-                <Star className="w-8 h-8 text-purple-500" />
-              </div>
-              <div className="mt-4 flex items-center text-sm">
-                <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                <span className="text-green-600">+3 positions</span>
-              </div>
-            </Card>
-
-            <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">230 USDC</p>
-                  <p className="text-sm text-muted-foreground">Rewards Earned</p>
-                </div>
-                <Zap className="w-8 h-8 text-green-500" />
-              </div>
-              <div className="mt-4 flex items-center text-sm">
-                <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                <span className="text-green-600">+40 USDC this month</span>
-              </div>
-            </Card>
-          </div>
-
-          <Card className="p-6 border-0 shadow-lg">
-            <h3 className="mb-4">Performance Timeline</h3>
-            <div className="space-y-4">
-              {[
-                { week: 'Week 8', points: 245, rank: '#15', change: '+3' },
-                { week: 'Week 7', points: 198, rank: '#18', change: '-2' },
-                { week: 'Week 6', points: 267, rank: '#16', change: '+5' },
-                { week: 'Week 5', points: 189, rank: '#21', change: '-1' }
-              ].map((week, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-accent/30 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
-                    <span className="text-sm font-medium">{week.week}</span>
-                  </div>
-                  <div className="flex items-center space-x-6 text-sm">
-                    <span>{week.points} pts</span>
-                    <span>{week.rank}</span>
-                    <span className={`${week.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                      {week.change}
-                    </span>
-                  </div>
-                </div>
-              ))}
+        <TabsContent value="contracts" className="space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-          </Card>
+          ) : ownedPlayers.length === 0 ? (
+            <div className="text-center py-8">
+              <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Active Contracts</h3>
+              <p className="text-muted-foreground">You don't own any player shares yet. Purchase some to manage contracts!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+                      Contract Extensions Available
+                    </h4>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      Extend your player contracts to keep them performing in your roster. Each extension adds more games to their contract.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {ownedPlayers.map((player, index) => {
+                  // Filler data for contract information (will be replaced with backend data later)
+                  const gamesRemaining = Math.floor(Math.random() * 10) + 1; // 1-10 games
+                  const contractStatus = gamesRemaining <= 3 ? 'expiring' : gamesRemaining <= 6 ? 'active' : 'healthy';
+                  const extensionPrice = (parseFloat(player.price) * 0.1).toFixed(4); // 10% of player price as extension cost
+                  
+                  return (
+                    <motion.div
+                      key={player.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40">
+                        {/* Status indicator */}
+                        <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
+                          contractStatus === 'expiring' ? 'bg-red-500 animate-pulse' :
+                          contractStatus === 'active' ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`} />
+                        
+                        {/* Player Header */}
+                        <div className="flex items-start space-x-3 mb-4">
+                          <div className="relative">
+                            <div 
+                              className="absolute inset-0 rounded-xl opacity-50"
+                              style={{
+                                backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                                backgroundSize: 'contain',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat'
+                              }}
+                            />
+                            <ImageWithFallback
+                              src={player.image}
+                              alt={player.name}
+                              className="relative w-14 h-14 rounded-xl object-contain shadow-md ring-2 ring-white/20"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold text-foreground truncate">
+                              {player.name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {player.game} • {player.position}
+                            </p>
+                            <Badge 
+                              variant="secondary" 
+                              className="mt-1 text-xs"
+                            >
+                              {formatShares(player.ownedShares || BigInt(0))} shares
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Contract Status */}
+                        <div className="space-y-3 pt-3 border-t border-border/30">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Games Remaining</span>
+                            <span className={`text-sm font-bold ${
+                              contractStatus === 'expiring' ? 'text-red-600' :
+                              contractStatus === 'active' ? 'text-yellow-600' :
+                              'text-green-600'
+                            }`}>
+                              {gamesRemaining} games
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Extension Cost</span>
+                            <span className="text-sm font-semibold">
+                              {extensionPrice} USDC
+                            </span>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Contract Status</span>
+                              <span className={`font-medium ${
+                                contractStatus === 'expiring' ? 'text-red-600' :
+                                contractStatus === 'active' ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {contractStatus === 'expiring' ? 'Expiring Soon' :
+                                 contractStatus === 'active' ? 'Active' :
+                                 'Healthy'}
+                              </span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-300 ${
+                                  contractStatus === 'expiring' ? 'bg-red-500' :
+                                  contractStatus === 'active' ? 'bg-yellow-500' :
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${(gamesRemaining / 10) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Extend Button */}
+                          <Button 
+                            className={`w-full mt-2 ${
+                              contractStatus === 'expiring' 
+                                ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700' 
+                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                            }`}
+                            size="sm"
+                            onClick={() => {
+                              setSelectedContractPlayer({ ...player, gamesRemaining });
+                              setIsContractModalOpen(true);
+                            }}
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            Extend Contract
+                          </Button>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Contract Extension Modal */}
+      <ContractExtensionModal
+        player={selectedContractPlayer}
+        isOpen={isContractModalOpen}
+        onClose={() => {
+          setIsContractModalOpen(false);
+          setSelectedContractPlayer(null);
+        }}
+        onExtend={handleContractExtension}
+      />
     </div>
   );
 }

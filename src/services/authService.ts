@@ -17,12 +17,21 @@ export const authenticateWallet = async (
     const { nonce, message } = await apiService.getNonce(address);
     console.log('🔐 Received nonce:', nonce);
     console.log('🔐 Message to sign:', message);
+    console.log('🔐 Message length:', message.length);
+    console.log('🔐 Message bytes:', message.split('').map(c => c.charCodeAt(0)).join(','));
     
     // Sign the message provided by the backend (not our own message)
     const signature = await signer.signMessage(message);
-    console.log('🔐 Signature created:', signature.slice(0, 20) + '...');
+    console.log('🔐 Signature created:', signature);
+    console.log('🔐 Signature length:', signature.length);
     
     // Login with signature and the original message from backend
+    console.log('🔐 Calling login with:', { 
+      address, 
+      signature: signature.substring(0, 20) + '...', 
+      message,
+      messageLength: message.length 
+    });
     const authResponse = await apiService.login(address, signature, message);
     
     // Store token

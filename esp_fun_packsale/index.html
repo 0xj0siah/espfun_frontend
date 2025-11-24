@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/oglogonobg.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ESP.FUN Presale - Fantasy Esports Player Packs</title>
+    <meta name="description" content="Get your player packs early! Join the ESP.FUN presale and be among the first to build your fantasy esports team." />
+    <script>
+      // Initialize dark mode based on localStorage (defaults to dark)
+      const theme = localStorage.getItem('theme') || 'dark';
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+      if (!localStorage.getItem('theme')) {
+        localStorage.setItem('theme', 'dark');
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
