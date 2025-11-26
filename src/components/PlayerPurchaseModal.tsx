@@ -252,9 +252,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         args: [],
       }) as [bigint, number];
       
-      const buyFee = Number(buyFeeResult[0]); // Fee rate in basis points (1000 = 1%)
+      const buyFee = Number(buyFeeResult[0]); // Fee rate (100000 = 100%, 10000 = 10%, 1000 = 1%, 500 = 0.5%)
       setBuyFeeRate(buyFee);
-      console.log('✅ Buy fee (generic):', buyFee, 'basis points (', buyFee / 100, '%)');
+      console.log('✅ Buy fee (generic):', buyFee, 'fee units (', buyFee / 1000, '%)');
       
       // For sell fee, we need pool data to call calculateSellFeeSimulated
       // For now, use the normal fee as a fallback
@@ -268,7 +268,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         
         const sellFee = Number(normalFee);
         setSellFeeRate(sellFee);
-        console.log('✅ Sell fee (normal):', sellFee, 'basis points (', sellFee / 100, '%)');
+        console.log('✅ Sell fee (normal):', sellFee, 'fee units (', sellFee / 1000, '%)');
       } catch (sellFeeError) {
         console.warn('getNormalFee not available, using buy fee for sell:', sellFeeError);
         setSellFeeRate(buyFee); // Use buy fee as fallback
@@ -1208,8 +1208,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100) * feeMultiplier).toString();
         
         console.log(`💰 Buy calculation: ${usdcAmount} USDC / ${currentPrice.toFixed(8)} price = ${tokenAmount} tokens`);
-        console.log(`💵 BUY FEE: ${buyFeeRate} basis points (${(buyFeeRate / 100).toFixed(2)}%)`);
-        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage + ${(buyFeeRate / 100).toFixed(2)}% fee = ${maxCurrencyWithSlippage} USDC max spend`);
+        console.log(`💵 BUY FEE: ${buyFeeRate} fee units (${(buyFeeRate / 1000).toFixed(2)}%)`);
+        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage + ${(buyFeeRate / 1000).toFixed(2)}% fee = ${maxCurrencyWithSlippage} USDC max spend`);
         console.log(`📊 Price check: Current pool price ${currentPrice.toFixed(8)} USDC/token`);
         console.log(`⚠️  Warning: AMM price impact may require more than ${maxCurrencyWithSlippage} USDC for ${tokenAmount} tokens`);
         
@@ -1217,7 +1217,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         const userBalance = parseFloat(userUsdcBalance);
         const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
         if (userBalance < maxSpendAmount) {
-          updateAlertState('error', `Insufficient USDC balance for slippage + fees. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage + ${(buyFeeRate / 100).toFixed(2)}% fee`);
+          updateAlertState('error', `Insufficient USDC balance for slippage + fees. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage + ${(buyFeeRate / 1000).toFixed(2)}% fee`);
           return;
         }
         
@@ -1229,7 +1229,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         const feeMultiplier = 1 - (sellFeeRate / 10000); // Convert basis points to decimal
         const minCurrency = (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100) * feeMultiplier).toString();
         console.log(`💰 Sell calculation: ${usdcAmount} tokens * ${currentPrice.toFixed(8)} price * ${1 - slippage / 100} slippage * ${feeMultiplier.toFixed(4)} fee = ${minCurrency} USDC`);
-        console.log(`💵 SELL FEE: ${sellFeeRate} basis points (${(sellFeeRate / 100).toFixed(2)}%)`);
+        console.log(`💵 SELL FEE: ${sellFeeRate} fee units (${(sellFeeRate / 1000).toFixed(2)}%)`);
         await sellTokens(player.id, usdcAmount, minCurrency);
       }
       
@@ -1722,8 +1722,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                       </div>
                       <span className="font-medium">
                         {action === 'buy' 
-                          ? `${(buyFeeRate / 100).toFixed(2)}%`
-                          : `${(sellFeeRate / 100).toFixed(2)}%`
+                          ? `${(buyFeeRate / 1000).toFixed(2)}%`
+                          : `${(sellFeeRate / 1000).toFixed(2)}%`
                         }
                       </span>
                     </div>
