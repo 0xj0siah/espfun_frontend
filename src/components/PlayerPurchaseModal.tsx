@@ -244,32 +244,33 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     try {
       const feeManagerContract = getContractData('FeeManager');
       
-      // Fetch buy fee
+      // Fetch buy fee (no parameters - returns generic buy fee)
       const buyFeeResult = await readContractCached({
         address: feeManagerContract.address as `0x${string}`,
         abi: feeManagerContract.abi as any,
         functionName: 'getBuyFeeSimulated',
-        args: [BigInt(player.id)],
+        args: [],
       }) as [bigint, number];
       
       const buyFee = Number(buyFeeResult[0]); // Fee rate in basis points (1000 = 1%)
       setBuyFeeRate(buyFee);
-      console.log('✅ Buy fee for player', player.id, ':', buyFee, 'basis points (', buyFee / 100, '%)');
+      console.log('✅ Buy fee (generic):', buyFee, 'basis points (', buyFee / 100, '%)');
       
-      // Fetch sell fee (if the function exists)
+      // For sell fee, we need pool data to call calculateSellFeeSimulated
+      // For now, use the normal fee as a fallback
       try {
-        const sellFeeResult = await readContractCached({
+        const normalFee = await readContractCached({
           address: feeManagerContract.address as `0x${string}`,
           abi: feeManagerContract.abi as any,
-          functionName: 'getSellFeeSimulated',
-          args: [BigInt(player.id)],
-        }) as [bigint, number];
+          functionName: 'getNormalFee',
+          args: [],
+        }) as bigint;
         
-        const sellFee = Number(sellFeeResult[0]);
+        const sellFee = Number(normalFee);
         setSellFeeRate(sellFee);
-        console.log('✅ Sell fee for player', player.id, ':', sellFee, 'basis points (', sellFee / 100, '%)');
+        console.log('✅ Sell fee (normal):', sellFee, 'basis points (', sellFee / 100, '%)');
       } catch (sellFeeError) {
-        console.warn('getSellFeeSimulated not available, assuming same as buy fee:', sellFeeError);
+        console.warn('getNormalFee not available, using buy fee for sell:', sellFeeError);
         setSellFeeRate(buyFee); // Use buy fee as fallback
       }
     } catch (error) {
