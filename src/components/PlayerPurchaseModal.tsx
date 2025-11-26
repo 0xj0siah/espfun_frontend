@@ -64,6 +64,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [usdcAmount, setUsdcAmount] = useState('');
   const [action, setAction] = useState<'buy' | 'sell'>('buy');
   const [slippage, setSlippage] = useState(0.5); // default 0.5%
+  const [buyFeeRate, setBuyFeeRate] = useState<number>(0); // Buy fee from FeeManager (basis points, 1000 = 1%)
+  const [sellFeeRate, setSellFeeRate] = useState<number>(0); // Sell fee from FeeManager (basis points)
   const [isLoading, setIsLoading] = useState(false);
   const [currencyTokenAddress, setCurrencyTokenAddress] = useState<string>('');
   const fetchedPlayerIds = useRef<Set<number>>(new Set());
@@ -232,6 +234,49 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       console.log('🔄 Using hardcoded TUSDC address as fallback:', tusdcContract.address);
       setCurrencyTokenAddress(tusdcContract.address);
       return tusdcContract.address;
+    }
+  };
+
+  // Fetch buy and sell fees from FeeManager contract
+  const fetchFees = async () => {
+    if (!player?.id) return;
+    
+    try {
+      const feeManagerContract = getContractData('FeeManager');
+      
+      // Fetch buy fee
+      const buyFeeResult = await readContractCached({
+        address: feeManagerContract.address as `0x${string}`,
+        abi: feeManagerContract.abi as any,
+        functionName: 'getBuyFeeSimulated',
+        args: [BigInt(player.id)],
+      }) as [bigint, number];
+      
+      const buyFee = Number(buyFeeResult[0]); // Fee rate in basis points (1000 = 1%)
+      setBuyFeeRate(buyFee);
+      console.log('✅ Buy fee for player', player.id, ':', buyFee, 'basis points (', buyFee / 100, '%)');
+      
+      // Fetch sell fee (if the function exists)
+      try {
+        const sellFeeResult = await readContractCached({
+          address: feeManagerContract.address as `0x${string}`,
+          abi: feeManagerContract.abi as any,
+          functionName: 'getSellFeeSimulated',
+          args: [BigInt(player.id)],
+        }) as [bigint, number];
+        
+        const sellFee = Number(sellFeeResult[0]);
+        setSellFeeRate(sellFee);
+        console.log('✅ Sell fee for player', player.id, ':', sellFee, 'basis points (', sellFee / 100, '%)');
+      } catch (sellFeeError) {
+        console.warn('getSellFeeSimulated not available, assuming same as buy fee:', sellFeeError);
+        setSellFeeRate(buyFee); // Use buy fee as fallback
+      }
+    } catch (error) {
+      console.error('Error fetching fees from FeeManager:', error);
+      // Set default fees if fetch fails (e.g., 1% = 1000 basis points)
+      setBuyFeeRate(1000);
+      setSellFeeRate(1000);
     }
   };
 
@@ -989,6 +1034,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         fetchPoolInfo([player.id]);
       }
 
+      // Fetch fees from FeeManager
+      console.log('💵 Fetching fees from FeeManager...');
+      fetchFees();
+
       // Always check TUSDC balance when modal opens
       if (isAuthenticated && user?.wallet?.address) {
         console.log('💰 Checking initial TUSDC balance...');
@@ -1068,9 +1117,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   // Calculate expected amount BEFORE slippage using real pool price
   const usdc = parseFloat(usdcAmount) || 0;
+  // Calculate expected receive amount with fees applied
+  // For buys: receive tokens (no fee deduction on output, fee is added to input cost)
+  // For sells: receive USDC minus the sell fee
   const expectedReceive = action === 'buy'
-    ? usdc / currentPrice
-    : usdc * currentPrice;
+    ? usdc / currentPrice  // Tokens received (fee is paid from input, not deducted from output)
+    : (usdc * currentPrice) * (1 - (sellFeeRate / 10000)); // USDC received after sell fee
 
   // Calculate price impact using real pool data
   const realPriceImpactData = calculatePriceImpact(player.id, usdcAmount, action);
@@ -1148,12 +1200,15 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         // Calculate token amount to buy using real pool price
         const tokenAmount = (parseFloat(usdcAmount) / currentPrice).toString();
         
-        // Calculate max currency spend with slippage protection
-        // User wants to spend 'usdcAmount', but due to slippage, they might need to spend more
-        const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
+        // Calculate max currency spend with slippage protection AND buy fee
+        // User wants to spend 'usdcAmount', but due to slippage AND fees, they might need to spend more
+        // Buy fee is in basis points (1000 = 1%, 100 = 0.1%)
+        const feeMultiplier = 1 + (buyFeeRate / 10000); // Convert basis points to decimal
+        const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100) * feeMultiplier).toString();
         
         console.log(`💰 Buy calculation: ${usdcAmount} USDC / ${currentPrice.toFixed(8)} price = ${tokenAmount} tokens`);
-        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage = ${maxCurrencyWithSlippage} USDC max spend`);
+        console.log(`💵 BUY FEE: ${buyFeeRate} basis points (${(buyFeeRate / 100).toFixed(2)}%)`);
+        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage + ${(buyFeeRate / 100).toFixed(2)}% fee = ${maxCurrencyWithSlippage} USDC max spend`);
         console.log(`📊 Price check: Current pool price ${currentPrice.toFixed(8)} USDC/token`);
         console.log(`⚠️  Warning: AMM price impact may require more than ${maxCurrencyWithSlippage} USDC for ${tokenAmount} tokens`);
         
@@ -1161,7 +1216,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         const userBalance = parseFloat(userUsdcBalance);
         const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
         if (userBalance < maxSpendAmount) {
-          updateAlertState('error', `Insufficient USDC balance for slippage. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage`);
+          updateAlertState('error', `Insufficient USDC balance for slippage + fees. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage + ${(buyFeeRate / 100).toFixed(2)}% fee`);
           return;
         }
         
@@ -1169,8 +1224,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         await buyTokens(player.id, tokenAmount, maxCurrencyWithSlippage);
       } else {
         // For selling, usdcAmount represents the number of tokens to sell
-        const minCurrency = (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
-        console.log(`💰 Sell calculation: ${usdcAmount} tokens * ${currentPrice.toFixed(8)} price * ${1 - slippage / 100} slippage = ${minCurrency} USDC`);
+        // Sell fee reduces the amount received (subtract fee from proceeds)
+        const feeMultiplier = 1 - (sellFeeRate / 10000); // Convert basis points to decimal
+        const minCurrency = (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100) * feeMultiplier).toString();
+        console.log(`💰 Sell calculation: ${usdcAmount} tokens * ${currentPrice.toFixed(8)} price * ${1 - slippage / 100} slippage * ${feeMultiplier.toFixed(4)} fee = ${minCurrency} USDC`);
+        console.log(`💵 SELL FEE: ${sellFeeRate} basis points (${(sellFeeRate / 100).toFixed(2)}%)`);
         await sellTokens(player.id, usdcAmount, minCurrency);
       }
       
@@ -1644,6 +1702,29 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                         />
                         <span className="text-sm">%</span>
                       </div>
+                    </div>
+                    
+                    {/* Fee Information */}
+                    <div className="flex justify-between text-sm mt-2 pt-2 border-t border-border/50">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">{action === 'buy' ? 'Buy' : 'Sell'} Fee</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="w-4 h-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Protocol fee charged on this transaction</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <span className="font-medium">
+                        {action === 'buy' 
+                          ? `${(buyFeeRate / 100).toFixed(2)}%`
+                          : `${(sellFeeRate / 100).toFixed(2)}%`
+                        }
+                      </span>
                     </div>
                   </div>
                 )}

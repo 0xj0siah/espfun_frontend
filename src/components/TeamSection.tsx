@@ -523,12 +523,12 @@ export default function TeamSection({
             <TrendingUp className="w-4 h-4 mr-2" />
             Development
           </TabsTrigger>
-          {/* Contracts tab temporarily hidden - keeping code for future use
+          {
           <TabsTrigger value="contracts" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <FileText className="w-4 h-4 mr-2" />
             Contracts
           </TabsTrigger>
-          */}
+          }
         </TabsList>
 
         <TabsContent value="squad" className="space-y-6">

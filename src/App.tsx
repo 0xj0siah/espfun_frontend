@@ -6,6 +6,7 @@ import TransfersSection from './components/TransfersSection';
 import LiveScoresSection from './components/LiveScoresSection';
 import LeaderboardSection from './components/LeaderboardSection';
 import PackOpeningSection from './components/PackOpeningSection';
+import { PasswordGate } from './components/PasswordGate';
 import { usePlayerPrices } from './hooks/usePlayerPricing';
 import fakeData from './fakedata.json';
 import { getActivePlayerIds } from './utils/contractInteractions';
@@ -84,63 +85,65 @@ export default function App() {
         return <TransfersSection />;
       case 'Live Scores':
         return <LiveScoresSection />;
-     // case 'Leaderboard':
-      //  return <LeaderboardSection />;
-     // case 'Pack Opening':
-      //  return <PackOpeningSection />;
+      case 'Leaderboard':
+        return <LeaderboardSection />;
+      case 'Pack Opening':
+        return <PackOpeningSection />;
       default:
         return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
     }
   };
 
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
-        <Header activeTab={activeTab} onTabChange={setActiveTab} />
+    <PasswordGate>
+      <AuthProvider>
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
+          <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
-        {renderContent()}
-      </main>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
+          {renderContent()}
+        </main>
 
-      {/* Footer with Social Links (hidden on mobile) */}
-      {!isMobile && (
-        <footer className="fixed bottom-0 left-0 right-0 border-t border-border/50 bg-background/95 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="flex items-center space-x-6">
-                <a
-                  href="https://github.com/0xj0siah/espfun_frontend"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
-                >
-                  <Github className="h-5 w-5" />
-                  <span className="text-sm font-medium">GitHub</span>
-                </a>
-                <a
-                  href="https://x.com/esp_fun"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
-                >
-                  <Twitter className="h-5 w-5" />
-                  <span className="text-sm font-medium">X / Twitter</span>
-                </a>
+        {/* Footer with Social Links (hidden on mobile) */}
+        {!isMobile && (
+          <footer className="fixed bottom-0 left-0 right-0 border-t border-border/50 bg-background/95 backdrop-blur-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="flex items-center space-x-6">
+                  <a
+                    href="https://github.com/0xj0siah/espfun_frontend"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
+                  >
+                    <Github className="h-5 w-5" />
+                    <span className="text-sm font-medium">GitHub</span>
+                  </a>
+                  <a
+                    href="https://x.com/esp_fun"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
+                  >
+                    <Twitter className="h-5 w-5" />
+                    <span className="text-sm font-medium">X / Twitter</span>
+                  </a>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  © 2025 ESP.FUN. All rights reserved.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                © 2025 ESP.FUN. All rights reserved.
-              </p>
             </div>
-          </div>
-        </footer>
-      )}
+          </footer>
+        )}
 
-      {/* Background decorative elements */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-600/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-500/5 to-emerald-600/5 rounded-full blur-3xl"></div>
+        {/* Background decorative elements */}
+        <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-600/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-500/5 to-emerald-600/5 rounded-full blur-3xl"></div>
+        </div>
       </div>
-    </div>
-    </AuthProvider>
+      </AuthProvider>
+    </PasswordGate>
   );
 }

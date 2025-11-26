@@ -23,7 +23,7 @@ interface HeaderProps {
 }
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
-  const navItems = ['Team', 'Transfers', 'Live Scores'];
+  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'wh];
   const [selectedGame, setSelectedGame] = useState('CS2');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -61,7 +61,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   ];
 
   useEffect(() => {
-    // Check for saved theme preference or default to light mode
+    // Check for saved theme preference or default to dark mode
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
