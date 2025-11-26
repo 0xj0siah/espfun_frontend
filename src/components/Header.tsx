@@ -23,7 +23,7 @@ interface HeaderProps {
 }
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
-  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'wh];
+  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'];
   const [selectedGame, setSelectedGame] = useState('CS2');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
