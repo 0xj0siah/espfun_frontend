@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://espfun-backend.vercel.app';
-const GRID_API_KEY = import.meta.env.VITE_GRID_API_KEY;
-const GRID_BASE_URL = 'https://api-op.grid.gg';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,36 +9,6 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-// Grid.gg GraphQL client
-const gridGraphQLRequest = async (endpoint: string, query: string, variables?: any) => {
-  const fullUrl = `${GRID_BASE_URL}${endpoint}`;
-  console.log(`🔗 Making request to: ${fullUrl}`);
-  console.log(`🔑 API Key present: ${!!GRID_API_KEY}`);
-
-  try {
-    const response = await axios.post(fullUrl, {
-      query,
-      variables
-    }, {
-      headers: {
-        'x-api-key': GRID_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      timeout: 10000,
-    });
-    console.log(`✅ HTTP ${response.status}: ${response.statusText}`);
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Grid.gg API HTTP error:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message
-    });
-    throw error;
-  }
-};
 
 // API endpoints
 export const endpoints = {
@@ -264,214 +232,55 @@ export const fetchTransfers = async () => {
   }
 };
 
-// Grid.gg API functions for esports data
+// Grid.gg API functions for esports data (now proxied through backend)
 export const getPlayerStatistics = async (playerIds: string[]): Promise<GridPlayerStats[]> => {
-  const query = `
-    query GetPlayerStatistics($playerIds: [ID!]!) {
-      players(ids: $playerIds) {
-        id
-        statistics {
-          kills
-          deaths
-          assists
-          rating
-          winRate
-        }
-      }
-    }
-  `;
-
-  try {
-    const response = await gridGraphQLRequest('/statistics-feed/graphql', query, { playerIds });
-    return response.data.players.map((player: any) => ({
-      playerId: player.id,
-      kills: player.statistics.kills,
-      deaths: player.statistics.deaths,
-      assists: player.statistics.assists,
-      rating: player.statistics.rating,
-      winRate: player.statistics.winRate,
-    }));
-  } catch (error) {
-    console.error('Error fetching player statistics:', error);
-    return [];
-  }
+  // This function is deprecated - use getDetailedPlayerStatistics instead which is proxied through backend
+  console.warn('getPlayerStatistics is deprecated - use getDetailedPlayerStatistics instead');
+  return [];
 };
 
 export const getDetailedPlayerStatistics = async (playerId: string): Promise<GridDetailedPlayerStats | null> => {
-  const query = `
-    query GetDetailedPlayerStatistics($playerId: ID!, $filter: PlayerStatisticsFilter!) {
-      playerStatistics(playerId: $playerId, filter: $filter) {
-        id
-        series {
-          count
-          kills {
-            sum
-            avg
-            min
-            max
-            ratePerMinute {
-              min
-              max
-              avg
-            }
-          }
-          deaths {
-            sum
-            avg
-            min
-            max
-            ratePerMinute {
-              min
-              max
-              avg
-            }
-          }
-          killAssistsGiven {
-            sum
-            avg
-            min
-            max
-            ratePerMinute {
-              min
-              max
-              avg
-            }
-          }
-          wins {
-            value
-            count
-            percentage
-          }
-        }
-        game {
-          count
-          kills {
-            sum
-            avg
-            min
-            max
-            ratePerMinute {
-              min
-              max
-              avg
-            }
-          }
-          deaths {
-            sum
-            avg
-            min
-            max
-            ratePerMinute {
-              min
-              max
-              avg
-            }
-          }
-          killAssistsGiven {
-            sum
-            avg
-            min
-            max
-            ratePerMinute {
-              min
-              max
-              avg
-            }
-          }
-          wins {
-            value
-            count
-            percentage
-          }
-        }
-      }
-    }
-  `;
-
-  // Filter for last 6 months of data
-  const variables = {
-    playerId,
-    filter: {
-      startedAt: {
-        period: "LAST_6_MONTHS"
-      }
-    }
-  };
-
   try {
-    const response = await gridGraphQLRequest('/statistics-feed/graphql', query, variables);
+    console.log(`🔄 Fetching detailed player statistics for ${playerId} from backend...`);
+    const response = await axios.get(`${API_BASE_URL}/api/grid/player-stats/${playerId}`);
 
-    if (!response) {
-      console.error('No response from Grid.gg API');
-      return null;
+    if (response.status === 200 && response.data) {
+      console.log(`✅ Successfully fetched player stats for ${playerId}`);
+      return response.data;
     }
 
-    if (!response.data) {
-      console.error('No data property in Grid.gg API response');
-      return null;
+    return null;
+  } catch (error: any) {
+    console.error(`Error fetching detailed player statistics for ${playerId}:`, error);
+
+    if (error.response?.status === 429) {
+      console.warn('⚠️ Backend is rate limited, may be serving cached data');
     }
 
-    if (response.data.errors) {
-      console.error('GraphQL errors in response:', response.data.errors);
-      return null;
-    }
-
-    return response.data.playerStatistics;
-  } catch (error) {
-    console.error('Error fetching detailed player statistics:', error);
     return null;
   }
 };
 
 // Get team statistics to retrieve recent series IDs for matches
 export const getTeamStatistics = async (teamId: string): Promise<string[]> => {
-  const query = `
-    query GetTeamStatistics($teamId: ID!, $filter: TeamStatisticsFilter!) {
-      teamStatistics(teamId: $teamId, filter: $filter) {
-        id
-        aggregationSeriesIds
-      }
-    }
-  `;
-
-  // Filter for last 3 months of data to get recent matches
-  const variables = {
-    teamId,
-    filter: {
-      startedAt: {
-        period: "LAST_3_MONTHS"
-      }
-    }
-  };
-
   try {
-    const response = await gridGraphQLRequest('/statistics-feed/graphql', query, variables);
+    console.log(`🔄 Fetching team statistics for ${teamId} from backend...`);
+    const response = await axios.get(`${API_BASE_URL}/api/grid/team-series/${teamId}`);
 
-    if (!response) {
-      console.error('No response from Grid.gg API for team statistics');
-      return [];
+    if (response.status === 200 && response.data) {
+      const seriesIds = response.data.seriesIds || [];
+      console.log(`✅ Found ${seriesIds.length} series IDs for team ${teamId}`);
+      return seriesIds;
     }
 
-    if (!response.data) {
-      console.error('No data property in Grid.gg API response for team statistics');
-      return [];
+    return [];
+  } catch (error: any) {
+    console.error(`Error fetching team statistics for ${teamId}:`, error);
+
+    if (error.response?.status === 429) {
+      console.warn('⚠️ Backend is rate limited, may be serving cached data');
     }
 
-    if (response.data.errors) {
-      console.error('GraphQL errors in team statistics response:', response.data.errors);
-      return [];
-    }
-
-    const teamStats = response.data.teamStatistics;
-    if (!teamStats || !teamStats.aggregationSeriesIds) {
-      console.warn(`No aggregation series IDs found for team ${teamId}`);
-      return [];
-    }
-
-    console.log(`✅ Found ${teamStats.aggregationSeriesIds.length} series IDs for team ${teamId}`);
-    return teamStats.aggregationSeriesIds;
-  } catch (error) {
-    console.error('Error fetching team statistics:', error);
     return [];
   }
 };
@@ -502,52 +311,27 @@ export interface SeriesState {
 
 // Get series state for live match data
 export const getSeriesState = async (seriesId: string): Promise<SeriesState | null> => {
-  const query = `
-    query GetSeriesState($id: ID!) {
-      seriesState(id: $id) {
-        valid
-        format
-        finished
-        teams {
-          id
-          name
-          won
-          score
-        }
-        games {
-          finished
-          teams {
-            name
-            won
-          }
-        }
-      }
-    }
-  `;
-
-  const variables = { id: seriesId };
-
   try {
-    const response = await gridGraphQLRequest('/live-data-feed/series-state/graphql', query, variables);
+    console.log(`🔄 Fetching series state for ${seriesId} from backend...`);
+    const response = await axios.get(`${API_BASE_URL}/api/grid/series-state/${seriesId}`);
 
-    if (!response) {
-      console.error('No response from Grid.gg Series State API');
-      return null;
+    if (response.status === 200 && response.data) {
+      console.log(`✅ Successfully fetched series state for ${seriesId}`);
+      return response.data;
     }
 
-    if (!response.data) {
-      console.error('No data property in Grid.gg Series State API response');
-      return null;
+    return null;
+  } catch (error: any) {
+    console.error(`Error fetching series state for ${seriesId}:`, error);
+
+    if (error.response?.status === 429) {
+      console.warn('⚠️ Backend is rate limited, may be serving cached data');
     }
 
-    if (response.data.errors) {
-      console.error('GraphQL errors in series state response:', response.data.errors);
-      return null;
+    if (error.response?.status === 404) {
+      console.warn(`⚠️ Series ${seriesId} not found`);
     }
 
-    return response.data.seriesState;
-  } catch (error) {
-    console.error('Error fetching series state:', error);
     return null;
   }
 };

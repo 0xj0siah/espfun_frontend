@@ -1,213 +1,83 @@
-import { GridApiResponse, GridMatch } from '../types/grid';
+import { GridMatch } from '../types/grid';
 
-// Helper function to fetch upcoming matches from GRID API
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+// Helper function to fetch upcoming matches from backend (which proxies GRID API with caching)
 export async function fetchUpcomingMatches(): Promise<GridMatch[]> {
-  const currentDate = new Date();
-  const nextMonth = new Date();
-  nextMonth.setMonth(currentDate.getMonth() + 1);
-
-  const query = `
-    query FetchUpcomingMatches {
-      allSeries(
-        filter: {
-          startTimeScheduled: {
-            gte: "${currentDate.toISOString()}",
-            lte: "${nextMonth.toISOString()}"
-          }
-            types: ESPORTS
-            titleId: 28
-        },
-        orderBy: StartTimeScheduled,
-        orderDirection: ASC,
-        first: 10
-      ) {
-        edges {
-          node {
-            id
-            title {
-              nameShortened
-            }
-            tournament {
-              nameShortened
-            }
-            startTimeScheduled
-            format {
-              name
-              nameShortened
-            }
-            teams {
-              baseInfo {
-                name
-                nameShortened
-              }
-              scoreAdvantage
-            }
-          }
-        }
-      }
-    }
-  `;
-
   try {
-    const response = await fetch('https://api-op.grid.gg/central-data/graphql', {
-      method: 'POST',
+    console.log('🔄 Fetching upcoming matches from backend...');
+    const response = await fetch(`${API_BASE_URL}/api/grid/upcoming-matches?titleId=28&limit=5`, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'x-api-key': import.meta.env.VITE_GRID_API_KEY,
       },
-      body: JSON.stringify({ 
-        query,
-        variables: {} 
-      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API response not ok:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+      console.error('Backend API response not ok:', errorText);
 
-    const responseData = await response.json();
-    console.log('API Response:', responseData);
-
-    if (!responseData?.data?.allSeries?.edges) {
-      console.error('Invalid API response structure:', responseData);
-      if (responseData.errors) {
-        console.error('GraphQL Errors:', responseData.errors);
+      // If rate limited or backend error, return empty array (backend serves cached data on rate limit)
+      if (response.status === 429) {
+        console.warn('⚠️ Backend is rate limited, returning empty array');
       }
+
       return [];
     }
 
-    const edges = responseData.data.allSeries.edges as GridApiResponse['data']['allSeries']['edges'];
-    
-    // Filter for CS2 matches, sort by start time, and take the 4 closest matches
-    return edges
-      .filter((edge: GridApiResponse['data']['allSeries']['edges'][0]) => 
-        edge.node.title.nameShortened.toLowerCase() === 'cs2'
-      )
-      .sort((a, b) => 
-        new Date(a.node.startTimeScheduled).getTime() - new Date(b.node.startTimeScheduled).getTime()
-      )
-      .slice(0, 4)
-      .map((edge: GridApiResponse['data']['allSeries']['edges'][0]) => ({
-        id: edge.node.id,
-        tournament: edge.node.tournament.nameShortened,
-        team1: edge.node.teams[0]?.baseInfo.name || 'TBD',
-        team2: edge.node.teams[1]?.baseInfo.name || 'TBD',
-        time: new Date(edge.node.startTimeScheduled).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date(edge.node.startTimeScheduled).toLocaleDateString(),
-        game: 'CS2',
-        format: edge.node.format.nameShortened
-      }));
+    const responseData = await response.json();
+    console.log('✅ Backend upcoming matches response:', responseData);
+
+    // Backend returns { titleId, limit, matches, count }
+    if (!responseData?.matches || !Array.isArray(responseData.matches)) {
+      console.error('Invalid backend response structure:', responseData);
+      return [];
+    }
+
+    return responseData.matches;
   } catch (error) {
-    console.error('Error fetching matches:', error);
+    console.error('Error fetching upcoming matches from backend:', error);
     return [];
   }
 }
 
-// Helper function to fetch live and recent matches (past 12 hours) from GRID API
+// Helper function to fetch live and recent matches (past 12 hours) from backend (which proxies GRID API with caching)
 export async function fetchLiveAndRecentMatches(): Promise<GridMatch[]> {
-  const currentDate = new Date();
-  const twelveHoursAgo = new Date();
-  twelveHoursAgo.setHours(currentDate.getHours() - 12);
-
-  const query = `
-    query FetchLiveAndRecentMatches {
-      allSeries(
-        filter: {
-          startTimeScheduled: {
-            gte: "${twelveHoursAgo.toISOString()}",
-            lte: "${currentDate.toISOString()}"
-          }
-          types: ESPORTS
-          titleId: 28
-        },
-        orderBy: StartTimeScheduled,
-        orderDirection: DESC,
-        first: 10
-      ) {
-        edges {
-          node {
-            id
-            title {
-              nameShortened
-            }
-            tournament {
-              nameShortened
-            }
-            startTimeScheduled
-            format {
-              name
-              nameShortened
-            }
-            teams {
-              baseInfo {
-                name
-                nameShortened
-              }
-              scoreAdvantage
-            }
-          }
-        }
-      }
-    }
-  `;
-
   try {
-    const response = await fetch('https://api-op.grid.gg/central-data/graphql', {
-      method: 'POST',
+    console.log('🔄 Fetching live/recent matches from backend...');
+    const response = await fetch(`${API_BASE_URL}/api/grid/live-recent-matches?titleId=28&limit=20`, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'x-api-key': import.meta.env.VITE_GRID_API_KEY,
       },
-      body: JSON.stringify({ 
-        query,
-        variables: {} 
-      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API response not ok:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+      console.error('Backend API response not ok:', errorText);
 
-    const responseData = await response.json();
-    console.log('Live/Recent API Response:', responseData);
-
-    if (!responseData?.data?.allSeries?.edges) {
-      console.error('Invalid API response structure:', responseData);
-      if (responseData.errors) {
-        console.error('GraphQL Errors:', responseData.errors);
+      // If rate limited or backend error, return empty array (backend serves cached data on rate limit)
+      if (response.status === 429) {
+        console.warn('⚠️ Backend is rate limited, returning empty array');
       }
+
       return [];
     }
 
-    const edges = responseData.data.allSeries.edges as GridApiResponse['data']['allSeries']['edges'];
-    
-    // Filter for CS2 matches, sort by start time (most recent first), and take the 4 most recent matches
-    return edges
-      .filter((edge: GridApiResponse['data']['allSeries']['edges'][0]) => 
-        edge.node.title.nameShortened.toLowerCase() === 'cs2'
-      )
-      .sort((a, b) => 
-        new Date(b.node.startTimeScheduled).getTime() - new Date(a.node.startTimeScheduled).getTime()
-      )
-      .slice(0, 4)
-      .map((edge: GridApiResponse['data']['allSeries']['edges'][0]) => ({
-        id: edge.node.id,
-        tournament: edge.node.tournament.nameShortened,
-        team1: edge.node.teams[0]?.baseInfo.name || 'TBD',
-        team2: edge.node.teams[1]?.baseInfo.name || 'TBD',
-        time: new Date(edge.node.startTimeScheduled).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date(edge.node.startTimeScheduled).toLocaleDateString(),
-        game: 'CS2',
-        format: edge.node.format.nameShortened
-      }));
+    const responseData = await response.json();
+    console.log('✅ Backend live/recent matches response:', responseData);
+
+    // Backend returns { titleId, limit, matches, count }
+    if (!responseData?.matches || !Array.isArray(responseData.matches)) {
+      console.error('Invalid backend response structure:', responseData);
+      return [];
+    }
+
+    return responseData.matches;
   } catch (error) {
-    console.error('Error fetching live/recent matches:', error);
+    console.error('Error fetching live/recent matches from backend:', error);
     return [];
   }
 }
