@@ -5,6 +5,7 @@ import { Activity, Clock, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fetchUpcomingMatches, fetchLiveAndRecentMatches } from '../utils/gridApi';
 import { GridMatch } from '../types/grid';
+import { apiService } from '../services/apiService';
 
 interface SeriesTeamState {
   id: string;
@@ -33,50 +34,28 @@ export default function LiveScoresSection() {
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Fetch series state from Grid.gg Live Data Feed API
+  // Fetch series state from backend (which proxies Grid.gg API)
   const fetchSeriesState = async (seriesId: string): Promise<SeriesState | null> => {
-    const query = `
-      query GetSeriesState($seriesId: ID!) {
-        seriesState(id: $seriesId) {
-          id
-          started
-          finished
-          teams {
-            id
-            name
-            score
-            won
-          }
-        }
-      }
-    `;
-
     try {
-      const response = await fetch('https://api-op.grid.gg/live-data-feed/series-state/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_GRID_API_KEY,
-        },
-        body: JSON.stringify({
-          query,
-          variables: { seriesId }
-        }),
-      });
-
-      if (!response.ok) {
-        console.error(`Failed to fetch series state for ${seriesId}:`, response.status);
-        return null;
-      }
-
-      const data = await response.json();
+      console.log(`🔄 Fetching series state for ${seriesId} (via backend)`);
+      const seriesState = await apiService.getGridSeriesState(seriesId);
       
-      if (data.errors) {
-        console.error(`GraphQL errors for series ${seriesId}:`, data.errors);
+      if (!seriesState || !seriesState.teams) {
+        console.warn(`⚠️ No series state data for ${seriesId}`);
         return null;
       }
-
-      return data.data?.seriesState || null;
+      
+      return {
+        id: seriesState.id || seriesId,
+        started: seriesState.started || false,
+        finished: seriesState.finished || false,
+        teams: seriesState.teams.map((team: any) => ({
+          id: team.id,
+          name: team.name,
+          score: team.score || 0,
+          won: team.won !== undefined ? team.won : null
+        }))
+      };
     } catch (error) {
       console.error(`Error fetching series state for ${seriesId}:`, error);
       return null;

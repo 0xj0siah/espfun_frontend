@@ -1905,30 +1905,30 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                         <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
                       </div>
                     </>
-                  ) : gridStats ? (
+                  ) : gridStats && gridStats.game && gridStats.game.kills && gridStats.game.deaths && gridStats.game.killAssistsGiven ? (
                     // Show real Grid.gg stats
                     <>
                       <div className="text-center p-2 bg-accent/50 rounded-lg">
                         <p className="text-lg font-bold text-primary">
-                          {gridStats.game.kills.avg.toFixed(1)}
+                          {gridStats.game.kills.avg?.toFixed(1) || '0.0'}
                         </p>
                         <p className="text-xs text-muted-foreground">Avg Kills</p>
                       </div>
                       <div className="text-center p-2 bg-accent/50 rounded-lg">
                         <p className="text-lg font-bold text-primary">
-                          {gridStats.game.deaths.avg.toFixed(1)}
+                          {gridStats.game.deaths.avg?.toFixed(1) || '0.0'}
                         </p>
                         <p className="text-xs text-muted-foreground">Avg Deaths</p>
                       </div>
                       <div className="text-center p-2 bg-accent/50 rounded-lg">
                         <p className="text-lg font-bold text-primary">
-                          {gridStats.game.killAssistsGiven.avg.toFixed(1)}
+                          {gridStats.game.killAssistsGiven.avg?.toFixed(1) || '0.0'}
                         </p>
                         <p className="text-xs text-muted-foreground">Avg Assists</p>
                       </div>
                       <div className="text-center p-2 bg-accent/50 rounded-lg">
                         <p className="text-lg font-bold text-primary">
-                          {`${gridStats.game.wins.find(w => w.value)?.percentage.toFixed(1) || '0.0'}%`}
+                          {`${gridStats.game.wins?.find(w => w.value)?.percentage.toFixed(1) || '0.0'}%`}
                         </p>
                         <p className="text-xs text-muted-foreground">Win Rate</p>
                       </div>

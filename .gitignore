@@ -102,3 +102,6 @@ temp/
 # Local Netlify folder
 .netlify
 .vercel
+
+# Stress test results
+stress-test-results/

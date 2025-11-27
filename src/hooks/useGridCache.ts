@@ -59,7 +59,15 @@ export function useGridCache() {
   const [error, setError] = useState<Error | null>(null);
 
   const isValidPlayerStats = (stats: GridDetailedPlayerStats | null): stats is GridDetailedPlayerStats => {
-    return !!(stats && stats.game && stats.series);
+    const isValid = !!(stats && stats.game && stats.series);
+    if (!isValid && stats) {
+      console.warn('⚠️ Invalid player stats structure:', {
+        hasGame: !!stats.game,
+        hasSeries: !!stats.series,
+        keys: Object.keys(stats)
+      });
+    }
+    return isValid;
   };
 
   const getCachedPlayerStats = useCallback(async (gridId: string): Promise<GridDetailedPlayerStats | null> => {
