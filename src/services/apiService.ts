@@ -758,6 +758,91 @@ class ApiService {
       throw new Error('Failed to cut player');
     }
   }
+
+  // Grid.gg API methods (proxied through backend for caching and rate limiting)
+  async getGridPlayerStats(playerId: string): Promise<any> {
+    const cacheKey = `grid-player-stats:${playerId}`;
+    const endpoint = `grid/player-stats/${playerId}`;
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/grid/player-stats/${playerId}`);
+          });
+          return response.data;
+        },
+        { ttl: 300000 } // Cache for 5 minutes (backend has its own cache too)
+      );
+    } catch (error) {
+      console.error('Failed to get Grid player stats:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 429) {
+          console.warn('Grid API rate limited - backend will serve cached data');
+          throw new Error('Grid API temporarily rate limited. Showing cached data.');
+        }
+      }
+      throw new Error('Failed to get player statistics from backend');
+    }
+  }
+
+  async getGridTeamSeries(teamId: string): Promise<string[]> {
+    const cacheKey = `grid-team-series:${teamId}`;
+    const endpoint = `grid/team-series/${teamId}`;
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/grid/team-series/${teamId}`);
+          });
+          return response.data.seriesIds || [];
+        },
+        { ttl: 300000 } // Cache for 5 minutes
+      );
+    } catch (error) {
+      console.error('Failed to get Grid team series:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 429) {
+          console.warn('Grid API rate limited - backend will serve cached data');
+          throw new Error('Grid API temporarily rate limited. Showing cached data.');
+        }
+      }
+      throw new Error('Failed to get team series from backend');
+    }
+  }
+
+  async getGridSeriesState(seriesId: string): Promise<any> {
+    const cacheKey = `grid-series-state:${seriesId}`;
+    const endpoint = `grid/series-state/${seriesId}`;
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/grid/series-state/${seriesId}`);
+          });
+          return response.data;
+        },
+        { ttl: 300000 } // Cache for 5 minutes
+      );
+    } catch (error) {
+      console.error('Failed to get Grid series state:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 429) {
+          console.warn('Grid API rate limited - backend will serve cached data');
+          throw new Error('Grid API temporarily rate limited. Showing cached data.');
+        }
+      }
+      throw new Error('Failed to get series state from backend');
+    }
+  }
 }
 
 export const apiService = new ApiService();

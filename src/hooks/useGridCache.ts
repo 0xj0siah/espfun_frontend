@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { GridDetailedPlayerStats, SeriesState, getDetailedPlayerStatistics, getTeamStatistics, getSeriesState } from '../utils/api';
+import { GridDetailedPlayerStats, SeriesState } from '../utils/api';
+import { apiService } from '../services/apiService';
 
 interface PlayerCache {
   timestamp: number;
@@ -72,8 +73,8 @@ export function useGridCache() {
     }
 
     try {
-      console.log('🔄 Fetching fresh player stats for', gridId);
-      const stats = await getDetailedPlayerStatistics(gridId);
+      console.log('🔄 Fetching fresh player stats for', gridId, '(via backend)');
+      const stats = await apiService.getGridPlayerStats(gridId);
 
       // Only cache if we get valid, non-empty data
       if (isValidPlayerStats(stats)) {
@@ -137,8 +138,8 @@ export function useGridCache() {
     }
 
     try {
-      console.log('🔄 Fetching fresh team series IDs for', teamGridId);
-      const seriesIds = await getTeamStatistics(teamGridId);
+      console.log('🔄 Fetching fresh team series IDs for', teamGridId, '(via backend)');
+      const seriesIds = await apiService.getGridTeamSeries(teamGridId);
 
       // Only cache if we get valid, non-empty data
       if (isValidTeamSeries(seriesIds)) {
@@ -202,8 +203,8 @@ export function useGridCache() {
     }
 
     try {
-      console.log('🔄 Fetching fresh series state for', seriesId);
-      const state = await getSeriesState(seriesId);
+      console.log('🔄 Fetching fresh series state for', seriesId, '(via backend)');
+      const state = await apiService.getGridSeriesState(seriesId);
 
       // Only cache if we get valid, non-empty data
       if (isValidSeriesState(state)) {
