@@ -20,6 +20,7 @@ import fakeData from '../fakedata.json';
 import { getDevelopmentPlayersData, testDevelopmentPlayersContract, getActivePlayerIds, getPlayerBalance } from '../utils/contractInteractions';
 import { usePoolInfo } from '../hooks/usePoolInfo';
 import { useGridCache } from '../hooks/useGridCache';
+import { useGameContext } from '../context/GameContext';
 
 interface PlayerStats {
   kills: number;
@@ -102,6 +103,7 @@ export default function TeamSection({
   const { user, authenticated } = usePrivy();
   const isMobile = useIsMobile();
   const { preloadPlayersData } = useGridCache();
+  const { selectedGame } = useGameContext();
 
   // Add pool data hook for accurate pricing
   const { poolData, fetchPoolInfo } = usePoolInfo();
@@ -312,7 +314,7 @@ export default function TeamSection({
 
   useEffect(() => {
     // Use fake data and merge with preloaded contract prices - no fallback to fake data prices
-    const playersWithPricing: Player[] = fakeData.teamPlayers.map(player => {
+    const playersWithPricing: Player[] = fakeData.teamPlayers.filter(player => player.game === selectedGame).map(player => {
       const preloadedPrice = playerPrices[player.id];
       const finalPrice = preloadedPrice || 'Loading...';
 
@@ -348,7 +350,7 @@ export default function TeamSection({
     // Always set loading to false after processing, regardless of pricesLoading state
     // This prevents getting stuck in loading state if price fetching fails
     setLoading(false);
-  }, [playerPrices, pricesLoading]); // Update when preloaded prices change
+  }, [playerPrices, pricesLoading, selectedGame]); // Update when preloaded prices or game change
 
   // Fetch owned players when component mounts or wallet changes
   useEffect(() => {

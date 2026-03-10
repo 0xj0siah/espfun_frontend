@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { fetchUpcomingMatches, fetchLiveAndRecentMatches } from '../utils/gridApi';
 import { GridMatch } from '../types/grid';
 import { apiService } from '../services/apiService';
+import { useGameContext } from '../context/GameContext';
 
 interface SeriesTeamState {
   id: string;
@@ -33,6 +34,7 @@ export default function LiveScoresSection() {
   const [liveAndRecentMatches, setLiveAndRecentMatches] = useState<MatchWithScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const { selectedGame } = useGameContext();
 
   // Fetch series state from backend (which proxies Grid.gg API)
   const fetchSeriesState = async (seriesId: string): Promise<SeriesState | null> => {
@@ -166,6 +168,35 @@ export default function LiveScoresSection() {
     const interval = setInterval(fetchMatches, 30000); // 30 seconds for live updates
     return () => clearInterval(interval);
   }, []);
+
+  if (selectedGame !== 'CS2') {
+    return (
+      <div className="space-y-8">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center space-x-3"
+        >
+          <div className="bg-gradient-to-r from-red-600 to-orange-600 p-3 rounded-xl">
+            <Activity className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+              Live Scores & Matches
+            </h2>
+            <p className="text-sm text-muted-foreground">Real-time updates and upcoming fixtures</p>
+          </div>
+        </motion.div>
+        <Card className="p-12 text-center border-0 bg-gradient-to-br from-accent/50 to-accent/30">
+          <Activity className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+          <h3 className="text-lg font-semibold mb-2">Coming Soon</h3>
+          <p className="text-muted-foreground">
+            Live scores for {selectedGame === 'LoL' ? 'League of Legends' : selectedGame} are coming soon!
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

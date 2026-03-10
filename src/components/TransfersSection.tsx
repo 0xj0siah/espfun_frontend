@@ -17,6 +17,7 @@ import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
 import { useIsMobile } from './ui/use-mobile';
 import { useGridCache } from '../hooks/useGridCache';
+import { useGameContext } from '../context/GameContext';
 
 interface Player {
   id: number;
@@ -52,7 +53,7 @@ export default function TransfersSection() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('price');
-  const [filterGame, setFilterGame] = useState('all');
+  const { selectedGame } = useGameContext();
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
@@ -150,7 +151,7 @@ export default function TransfersSection() {
   const filteredPlayers = availablePlayers
     .filter(player => 
       player.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (filterGame === 'all' || player.game === filterGame)
+      player.game === selectedGame
     )
     .sort((a, b) => {
       if (sortBy === 'price') return parseFloat(a.price.replace(' USDC', '')) - parseFloat(b.price.replace(' USDC', ''));
@@ -272,16 +273,6 @@ export default function TransfersSection() {
               className="pl-10 border-0 bg-accent/50"
             />
           </div>
-          <Select value={filterGame} onValueChange={setFilterGame}>
-            <SelectTrigger className="w-48 border-0 bg-accent/50">
-              <SelectValue placeholder="Filter by game" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Games</SelectItem>
-              <SelectItem value="CS2">Counter-Strike 2</SelectItem>
-              <SelectItem value="League of Legends">League of Legends</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-48 border-0 bg-accent/50">
               <SelectValue placeholder="Sort by" />

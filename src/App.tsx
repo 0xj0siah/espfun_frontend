@@ -12,6 +12,7 @@ import fakeData from './fakedata.json';
 import { getActivePlayerIds } from './utils/contractInteractions';
 import { useAuthentication } from './hooks/useAuthentication';
 import { AuthProvider } from './context/AuthContext';
+import { GameProvider } from './context/GameContext';
 
 // Import debug utility
 import './utils/contractDebug';
@@ -97,6 +98,7 @@ export default function App() {
   return (
     <PasswordGate>
       <AuthProvider>
+        <GameProvider>
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
           <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -106,7 +108,7 @@ export default function App() {
 
         {/* Footer with Social Links (hidden on mobile) */}
         {!isMobile && (
-          <footer className="fixed bottom-0 left-0 right-0 border-t border-border/50 bg-background/95 backdrop-blur-sm">
+          <footer className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
               <div className="flex flex-col items-center justify-center space-y-3">
                 <div className="flex items-center space-x-6">
@@ -143,6 +145,7 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-500/5 to-emerald-600/5 rounded-full blur-3xl"></div>
         </div>
       </div>
+      </GameProvider>
       </AuthProvider>
     </PasswordGate>
   );

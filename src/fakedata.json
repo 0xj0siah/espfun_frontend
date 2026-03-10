@@ -5589,6 +5589,256 @@
       ],
       "gridID": null,
       "teamGridId": "49611"
+    },
+    {
+      "id": 200101,
+      "name": "Faker",
+      "game": "LoL",
+      "position": "Mid",
+      "price": "200 USDC",
+      "trend": "up",
+      "points": 320,
+      "rating": 98,
+      "image": "/images/lol/Faker.webp",
+      "stats": {
+        "kills": 5.2,
+        "deaths": 2.1,
+        "assists": 7.8,
+        "winRate": 72
+      },
+      "recentMatches": [
+        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 310 },
+        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 295 },
+        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 260 }
+      ],
+      "team": "t1",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200102,
+      "name": "Zeus",
+      "game": "LoL",
+      "position": "Top",
+      "price": "160 USDC",
+      "trend": "up",
+      "points": 290,
+      "rating": 93,
+      "image": "/images/lol/Zeus.webp",
+      "stats": {
+        "kills": 3.8,
+        "deaths": 2.5,
+        "assists": 6.2,
+        "winRate": 70
+      },
+      "recentMatches": [
+        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 285 },
+        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 270 },
+        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 240 }
+      ],
+      "team": "t1",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200103,
+      "name": "Oner",
+      "game": "LoL",
+      "position": "Jungle",
+      "price": "145 USDC",
+      "trend": "stable",
+      "points": 275,
+      "rating": 91,
+      "image": "/images/lol/Oner.webp",
+      "stats": {
+        "kills": 4.1,
+        "deaths": 2.8,
+        "assists": 8.5,
+        "winRate": 68
+      },
+      "recentMatches": [
+        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 275 },
+        { "opponent": "BLG", "result": "loss", "score": "2-3", "performance": 255 },
+        { "opponent": "HLE", "result": "win", "score": "3-2", "performance": 268 }
+      ],
+      "team": "t1",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200104,
+      "name": "Gumayusi",
+      "game": "LoL",
+      "position": "ADC",
+      "price": "155 USDC",
+      "trend": "up",
+      "points": 282,
+      "rating": 92,
+      "image": "/images/lol/Gumayusi.webp",
+      "stats": {
+        "kills": 6.3,
+        "deaths": 2.4,
+        "assists": 5.9,
+        "winRate": 71
+      },
+      "recentMatches": [
+        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 290 },
+        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 278 },
+        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 250 }
+      ],
+      "team": "t1",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200105,
+      "name": "Keria",
+      "game": "LoL",
+      "position": "Support",
+      "price": "150 USDC",
+      "trend": "stable",
+      "points": 278,
+      "rating": 94,
+      "image": "/images/lol/Keria.webp",
+      "stats": {
+        "kills": 1.5,
+        "deaths": 2.2,
+        "assists": 11.3,
+        "winRate": 72
+      },
+      "recentMatches": [
+        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 280 },
+        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 272 },
+        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 248 }
+      ],
+      "team": "t1",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200106,
+      "name": "Chovy",
+      "game": "LoL",
+      "position": "Mid",
+      "price": "185 USDC",
+      "trend": "up",
+      "points": 305,
+      "rating": 96,
+      "image": "/images/lol/Chovy.webp",
+      "stats": {
+        "kills": 5.8,
+        "deaths": 1.9,
+        "assists": 7.1,
+        "winRate": 69
+      },
+      "recentMatches": [
+        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 275 },
+        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 310 },
+        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 298 }
+      ],
+      "team": "geng",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200107,
+      "name": "Doran",
+      "game": "LoL",
+      "position": "Top",
+      "price": "120 USDC",
+      "trend": "stable",
+      "points": 255,
+      "rating": 87,
+      "image": "/images/lol/Doran.webp",
+      "stats": {
+        "kills": 3.2,
+        "deaths": 2.7,
+        "assists": 5.8,
+        "winRate": 65
+      },
+      "recentMatches": [
+        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 245 },
+        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 268 },
+        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 258 }
+      ],
+      "team": "geng",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200108,
+      "name": "Canyon",
+      "game": "LoL",
+      "position": "Jungle",
+      "price": "170 USDC",
+      "trend": "up",
+      "points": 295,
+      "rating": 95,
+      "image": "/images/lol/Canyon.webp",
+      "stats": {
+        "kills": 4.5,
+        "deaths": 2.3,
+        "assists": 9.1,
+        "winRate": 67
+      },
+      "recentMatches": [
+        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 265 },
+        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 300 },
+        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 288 }
+      ],
+      "team": "geng",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200109,
+      "name": "Peyz",
+      "game": "LoL",
+      "position": "ADC",
+      "price": "135 USDC",
+      "trend": "down",
+      "points": 260,
+      "rating": 88,
+      "image": "/images/lol/Peyz.webp",
+      "stats": {
+        "kills": 5.5,
+        "deaths": 2.6,
+        "assists": 5.4,
+        "winRate": 64
+      },
+      "recentMatches": [
+        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 250 },
+        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 278 },
+        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 265 }
+      ],
+      "team": "geng",
+      "gridID": null,
+      "teamGridId": null
+    },
+    {
+      "id": 200110,
+      "name": "Lehends",
+      "game": "LoL",
+      "position": "Support",
+      "price": "125 USDC",
+      "trend": "stable",
+      "points": 262,
+      "rating": 89,
+      "image": "/images/lol/Lehends.webp",
+      "stats": {
+        "kills": 1.2,
+        "deaths": 2.4,
+        "assists": 10.8,
+        "winRate": 66
+      },
+      "recentMatches": [
+        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 252 },
+        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 275 },
+        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 262 }
+      ],
+      "team": "geng",
+      "gridID": null,
+      "teamGridId": null
     }
   ]
 }

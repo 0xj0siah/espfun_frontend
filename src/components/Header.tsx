@@ -16,6 +16,7 @@ import { Card } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { useAuthContext } from '../context/AuthContext';
+import { useGameContext } from '../context/GameContext';
 
 interface HeaderProps {
   activeTab: string;
@@ -24,7 +25,7 @@ interface HeaderProps {
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'];
-  const [selectedGame, setSelectedGame] = useState('CS2');
+  const { selectedGame, setSelectedGame } = useGameContext();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
@@ -56,8 +57,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const { isAuthenticated, isAuthenticating, error: authError, authenticate } = useAuthentication();
 
   const games = [
-    { value: 'CS2', label: 'Counter-Strike 2' }//,
-  //{ value: 'League of Legends', label: 'League of Legends' }
+    { value: 'CS2', label: 'Counter-Strike 2' },
+    { value: 'LoL', label: 'League of Legends' }
   ];
 
   useEffect(() => {

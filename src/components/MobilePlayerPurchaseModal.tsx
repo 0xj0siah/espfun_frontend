@@ -578,9 +578,14 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
     switch (position.toLowerCase()) {
       case 'duelist':
       case 'entry fragger':
-      case 'carry': return <Target className="w-3 h-3" />;
+      case 'carry':
+      case 'rifler':
+      case 'awper':
+      case 'mid':
+      case 'adc': return <Target className="w-3 h-3" />;
       case 'controller':
-      case 'support': return <Shield className="w-3 h-3" />;
+      case 'support':
+      case 'top': return <Shield className="w-3 h-3" />;
       case 'initiator':
       case 'jungle': return <Zap className="w-3 h-3" />;
       default: return <Users className="w-3 h-3" />;
