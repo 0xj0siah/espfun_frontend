@@ -46,7 +46,7 @@ export async function fetchUpcomingMatches(): Promise<GridMatch[]> {
 export async function fetchLiveAndRecentMatches(): Promise<GridMatch[]> {
   try {
     console.log('🔄 Fetching live/recent matches from backend...');
-    const response = await fetch(`${API_BASE_URL}/api/grid/live-recent-matches?titleId=28&limit=20`, {
+    const response = await fetch(`${API_BASE_URL}/api/grid/live-recent-matches?titleId=28&limit=4`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
