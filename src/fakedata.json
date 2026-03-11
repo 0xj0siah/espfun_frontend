@@ -5599,7 +5599,7 @@
       "trend": "up",
       "points": 320,
       "rating": 98,
-      "image": "/images/lol/Faker.webp",
+      "image": "/images/lol/T1/Faker.webp",
       "stats": {
         "kills": 5.2,
         "deaths": 2.1,
@@ -5617,14 +5617,14 @@
     },
     {
       "id": 200102,
-      "name": "Zeus",
+      "name": "Kiin",
       "game": "LoL",
       "position": "Top",
       "price": "160 USDC",
       "trend": "up",
       "points": 290,
       "rating": 93,
-      "image": "/images/lol/Zeus.webp",
+      "image": "/images/lol/GenG/Kiin.webp",
       "stats": {
         "kills": 3.8,
         "deaths": 2.5,
@@ -5632,11 +5632,11 @@
         "winRate": 70
       },
       "recentMatches": [
-        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 285 },
+        { "opponent": "T1", "result": "win", "score": "3-1", "performance": 285 },
         { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 270 },
         { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 240 }
       ],
-      "team": "t1",
+      "team": "geng",
       "gridID": null,
       "teamGridId": null
     },
@@ -5649,7 +5649,7 @@
       "trend": "stable",
       "points": 275,
       "rating": 91,
-      "image": "/images/lol/Oner.webp",
+      "image": "/images/lol/T1/Oner.webp",
       "stats": {
         "kills": 4.1,
         "deaths": 2.8,
@@ -5667,14 +5667,14 @@
     },
     {
       "id": 200104,
-      "name": "Gumayusi",
+      "name": "Ruler",
       "game": "LoL",
       "position": "ADC",
       "price": "155 USDC",
       "trend": "up",
       "points": 282,
       "rating": 92,
-      "image": "/images/lol/Gumayusi.webp",
+      "image": "/images/lol/GenG/Ruler.webp",
       "stats": {
         "kills": 6.3,
         "deaths": 2.4,
@@ -5682,11 +5682,11 @@
         "winRate": 71
       },
       "recentMatches": [
-        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 290 },
+        { "opponent": "T1", "result": "win", "score": "3-1", "performance": 290 },
         { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 278 },
         { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 250 }
       ],
-      "team": "t1",
+      "team": "geng",
       "gridID": null,
       "teamGridId": null
     },
@@ -5699,7 +5699,7 @@
       "trend": "stable",
       "points": 278,
       "rating": 94,
-      "image": "/images/lol/Keria.webp",
+      "image": "/images/lol/T1/Keria.webp",
       "stats": {
         "kills": 1.5,
         "deaths": 2.2,
@@ -5724,7 +5724,7 @@
       "trend": "up",
       "points": 305,
       "rating": 96,
-      "image": "/images/lol/Chovy.webp",
+      "image": "/images/lol/GenG/Chovy.webp",
       "stats": {
         "kills": 5.8,
         "deaths": 1.9,
@@ -5749,7 +5749,7 @@
       "trend": "stable",
       "points": 255,
       "rating": 87,
-      "image": "/images/lol/Doran.webp",
+      "image": "/images/lol/T1/Doran.webp",
       "stats": {
         "kills": 3.2,
         "deaths": 2.7,
@@ -5757,11 +5757,11 @@
         "winRate": 65
       },
       "recentMatches": [
-        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 245 },
+        { "opponent": "Gen.G", "result": "loss", "score": "1-3", "performance": 245 },
         { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 268 },
         { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 258 }
       ],
-      "team": "geng",
+      "team": "t1",
       "gridID": null,
       "teamGridId": null
     },
@@ -5774,7 +5774,7 @@
       "trend": "up",
       "points": 295,
       "rating": 95,
-      "image": "/images/lol/Canyon.webp",
+      "image": "/images/lol/GenG/Canyon.webp",
       "stats": {
         "kills": 4.5,
         "deaths": 2.3,
@@ -5799,7 +5799,7 @@
       "trend": "down",
       "points": 260,
       "rating": 88,
-      "image": "/images/lol/Peyz.webp",
+      "image": "/images/lol/T1/Peyz.webp",
       "stats": {
         "kills": 5.5,
         "deaths": 2.6,
@@ -5807,24 +5807,24 @@
         "winRate": 64
       },
       "recentMatches": [
-        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 250 },
+        { "opponent": "Gen.G", "result": "loss", "score": "1-3", "performance": 250 },
         { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 278 },
         { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 265 }
       ],
-      "team": "geng",
+      "team": "t1",
       "gridID": null,
       "teamGridId": null
     },
     {
       "id": 200110,
-      "name": "Lehends",
+      "name": "Duro",
       "game": "LoL",
       "position": "Support",
       "price": "125 USDC",
       "trend": "stable",
       "points": 262,
       "rating": 89,
-      "image": "/images/lol/Lehends.webp",
+      "image": "/images/lol/GenG/Duro.webp",
       "stats": {
         "kills": 1.2,
         "deaths": 2.4,
