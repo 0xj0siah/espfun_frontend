@@ -5,7 +5,7 @@ import TeamSection from './components/TeamSection';
 import TransfersSection from './components/TransfersSection';
 import LiveScoresSection from './components/LiveScoresSection';
 import LeaderboardSection from './components/LeaderboardSection';
-import PackOpeningSection from './components/PackOpeningSection';
+import PackOpeningSection from './components/pack-opening/PackOpeningSection';
 import { PasswordGate } from './components/PasswordGate';
 import { usePlayerPrices } from './hooks/usePlayerPricing';
 import fakeData from './fakedata.json';

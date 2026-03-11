@@ -215,3 +215,90 @@ input[type="number"] {
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* Pack Opening - Holographic card effect */
+.holo-effect {
+  background: linear-gradient(
+    125deg,
+    rgba(255, 0, 0, 0.12) 0%,
+    rgba(255, 165, 0, 0.12) 16%,
+    rgba(255, 255, 0, 0.12) 33%,
+    rgba(0, 128, 0, 0.12) 50%,
+    rgba(0, 0, 255, 0.12) 66%,
+    rgba(75, 0, 130, 0.12) 83%,
+    rgba(238, 130, 238, 0.12) 100%
+  );
+  background-size: 300% 300%;
+  animation: holo-shift 4s ease infinite;
+}
+
+@keyframes holo-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Pack Opening - Shimmer sweep effect */
+.shimmer-sweep {
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.25) 48%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.25) 52%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 3s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Pack Opening - Legendary glow pulse border */
+.glow-pulse-border {
+  box-shadow:
+    0 0 8px rgba(245, 158, 11, 0.4),
+    0 0 16px rgba(245, 158, 11, 0.2),
+    inset 0 0 8px rgba(245, 158, 11, 0.1);
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 8px rgba(245, 158, 11, 0.4),
+      0 0 16px rgba(245, 158, 11, 0.2),
+      inset 0 0 8px rgba(245, 158, 11, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 16px rgba(245, 158, 11, 0.6),
+      0 0 32px rgba(245, 158, 11, 0.3),
+      inset 0 0 16px rgba(245, 158, 11, 0.15);
+  }
+}
+
+/* Pack Opening - Idle floating animation */
+.float-idle {
+  animation: float-idle 3s ease-in-out infinite;
+}
+
+@keyframes float-idle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Pack Opening - Sparkle float for card effects */
+@keyframes sparkle-float {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.5) translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2) translateY(-4px);
+  }
+}
