@@ -401,6 +401,11 @@ export default function TeamSection({
     fetchDevelopmentPlayers();
   }, [authenticated, user?.wallet?.address]);
 
+  // Filter owned players by selected game
+  const filteredOwnedPlayers = useMemo(() => {
+    return ownedPlayers.filter(player => player.game === selectedGame);
+  }, [ownedPlayers, selectedGame]);
+
   // Update owned players prices when playerPrices changes (without re-fetching balances)
   useEffect(() => {
     if (ownedPlayers.length > 0 && Object.keys(playerPrices).length > 0) {
@@ -508,7 +513,7 @@ export default function TeamSection({
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-          Total Value: {ownedPlayers.reduce((total, player) => {
+          Total Value: {filteredOwnedPlayers.reduce((total, player) => {
             const value = parseFloat(player.totalValue?.replace(/[^\d.-]/g, '') || '0');
             return total + value;
           }, 0).toFixed(3)} USDC
@@ -536,7 +541,7 @@ export default function TeamSection({
         <TabsContent value="squad" className="space-y-6">
           {loading ? (
             <div>Loading owned players...</div>
-          ) : ownedPlayers.length === 0 ? (
+          ) : filteredOwnedPlayers.length === 0 ? (
             <div className="text-center py-8">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No Owned Players</h3>
@@ -544,7 +549,7 @@ export default function TeamSection({
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {ownedPlayers.map((player, index) => (
+              {filteredOwnedPlayers.map((player, index) => (
                 <motion.div
                   key={player.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -785,7 +790,7 @@ export default function TeamSection({
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-          ) : ownedPlayers.length === 0 ? (
+          ) : filteredOwnedPlayers.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No Active Contracts</h3>
@@ -808,7 +813,7 @@ export default function TeamSection({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {ownedPlayers.map((player, index) => {
+                {filteredOwnedPlayers.map((player, index) => {
                   // Filler data for contract information (will be replaced with backend data later)
                   const gamesRemaining = Math.floor(Math.random() * 10) + 1; // 1-10 games
                   const contractStatus = gamesRemaining <= 3 ? 'expiring' : gamesRemaining <= 6 ? 'active' : 'healthy';
