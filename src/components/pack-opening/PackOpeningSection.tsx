@@ -125,6 +125,13 @@ export default function PackOpeningSection() {
       // Purchase via API
       const response: PackPurchaseResponse = await apiService.purchasePack({ packType: pack.id });
 
+      // Guard: backend returned no players
+      if (!response.transaction.playerIds?.length) {
+        purchaseFailure('Pack opened on-chain but no players were returned. Check backend logs for the PackOpened event.');
+        toast.error('Pack purchase failed: no players received.');
+        return;
+      }
+
       // Transform to RevealCard[]
       const cards: RevealCard[] = response.transaction.playerIds.map((playerId, index) => {
         const playerData = getPlayerData(playerId);
