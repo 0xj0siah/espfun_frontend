@@ -21,6 +21,7 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
   const [flashTrigger, setFlashTrigger] = useState(0);
   const [flashColor, setFlashColor] = useState('white');
   const [rarityLabel, setRarityLabel] = useState<{ text: string; color: string } | null>(null);
+  const [cardsLanded, setCardsLanded] = useState(false);
 
   const cardW = isMobile ? CARD_WIDTH_MOBILE : CARD_WIDTH;
   const cardH = isMobile ? CARD_HEIGHT_MOBILE : CARD_HEIGHT;
@@ -40,6 +41,13 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
   const lastCard = sortedCards[sortedCards.length - 1]?.card;
   const lastCardIsDramatic = lastCard && (lastCard.rarity === 'epic' || lastCard.rarity === 'legendary');
 
+  // Mark cards as landed after entrance animation completes
+  useEffect(() => {
+    const maxDelay = 0.5 + (sortedCards.length - 1) * 0.15 + (lastCardIsDramatic ? 0.35 : 0);
+    const timer = setTimeout(() => setCardsLanded(true), (maxDelay + 0.6) * 1000);
+    return () => clearTimeout(timer);
+  }, [sortedCards.length, lastCardIsDramatic]);
+
   // Auto-advance to summary after all revealed
   useEffect(() => {
     if (allFlipped) {
@@ -50,14 +58,14 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
 
   // Auto-reveal timer (fallback if user doesn't click)
   useEffect(() => {
-    if (allFlipped || nextUnrevealedSortedIdx === -1) return;
+    if (!cardsLanded || allFlipped || nextUnrevealedSortedIdx === -1) return;
     const { originalIndex } = sortedCards[nextUnrevealedSortedIdx];
 
     const timer = setTimeout(() => {
       handleReveal(originalIndex);
     }, AUTO_REVEAL_DELAY);
     return () => clearTimeout(timer);
-  }, [nextUnrevealedSortedIdx, allFlipped]);
+  }, [nextUnrevealedSortedIdx, allFlipped, cardsLanded]);
 
   const handleReveal = useCallback((originalIndex: number) => {
     if (cards[originalIndex]?.isRevealed) return;
@@ -106,7 +114,7 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.8 }}
         className="relative z-10 text-center mb-8"
       >
         <h3 className="text-2xl font-bold text-white mb-1">
@@ -136,36 +144,54 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
         )}
       </AnimatePresence>
 
-      {/* Card row — sorted by rarity (best last) */}
+      {/* Card row — cards fly in from center as if ejected from torn pack */}
       <div className="relative z-10 flex flex-wrap justify-center gap-4 px-4">
         {sortedCards.map(({ card, originalIndex }, sortedIdx) => {
           const isLastDramatic = sortedIdx === sortedCards.length - 1 && lastCardIsDramatic;
+          const totalCards = sortedCards.length;
+
+          // Fan-out positions: cards spread from center
+          // Each card gets a slight horizontal offset so they fan outward
+          const fanOffset = (sortedIdx - (totalCards - 1) / 2) * 8;
 
           return (
             <motion.div
               key={card.id}
-              initial={{ opacity: 0, scale: 0.3, y: 80 }}
+              initial={{
+                opacity: 0,
+                scale: 0.15,
+                y: 120,
+                rotateX: 55,
+                rotateZ: fanOffset * 0.6,
+              }}
               animate={{
                 opacity: 1,
                 scale: 1,
                 y: 0,
+                rotateX: 0,
+                rotateZ: 0,
               }}
               transition={{
-                // Last dramatic card gets a slightly longer delay for suspense
-                delay: 0.3 + sortedIdx * 0.12 + (isLastDramatic ? 0.3 : 0),
+                delay: 0.5 + sortedIdx * 0.15 + (isLastDramatic ? 0.35 : 0),
+                duration: 0.55,
                 type: 'spring',
-                stiffness: 180,
-                damping: 14, // Lower damping = more overshoot on landing
+                stiffness: 160,
+                damping: 13,
               }}
+              style={{ perspective: 800 }}
             >
               <CardFlipContainer
                 card={card}
                 isFlipped={card.isRevealed}
-                onClick={() => !card.isRevealed && handleReveal(originalIndex)}
+                onClick={() => cardsLanded && !card.isRevealed && handleReveal(originalIndex)}
                 width={cardW}
                 height={cardH}
                 riveBuffer={riveCardRevealBuffer}
-                className={!card.isRevealed && sortedIdx === nextUnrevealedSortedIdx ? 'ring-2 ring-white/30 rounded-xl ring-offset-2 ring-offset-transparent' : ''}
+                className={
+                  cardsLanded && !card.isRevealed && sortedIdx === nextUnrevealedSortedIdx
+                    ? 'ring-2 ring-white/30 rounded-xl ring-offset-2 ring-offset-transparent'
+                    : ''
+                }
               />
             </motion.div>
           );
@@ -177,9 +203,8 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 2 }}
+          transition={{ delay: 2.5 }}
           onClick={() => {
-            // Reveal all remaining in sorted order
             sortedCards.forEach(({ card, originalIndex }, i) => {
               if (!card.isRevealed) {
                 setTimeout(() => handleReveal(originalIndex), i * 100);

@@ -106,7 +106,7 @@ export function PackSelectionPhase({
       {/* Pack Grid */}
       {!loading && !error && availablePacks.length > 0 && (
         <div className="flex justify-center">
-          <div className="flex flex-wrap justify-center gap-10">
+          <div className="flex flex-wrap justify-center gap-8 md:gap-12">
             {/* Test Pack */}
             {testMode && (
               <motion.div
@@ -115,46 +115,37 @@ export function PackSelectionPhase({
                 className="flex flex-col items-center gap-3"
               >
                 <motion.div
-                  whileHover={{ scale: 1.04, y: -4 }}
+                  whileHover={{ scale: 1.05, y: -8, rotateY: 3 }}
                   whileTap={{ scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                   className="cursor-pointer"
+                  style={{ perspective: 800 }}
                   onClick={onTestOpen}
                 >
                   <div
-                    className="relative rounded-md overflow-hidden"
+                    className="relative rounded-lg overflow-hidden"
                     style={{
-                      width: 160,
-                      height: 228,
+                      width: 180,
+                      height: 260,
                       background: 'linear-gradient(165deg, #065f46 0%, #047857 40%, #065f46 100%)',
-                      boxShadow: '0 4px 20px rgba(16,185,129,0.2), 0 1px 3px rgba(0,0,0,0.3)',
+                      boxShadow: '0 8px 30px rgba(16,185,129,0.25), 0 2px 8px rgba(0,0,0,0.4)',
                     }}
                   >
-                    {/* Foil texture */}
                     <div className="absolute inset-0 opacity-20" style={{
                       backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%)',
-                      backgroundSize: '4px 4px',
+                      backgroundSize: '3px 3px',
                     }} />
-
-                    {/* Content */}
                     <div className="relative h-full flex flex-col items-center justify-center p-4 text-center">
-                      <FlaskConical className="w-8 h-8 text-emerald-200/70 mb-2" />
-                      <p className="text-emerald-100 font-bold text-xs mb-1">TEST PACK</p>
-                      <p className="text-emerald-200/50 text-[10px]">4 Random Cards</p>
+                      <FlaskConical className="w-10 h-10 text-emerald-200/60 mb-3" />
+                      <p className="text-emerald-100 font-black text-sm tracking-wider mb-1">TEST PACK</p>
+                      <p className="text-emerald-200/40 text-[9px] tracking-widest uppercase">4 Random Cards</p>
                     </div>
-
-                    {/* Tear strip */}
-                    <div className="absolute top-[52px] left-0 right-0">
-                      <div className="h-[3px] bg-emerald-300/40" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 6px)' }} />
-                    </div>
-
-                    {/* Shine sweep */}
-                    <div className="absolute inset-0 overflow-hidden rounded-md">
-                      <div className="shimmer-sweep absolute inset-0 opacity-20" />
+                    <div className="absolute inset-0 overflow-hidden rounded-lg">
+                      <div className="shimmer-sweep absolute inset-0 opacity-15" />
                     </div>
                   </div>
                 </motion.div>
-                <span className="text-muted-foreground text-xs">Free</span>
+                <span className="text-muted-foreground text-xs font-medium">Free</span>
               </motion.div>
             )}
 
@@ -162,147 +153,153 @@ export function PackSelectionPhase({
             {availablePacks.map((pack, index) => {
               const design = PACK_DESIGNS[pack.id] || PACK_DESIGNS.PRO;
               const disabled = !testMode && (!isAuthenticated || isAuthenticating);
+              const isLegendary = pack.id === 'LEGENDARY';
 
               return (
                 <motion.div
                   key={pack.id}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
+                  transition={{ delay: index * 0.12 }}
                   className="flex flex-col items-center gap-3"
                 >
                   <motion.div
-                    whileHover={disabled ? {} : { scale: 1.04, y: -6 }}
-                    whileTap={disabled ? {} : { scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    whileHover={disabled ? {} : { scale: 1.06, y: -10, rotateY: 4 }}
+                    whileTap={disabled ? {} : { scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 18 }}
                     className={disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                    style={{ perspective: 800 }}
                     onClick={() => !disabled && onSelectPack(pack)}
                   >
-                    {/* === The Foil Pack Wrapper === */}
+                    {/* Pack wrapper */}
                     <div
-                      className="relative rounded-md overflow-hidden"
+                      className="relative rounded-lg overflow-hidden"
                       style={{
-                        width: 160,
-                        height: 228,
+                        width: 180,
+                        height: 260,
                         background: design.foilGradient,
-                        boxShadow: `0 4px 24px ${design.glowColor}, 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`,
+                        boxShadow: `
+                          0 12px 40px ${design.glowColor},
+                          0 4px 12px rgba(0,0,0,0.4),
+                          0 0 0 1px rgba(255,255,255,0.06)
+                          ${isLegendary ? `, 0 0 60px ${design.foilAccent}30` : ''}
+                        `,
                       }}
                     >
-                      {/* Foil micro-texture (the tiny grain you see on real foil packs) */}
-                      <div className="absolute inset-0 opacity-[0.12]" style={{
-                        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.2) 75%, transparent 75%)',
-                        backgroundSize: '4px 4px',
-                      }} />
-
-                      {/* Wrapper crinkle/wrinkle highlight lines */}
+                      {/* Metallic grain texture */}
                       <div className="absolute inset-0 opacity-[0.07]" style={{
                         backgroundImage: `
-                          linear-gradient(172deg, transparent 20%, rgba(255,255,255,0.8) 20.5%, transparent 21%),
-                          linear-gradient(168deg, transparent 55%, rgba(255,255,255,0.6) 55.5%, transparent 56%),
-                          linear-gradient(175deg, transparent 78%, rgba(255,255,255,0.5) 78.5%, transparent 79%)
+                          repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.15) 1px, rgba(255,255,255,0.15) 2px),
+                          repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(255,255,255,0.1) 1px, rgba(255,255,255,0.1) 2px)
+                        `,
+                        backgroundSize: '3px 3px',
+                      }} />
+
+                      {/* Wrapper crinkle highlights */}
+                      <div className="absolute inset-0 opacity-[0.05]" style={{
+                        backgroundImage: `
+                          linear-gradient(168deg, transparent 18%, rgba(255,255,255,0.9) 18.4%, transparent 18.8%),
+                          linear-gradient(173deg, transparent 52%, rgba(255,255,255,0.7) 52.4%, transparent 52.8%),
+                          linear-gradient(162deg, transparent 71%, rgba(255,255,255,0.6) 71.4%, transparent 71.8%),
+                          linear-gradient(177deg, transparent 38%, rgba(255,255,255,0.5) 38.4%, transparent 38.8%)
                         `,
                       }} />
 
-                      {/* Top edge fold/seal - the sealed top of the pack */}
-                      <div className="absolute top-0 left-0 right-0 h-[10px]" style={{
-                        background: `linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.1) 40%, transparent 100%)`,
+                      {/* Top heat seal */}
+                      <div className="absolute top-0 left-0 right-0 h-[14px]" style={{
+                        background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 50%, transparent 100%)',
                       }} />
-                      {/* Crimp lines at top */}
-                      <div className="absolute top-[3px] left-[8px] right-[8px] h-[4px] rounded-sm" style={{
-                        backgroundImage: `repeating-linear-gradient(90deg, ${design.foilAccent}30 0px, ${design.foilAccent}30 4px, transparent 4px, transparent 8px)`,
+                      <div className="absolute top-[4px] left-[10px] right-[10px] h-[5px] rounded-sm" style={{
+                        backgroundImage: `repeating-linear-gradient(90deg, ${design.foilAccent}25 0px, ${design.foilAccent}25 3px, transparent 3px, transparent 6px)`,
                       }} />
 
-                      {/* === Tear strip (the perforated pull strip) === */}
-                      <div className="absolute top-[52px] left-0 right-0">
-                        {/* Top edge of strip */}
-                        <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, ${design.tearColor}50, transparent)` }} />
-                        {/* Dotted perforation */}
-                        <div className="h-[2px]" style={{
-                          backgroundImage: `repeating-linear-gradient(90deg, ${design.tearColor}40 0px, ${design.tearColor}40 3px, transparent 3px, transparent 7px)`,
-                        }} />
-                        {/* Pull tab nub on the right */}
-                        <div className="absolute -top-[3px] right-[6px] w-[14px] h-[8px] rounded-b-sm" style={{
-                          background: design.tearColor,
-                          opacity: 0.35,
-                        }} />
-                        {/* Bottom edge of strip */}
-                        <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, ${design.tearColor}30, transparent)` }} />
-                      </div>
+                      {/* Holographic rainbow strip */}
+                      <div className="absolute left-0 right-0 h-[5px]" style={{
+                        top: '38%',
+                        background: 'linear-gradient(90deg, #ff000025, #ff800025, #ffff0025, #00ff0025, #0080ff25, #8000ff25, #ff000025)',
+                        backgroundSize: '200% 100%',
+                        animation: 'holo-shift 4s linear infinite',
+                        mixBlendMode: 'screen',
+                      }} />
 
-                      {/* === Pack artwork / center content === */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
-                        {/* ESP.FUN Logo */}
-                        <div className="relative mb-2 mt-2">
+                      {/* Tear notch */}
+                      <div className="absolute right-0 w-[7px] h-[10px]" style={{
+                        top: '37%',
+                        background: `linear-gradient(to left, ${design.foilAccent}50, transparent)`,
+                        clipPath: 'polygon(100% 0, 0 50%, 100% 100%)',
+                      }} />
+
+                      {/* Pack artwork */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center px-5">
+                        <div className="relative mb-3">
                           <img
                             src="/oglogonobg.png"
                             alt="ESP.FUN"
-                            className="w-14 h-14 object-contain relative z-10"
-                            style={{ filter: `drop-shadow(0 2px 8px ${design.glowColor})` }}
+                            className="w-16 h-16 object-contain relative z-10"
+                            style={{ filter: `drop-shadow(0 0 14px ${design.glowColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.5))` }}
                           />
                         </div>
-
-                        {/* Pack name */}
-                        <h3
-                          className="font-black text-[13px] tracking-wider uppercase mb-0.5"
-                          style={{
-                            color: design.tierColor,
-                            textShadow: `0 0 12px ${design.glowColor}, 0 1px 2px rgba(0,0,0,0.5)`,
-                          }}
-                        >
+                        <h3 className="font-black text-[15px] tracking-[0.15em] uppercase mb-0.5" style={{
+                          color: design.tierColor,
+                          textShadow: `0 0 16px ${design.glowColor}, 0 0 32px ${design.glowColor}, 0 2px 4px rgba(0,0,0,0.6)`,
+                        }}>
                           {pack.name}
                         </h3>
-
-                        {/* Tier badge */}
-                        <div
-                          className="rounded-sm px-3 py-0.5 mb-1.5"
-                          style={{
-                            background: design.tierBg,
-                            border: `1px solid ${design.foilAccent}40`,
-                          }}
-                        >
-                          <span className="text-[9px] font-black tracking-[0.2em] uppercase" style={{ color: design.tierColor }}>
+                        <div className="rounded-sm px-4 py-0.5 mb-2" style={{
+                          background: design.tierBg,
+                          border: `1px solid ${design.foilAccent}30`,
+                        }}>
+                          <span className="text-[8px] font-black tracking-[0.25em] uppercase" style={{ color: design.tierColor }}>
                             {design.tierLabel} SERIES
                           </span>
                         </div>
-
-                        {/* "4 Player Cards" text */}
-                        <p className="text-white/40 text-[9px] font-medium tracking-wider uppercase">
-                          4 Player Cards
+                        <p className="text-white/30 text-[8px] font-semibold tracking-[0.3em] uppercase">
+                          4 PLAYER CARDS
                         </p>
                       </div>
 
-                      {/* Bottom seal / barcode area */}
-                      <div className="absolute bottom-0 left-0 right-0 h-[28px] bg-black/20">
-                        {/* Fake barcode lines */}
-                        <div className="absolute bottom-[6px] left-[12px] flex gap-[1px]">
-                          {[3,1,2,1,3,2,1,1,2,3,1,2,1,1,3,2,1,2,1,3].map((w, i) => (
-                            <div key={i} className="bg-white/15 rounded-[0.5px]" style={{ width: w, height: 10 }} />
+                      {/* Bottom barcode area */}
+                      <div className="absolute bottom-0 left-0 right-0 h-[32px]" style={{
+                        background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.3))',
+                      }}>
+                        <div className="absolute bottom-[8px] left-[14px] flex gap-[1px]">
+                          {[3,1,2,1,3,2,1,1,2,3,1,2,1,1,3,2,1,2,1,3,1,2,3,1].map((w, i) => (
+                            <div key={i} className="bg-white/12 rounded-[0.5px]" style={{ width: w, height: 12 }} />
                           ))}
                         </div>
-                        {/* Tiny legal text */}
-                        <div className="absolute bottom-[6px] right-[12px]">
-                          <span className="text-white/20 text-[6px] font-mono">ESP-{pack.id}-2026</span>
+                        <div className="absolute bottom-[8px] right-[14px]">
+                          <span className="text-white/15 text-[6px] font-mono tracking-wider">ESP-{pack.id}-S1</span>
                         </div>
                       </div>
 
-                      {/* Shine sweep on hover (CSS fallback) */}
-                      <div className="absolute inset-0 overflow-hidden rounded-md group">
-                        <div className="shimmer-sweep absolute inset-0 opacity-15" />
+                      {/* Shimmer sweep */}
+                      <div className="absolute inset-0 overflow-hidden rounded-lg">
+                        <div className="shimmer-sweep absolute inset-0 opacity-12" />
                       </div>
 
-                      {/* Rive foil idle overlay — replaces shimmer when .riv loaded */}
+                      {/* Rive foil idle overlay */}
                       {riveFoilIdleBuffer && (
                         <RiveFoilIdle tier={pack.id} riveBuffer={riveFoilIdleBuffer} />
                       )}
 
-                      {/* Edge shadow to simulate 3D foil wrapper depth */}
-                      <div className="absolute inset-0 rounded-md pointer-events-none" style={{
-                        boxShadow: 'inset 2px 0 4px rgba(255,255,255,0.08), inset -2px 0 4px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.06), inset 0 -2px 6px rgba(0,0,0,0.2)',
+                      {/* 3D edge insets */}
+                      <div className="absolute inset-0 rounded-lg pointer-events-none" style={{
+                        boxShadow: `
+                          inset 1px 0 3px rgba(255,255,255,0.1),
+                          inset -1px 0 3px rgba(0,0,0,0.2),
+                          inset 0 1px 3px rgba(255,255,255,0.08),
+                          inset 0 -1px 4px rgba(0,0,0,0.25)
+                        `,
                       }} />
+
+                      {/* Legendary pulsing border glow */}
+                      {isLegendary && (
+                        <div className="absolute inset-0 rounded-lg pointer-events-none glow-pulse-border" />
+                      )}
                     </div>
                   </motion.div>
 
-                  {/* Price label below the pack */}
+                  {/* Price label */}
                   <div className="text-center">
                     <span className="text-foreground font-bold text-sm">{pack.price}</span>
                     <span className="text-muted-foreground text-xs ml-1">pts</span>

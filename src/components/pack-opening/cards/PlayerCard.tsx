@@ -19,12 +19,34 @@ function formatShares(weiValue: number): string {
   }
 }
 
-// Rarity border/accent colors as raw hex for inline styles
-const RARITY_FRAME: Record<string, { border: string; accent: string; headerBg: string; nameBg: string }> = {
-  common: { border: '#6b7280', accent: '#9ca3af', headerBg: 'linear-gradient(135deg, #374151, #4b5563)', nameBg: 'rgba(55,65,81,0.95)' },
-  rare: { border: '#3b82f6', accent: '#60a5fa', headerBg: 'linear-gradient(135deg, #1e3a5f, #1e40af)', nameBg: 'rgba(30,58,95,0.95)' },
-  epic: { border: '#8b5cf6', accent: '#a78bfa', headerBg: 'linear-gradient(135deg, #4c1d95, #6d28d9)', nameBg: 'rgba(76,29,149,0.95)' },
-  legendary: { border: '#f59e0b', accent: '#fbbf24', headerBg: 'linear-gradient(135deg, #92400e, #b45309)', nameBg: 'rgba(146,64,14,0.95)' },
+const RARITY_FRAME: Record<string, {
+  border: string; accent: string; headerBg: string; nameBg: string;
+  outerGlow: string; innerGlow: string;
+}> = {
+  common: {
+    border: '#6b7280', accent: '#9ca3af',
+    headerBg: 'linear-gradient(135deg, #374151, #4b5563)',
+    nameBg: 'rgba(55,65,81,0.95)',
+    outerGlow: 'none', innerGlow: 'none',
+  },
+  rare: {
+    border: '#3b82f6', accent: '#60a5fa',
+    headerBg: 'linear-gradient(135deg, #1e3a5f, #1e40af)',
+    nameBg: 'rgba(30,58,95,0.95)',
+    outerGlow: '0 0 12px rgba(59,130,246,0.2)', innerGlow: 'inset 0 0 12px rgba(59,130,246,0.08)',
+  },
+  epic: {
+    border: '#8b5cf6', accent: '#a78bfa',
+    headerBg: 'linear-gradient(135deg, #4c1d95, #6d28d9)',
+    nameBg: 'rgba(76,29,149,0.95)',
+    outerGlow: '0 0 20px rgba(139,92,246,0.3)', innerGlow: 'inset 0 0 16px rgba(139,92,246,0.1)',
+  },
+  legendary: {
+    border: '#f59e0b', accent: '#fbbf24',
+    headerBg: 'linear-gradient(135deg, #92400e, #d97706)',
+    nameBg: 'rgba(146,64,14,0.95)',
+    outerGlow: '0 0 30px rgba(245,158,11,0.35)', innerGlow: 'inset 0 0 20px rgba(245,158,11,0.12)',
+  },
 };
 
 export function PlayerCard({ card, width, height }: PlayerCardProps) {
@@ -33,7 +55,7 @@ export function PlayerCard({ card, width, height }: PlayerCardProps) {
 
   return (
     <div
-      className="absolute inset-0 rounded-lg overflow-hidden"
+      className="absolute inset-0 rounded-xl overflow-hidden"
       style={{
         width,
         height,
@@ -41,114 +63,124 @@ export function PlayerCard({ card, width, height }: PlayerCardProps) {
         transform: 'rotateY(180deg)',
       }}
     >
-      {/* === Outer card frame - the "printed card" base === */}
+      {/* Outer card frame */}
       <div
-        className="absolute inset-0 rounded-lg"
+        className="absolute inset-0 rounded-xl"
         style={{
-          background: '#0f0f0f',
+          background: '#0a0a0f',
           border: `3px solid ${frame.border}`,
-          boxShadow: `0 0 0 1px rgba(0,0,0,0.5), inset 0 0 0 1px ${frame.border}30`,
+          boxShadow: `${frame.outerGlow}, ${frame.innerGlow}, 0 0 0 1px rgba(0,0,0,0.6)`,
         }}
       />
 
-      {/* Rarity effects (holo, shimmer) layered on top of everything */}
+      {/* Inner border accent line */}
+      <div className="absolute inset-[3px] rounded-[9px] pointer-events-none" style={{
+        border: `1px solid ${frame.border}20`,
+      }} />
+
+      {/* Rarity effects (holo, shimmer) */}
       <RarityEffects rarity={card.rarity} />
 
-      {/* === Card interior content (inset from the frame) === */}
+      {/* Card interior */}
       <div className="relative z-10 h-full flex flex-col m-[3px]">
 
-        {/* Top strip - rating + game + position */}
+        {/* Top strip */}
         <div
-          className="flex items-center justify-between px-2 py-1 rounded-t-[5px]"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-t-[8px]"
           style={{ background: frame.headerBg }}
         >
-          {/* Rating number */}
+          {/* Rating badge */}
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center font-black text-xs text-white"
+            className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs text-white"
             style={{
-              background: `linear-gradient(135deg, ${frame.accent}, ${frame.border})`,
-              boxShadow: `0 0 6px ${frame.accent}60`,
+              background: `linear-gradient(145deg, ${frame.accent}, ${frame.border})`,
+              boxShadow: `0 2px 8px ${frame.accent}50, inset 0 1px 0 rgba(255,255,255,0.2)`,
             }}
           >
             {card.rating}
           </div>
 
-          {/* Position */}
-          <span className="text-white/80 text-[9px] font-semibold uppercase tracking-wider">{card.position}</span>
+          {/* Position tag */}
+          <div className="px-2 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
+            <span className="text-white/90 text-[9px] font-bold uppercase tracking-wider">{card.position}</span>
+          </div>
 
-          {/* Game logo/text */}
-          <span className="text-white/60 text-[8px] font-bold uppercase tracking-wider">{card.game}</span>
+          {/* Game */}
+          <span className="text-white/50 text-[8px] font-bold uppercase tracking-wider">{card.game}</span>
         </div>
 
-        {/* === Main image area - the hero of the card === */}
-        <div className="flex-1 relative overflow-hidden" style={{ background: '#1a1a2e' }}>
+        {/* Hero image area */}
+        <div className="flex-1 relative overflow-hidden" style={{ background: '#0d0d1a' }}>
           {/* Team logo watermark */}
           <div
-            className="absolute inset-0 z-0 opacity-15"
+            className="absolute inset-0 z-0 opacity-10"
             style={{
               backgroundImage: `url(${card.teamLogo})`,
-              backgroundSize: '55%',
-              backgroundPosition: 'center',
+              backgroundSize: '50%',
+              backgroundPosition: 'center 40%',
               backgroundRepeat: 'no-repeat',
+              filter: 'blur(1px)',
             }}
           />
 
-          {/* Gradient backdrop behind player */}
-          <div
-            className="absolute inset-0 z-[1]"
-            style={{
-              background: `radial-gradient(ellipse at 50% 60%, ${frame.border}15 0%, transparent 65%)`,
-            }}
-          />
+          {/* Rarity color backdrop */}
+          <div className="absolute inset-0 z-[1]" style={{
+            background: `
+              radial-gradient(ellipse at 50% 70%, ${frame.border}12 0%, transparent 55%),
+              radial-gradient(ellipse at 50% 0%, ${frame.border}08 0%, transparent 40%)
+            `,
+          }} />
 
-          {/* Player image - big, centered, the star of the card */}
+          {/* Player photo */}
           <ImageWithFallback
             src={card.image}
             alt={card.name}
             className="relative z-[2] w-full h-full object-contain"
-            style={{
-              filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,
-            }}
+            style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.7))' }}
           />
 
           {/* Bottom vignette */}
-          <div className="absolute bottom-0 left-0 right-0 h-12 z-[3] bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/60 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-14 z-[3]" style={{
+            background: 'linear-gradient(to top, #0a0a0f, #0a0a0f80 40%, transparent)',
+          }} />
+
+          {/* Top subtle vignette */}
+          <div className="absolute top-0 left-0 right-0 h-6 z-[3]" style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)',
+          }} />
         </div>
 
-        {/* === Name plate - overlaps the bottom of the image === */}
-        <div
-          className="relative -mt-1 px-2 py-1.5 z-[5]"
-          style={{ background: frame.nameBg }}
-        >
+        {/* Name plate */}
+        <div className="relative -mt-1.5 px-3 py-2 z-[5]" style={{ background: frame.nameBg }}>
           <h3
-            className="text-white font-black text-[13px] text-center truncate tracking-wide"
-            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
+            className="text-white font-black text-[14px] text-center truncate tracking-wide"
+            style={{ textShadow: `0 1px 4px rgba(0,0,0,0.6), 0 0 12px ${frame.border}30` }}
           >
             {card.name}
           </h3>
         </div>
 
-        {/* === Bottom info bar === */}
+        {/* Bottom info bar */}
         <div
-          className="flex items-center justify-between px-2 py-1.5 rounded-b-[5px]"
-          style={{ background: 'rgba(15,15,15,0.98)' }}
+          className="flex items-center justify-between px-3 py-2 rounded-b-[8px]"
+          style={{ background: 'rgba(10,10,15,0.98)' }}
         >
-          {/* Rarity label */}
-          <span
-            className="text-[8px] font-black uppercase tracking-[0.15em]"
-            style={{ color: frame.accent }}
-          >
-            {config.label}
-          </span>
+          {/* Rarity label with accent dot */}
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: frame.accent, boxShadow: `0 0 4px ${frame.accent}` }} />
+            <span className="text-[8px] font-black uppercase tracking-[0.15em]" style={{ color: frame.accent }}>
+              {config.label}
+            </span>
+          </div>
 
           {/* Shares */}
           <div className="flex items-center gap-1">
-            <span className="text-white/50 text-[8px]">Shares:</span>
+            <span className="text-white/40 text-[7px] uppercase tracking-wider">Shares</span>
             <span className="text-white font-bold text-[9px]">{formatShares(card.shares)}</span>
           </div>
 
-          {/* ESP.FUN tiny branding */}
-          <span className="text-white/20 text-[7px] font-bold tracking-wider">ESP.FUN</span>
+          {/* Branding */}
+          <span className="text-white/15 text-[6px] font-black tracking-[0.2em]">ESP.FUN</span>
         </div>
       </div>
     </div>
