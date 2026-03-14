@@ -1,7 +1,7 @@
 import { useReducer, useEffect, useCallback } from 'react';
 import type { PackOpeningPhase, PackOpeningAction, RevealCard } from './types';
 import type { PackInfo } from '../../services/apiService';
-import { OPENING_ANIMATION_DURATION } from './constants';
+import { RIVE_FALLBACK_TIMEOUT } from './constants';
 
 function packOpeningReducer(state: PackOpeningPhase, action: PackOpeningAction): PackOpeningPhase {
   switch (action.type) {
@@ -46,12 +46,14 @@ function packOpeningReducer(state: PackOpeningPhase, action: PackOpeningAction):
 export function usePackOpeningMachine() {
   const [phase, dispatch] = useReducer(packOpeningReducer, { type: 'SELECTION' });
 
-  // Auto-advance from OPENING_ANIMATION to CARD_REVEAL
+  // Safety-net auto-advance from OPENING_ANIMATION to CARD_REVEAL.
+  // Primary advance is driven by the Rive burstComplete event (or PackRipAnimation onComplete).
+  // This timeout is a fallback in case the event doesn't fire.
   useEffect(() => {
     if (phase.type === 'OPENING_ANIMATION') {
       const timer = setTimeout(() => {
         dispatch({ type: 'OPENING_COMPLETE' });
-      }, OPENING_ANIMATION_DURATION);
+      }, RIVE_FALLBACK_TIMEOUT);
       return () => clearTimeout(timer);
     }
   }, [phase.type]);

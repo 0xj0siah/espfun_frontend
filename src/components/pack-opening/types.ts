@@ -50,11 +50,13 @@ export interface PackSelectionPhaseProps {
   onToggleTestMode: () => void;
   onSelectPack: (pack: PackInfo) => void;
   onTestOpen: () => void;
+  riveFoilIdleBuffer?: ArrayBuffer | null;
 }
 
 export interface PackOpeningPhaseProps {
   pack: PackInfo;
   onComplete: () => void;
+  riveBuffer?: ArrayBuffer | null;
 }
 
 export interface CardRevealPhaseProps {
@@ -62,6 +64,7 @@ export interface CardRevealPhaseProps {
   currentIndex: number;
   onRevealCard: (index: number) => void;
   onAllRevealed: () => void;
+  riveCardRevealBuffer?: ArrayBuffer | null;
 }
 
 export interface CollectionSummaryPhaseProps {

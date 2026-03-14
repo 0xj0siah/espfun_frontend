@@ -149,3 +149,26 @@ export const CARD_WIDTH = 200;
 export const CARD_HEIGHT = 300;
 export const CARD_WIDTH_MOBILE = 160;
 export const CARD_HEIGHT_MOBILE = 240;
+
+// Rive animation asset paths
+export const RIVE_PACK_OPEN_PATH = '/rive/pack-open.riv';
+export const RIVE_CARD_REVEAL_PATH = '/rive/card-reveal-vfx.riv';
+export const RIVE_FOIL_IDLE_PATH = '/rive/pack-foil-idle.riv';
+
+// Fallback timeout when Rive burstComplete event doesn't fire
+export const RIVE_FALLBACK_TIMEOUT = 5000;
+
+// Map pack tier strings to Rive number inputs
+export const TIER_TO_RIVE_INDEX: Record<string, number> = {
+  PRO: 0,
+  EPIC: 1,
+  LEGENDARY: 2,
+};
+
+// Map rarity tiers to Rive number inputs
+export const RARITY_TO_RIVE_INDEX: Record<RarityTier, number> = {
+  common: 0,
+  rare: 1,
+  epic: 2,
+  legendary: 3,
+};

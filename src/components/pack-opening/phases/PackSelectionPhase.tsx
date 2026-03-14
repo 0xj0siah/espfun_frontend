@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { Trophy, AlertCircle, Loader2, FlaskConical } from 'lucide-react';
 import { Button } from '../../ui/button';
+import { RiveFoilIdle } from '../effects/RiveFoilIdle';
 import { PACK_DESIGNS } from '../constants';
 import type { PackSelectionPhaseProps } from '../types';
 
@@ -17,6 +18,7 @@ export function PackSelectionPhase({
   onToggleTestMode,
   onSelectPack,
   onTestOpen,
+  riveFoilIdleBuffer,
 }: PackSelectionPhaseProps) {
   return (
     <div className="space-y-8">
@@ -283,10 +285,15 @@ export function PackSelectionPhase({
                         </div>
                       </div>
 
-                      {/* Shine sweep on hover */}
+                      {/* Shine sweep on hover (CSS fallback) */}
                       <div className="absolute inset-0 overflow-hidden rounded-md group">
                         <div className="shimmer-sweep absolute inset-0 opacity-15" />
                       </div>
+
+                      {/* Rive foil idle overlay — replaces shimmer when .riv loaded */}
+                      {riveFoilIdleBuffer && (
+                        <RiveFoilIdle tier={pack.id} riveBuffer={riveFoilIdleBuffer} />
+                      )}
 
                       {/* Edge shadow to simulate 3D foil wrapper depth */}
                       <div className="absolute inset-0 rounded-md pointer-events-none" style={{

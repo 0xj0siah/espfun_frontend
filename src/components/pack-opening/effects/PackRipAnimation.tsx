@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LightBurst } from './LightBurst';
 import { PACK_DESIGNS } from '../constants';
@@ -11,6 +11,27 @@ interface PackRipAnimationProps {
 // Jagged zigzag clip path for torn edges
 const LEFT_CLIP = 'polygon(0 0, 48% 0, 52% 8%, 46% 16%, 53% 24%, 47% 32%, 52% 40%, 46% 48%, 53% 56%, 47% 64%, 52% 72%, 46% 80%, 53% 88%, 48% 100%, 0 100%)';
 const RIGHT_CLIP = 'polygon(52% 0, 100% 0, 100% 100%, 48% 100%, 53% 88%, 46% 80%, 52% 72%, 47% 64%, 53% 56%, 46% 48%, 52% 40%, 47% 32%, 53% 24%, 46% 16%, 52% 8%)';
+
+/** Generate random foil fragments that scatter on rip */
+function useFragments(count: number, color: string) {
+  return useMemo(() => {
+    return Array.from({ length: count }, (_, i) => {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8;
+      const distance = 120 + Math.random() * 180;
+      const size = 6 + Math.random() * 14;
+      return {
+        id: i,
+        x: Math.cos(angle) * distance,
+        y: Math.sin(angle) * distance,
+        rotate: Math.random() * 720 - 360,
+        size,
+        color,
+        delay: Math.random() * 0.15,
+        opacity: 0.6 + Math.random() * 0.4,
+      };
+    });
+  }, [count, color]);
+}
 
 /** Inline foil wrapper content (matches PackSelectionPhase design) */
 function FoilPackFace({ design, tierLabel }: { design: typeof PACK_DESIGNS.PRO; tierLabel?: string }) {
@@ -108,14 +129,17 @@ function FoilPackFace({ design, tierLabel }: { design: typeof PACK_DESIGNS.PRO; 
 }
 
 export function PackRipAnimation({ packTier, onComplete }: PackRipAnimationProps) {
-  const [stage, setStage] = useState<'shake' | 'rip' | 'burst' | 'done'>('shake');
+  const [stage, setStage] = useState<'shake' | 'freeze' | 'rip' | 'burst' | 'done'>('shake');
   const design = PACK_DESIGNS[packTier] || PACK_DESIGNS.PRO;
+  const fragments = useFragments(8, design.foilAccent);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setStage('rip'), 1200),
-      setTimeout(() => setStage('burst'), 1500),
-      setTimeout(() => setStage('done'), 2400),
+      // Shake builds for 1.2s, then freeze-frame for 0.2s tension beat
+      setTimeout(() => setStage('freeze'), 1200),
+      setTimeout(() => setStage('rip'), 1400),
+      setTimeout(() => setStage('burst'), 1700),
+      setTimeout(() => setStage('done'), 2600),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -131,45 +155,105 @@ export function PackRipAnimation({ packTier, onComplete }: PackRipAnimationProps
     boxShadow: `0 4px 30px ${design.glowColor}, 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`,
   };
 
+  // Exponential shake intensity — barely visible at start, violent at end
+  const shakeX = [0, -1, 2, -2, 3, -4, 5, -7, 9, -11, 13, -10, 7, -4, 0];
+  const shakeRotate = [0, -0.2, 0.4, -0.6, 0.8, -1.1, 1.4, -1.8, 2.2, -2, 1.5, -1, 0.5, -0.2, 0];
+
   return (
     <div className="relative flex items-center justify-center" style={{ width: 240, height: 340 }}>
       <AnimatePresence>
-        {/* Whole pack (shake phase) */}
+        {/* Whole pack: shake phase with exponential intensity */}
         {stage === 'shake' && (
           <motion.div
-            key="whole-pack"
+            key="whole-pack-shake"
             className="absolute rounded-md overflow-hidden"
             style={packStyle}
-            animate={{
-              x: [0, -3, 4, -6, 7, -9, 10, -7, 5, -3, 0],
-              rotate: [0, -0.5, 0.8, -1.2, 1.5, -1.8, 2, -1.5, 1, -0.5, 0],
-            }}
-            transition={{
-              duration: 1.2,
-              ease: 'easeInOut',
-            }}
-            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+            animate={{ x: shakeX, rotate: shakeRotate }}
+            transition={{ duration: 1.2, ease: 'easeIn' }}
+            exit={{ opacity: 0, transition: { duration: 0.05 } }}
           >
             <FoilPackFace design={design} />
 
-            {/* Light leak from center seam - intensifies during shake */}
+            {/* Light leak from center seam — intensifies exponentially */}
             <motion.div
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-full pointer-events-none"
-              animate={{ opacity: [0, 0.2, 0.5, 0.8] }}
-              transition={{ duration: 1.2 }}
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-full pointer-events-none"
+              animate={{ opacity: [0, 0.05, 0.1, 0.2, 0.4, 0.7, 1], scaleX: [1, 1, 1.2, 1.5, 2, 3, 4] }}
+              transition={{ duration: 1.2, ease: 'easeIn' }}
             >
               <div
                 className="w-full h-full blur-sm"
                 style={{
-                  background: `linear-gradient(to bottom, ${design.foilAccent}90 0%, ${design.foilAccent}30 30%, ${design.foilAccent}30 70%, ${design.foilAccent}90 100%)`,
+                  background: `linear-gradient(to bottom, ${design.foilAccent} 0%, ${design.foilAccent}40 30%, ${design.foilAccent}40 70%, ${design.foilAccent} 100%)`,
                 }}
               />
+            </motion.div>
+
+            {/* Spark particles emerging from seam in final 0.4s */}
+            <motion.div
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-full pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0, 0, 0, 0.5, 1] }}
+              transition={{ duration: 1.2 }}
+            >
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    width: 3,
+                    height: 3,
+                    background: design.foilAccent,
+                    top: `${15 + i * 12}%`,
+                    left: 0,
+                    boxShadow: `0 0 6px ${design.foilAccent}`,
+                  }}
+                  animate={{
+                    x: [0, (i % 2 ? 1 : -1) * (8 + Math.random() * 12)],
+                    opacity: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 0.4,
+                    delay: 0.8 + i * 0.05,
+                    repeat: 1,
+                    ease: 'easeOut',
+                  }}
+                />
+              ))}
             </motion.div>
 
             {/* Shimmer sweep */}
             <div className="absolute inset-0 overflow-hidden rounded-md">
               <div className="shimmer-sweep absolute inset-0 opacity-20" />
             </div>
+          </motion.div>
+        )}
+
+        {/* Freeze frame — pack held still at peak displacement for tension */}
+        {stage === 'freeze' && (
+          <motion.div
+            key="whole-pack-freeze"
+            className="absolute rounded-md overflow-hidden"
+            style={{
+              ...packStyle,
+              filter: `brightness(1.15) drop-shadow(0 0 20px ${design.foilAccent}80)`,
+            }}
+            initial={{ x: 0, rotate: 0, scale: 1 }}
+            animate={{ scale: [1, 1.02] }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            exit={{ opacity: 0, transition: { duration: 0.05 } }}
+          >
+            <FoilPackFace design={design} />
+
+            {/* Bright center seam at max intensity */}
+            <div
+              className="absolute top-0 left-1/2 -translate-x-1/2 h-full pointer-events-none"
+              style={{
+                width: 12,
+                background: `linear-gradient(to bottom, ${design.foilAccent} 0%, white 50%, ${design.foilAccent} 100%)`,
+                filter: 'blur(4px)',
+                opacity: 0.9,
+              }}
+            />
           </motion.div>
         )}
 
@@ -180,13 +264,10 @@ export function PackRipAnimation({ packTier, onComplete }: PackRipAnimationProps
             <motion.div
               key="left-half"
               className="absolute rounded-md overflow-hidden"
-              style={{
-                ...packStyle,
-                clipPath: LEFT_CLIP,
-              }}
+              style={{ ...packStyle, clipPath: LEFT_CLIP }}
               initial={{ x: 0, rotate: 0 }}
-              animate={{ x: -180, rotate: -18, opacity: [1, 1, 0] }}
-              transition={{ duration: 0.9, ease: [0.25, 0.1, 0.25, 1] }}
+              animate={{ x: -200, rotate: -22, opacity: [1, 1, 0.6, 0] }}
+              transition={{ duration: 0.8, ease: [0.22, 0.68, 0.36, 1] }}
             >
               <FoilPackFace design={design} />
             </motion.div>
@@ -195,16 +276,43 @@ export function PackRipAnimation({ packTier, onComplete }: PackRipAnimationProps
             <motion.div
               key="right-half"
               className="absolute rounded-md overflow-hidden"
-              style={{
-                ...packStyle,
-                clipPath: RIGHT_CLIP,
-              }}
+              style={{ ...packStyle, clipPath: RIGHT_CLIP }}
               initial={{ x: 0, rotate: 0 }}
-              animate={{ x: 180, rotate: 18, opacity: [1, 1, 0] }}
-              transition={{ duration: 0.9, ease: [0.25, 0.1, 0.25, 1] }}
+              animate={{ x: 200, rotate: 22, opacity: [1, 1, 0.6, 0] }}
+              transition={{ duration: 0.8, ease: [0.22, 0.68, 0.36, 1] }}
             >
               <FoilPackFace design={design} />
             </motion.div>
+
+            {/* Foil fragment particles scattering from tear */}
+            {fragments.map((f) => (
+              <motion.div
+                key={`frag-${f.id}`}
+                className="absolute rounded-[2px]"
+                style={{
+                  width: f.size,
+                  height: f.size * 0.6,
+                  background: `linear-gradient(135deg, ${f.color}, ${f.color}80)`,
+                  boxShadow: `0 0 4px ${f.color}60`,
+                  left: '50%',
+                  top: '50%',
+                  marginLeft: -f.size / 2,
+                  marginTop: -f.size * 0.3,
+                }}
+                initial={{ x: 0, y: 0, rotate: 0, opacity: f.opacity }}
+                animate={{
+                  x: f.x,
+                  y: f.y,
+                  rotate: f.rotate,
+                  opacity: [f.opacity, f.opacity * 0.8, 0],
+                }}
+                transition={{
+                  duration: 0.7,
+                  delay: f.delay,
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                }}
+              />
+            ))}
           </>
         )}
       </AnimatePresence>
@@ -212,6 +320,22 @@ export function PackRipAnimation({ packTier, onComplete }: PackRipAnimationProps
       {/* Light burst on rip */}
       {(stage === 'burst' || stage === 'rip') && (
         <LightBurst color={design.foilAccent + '99'} />
+      )}
+
+      {/* Ambient glow intensifies during shake */}
+      {stage === 'shake' && (
+        <motion.div
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${design.foilAccent}30 0%, transparent 70%)`,
+            width: 340,
+            height: 340,
+            left: -50,
+            top: 0,
+          }}
+          animate={{ opacity: [0, 0.3, 0.6, 1], scale: [0.8, 1, 1.1, 1.2] }}
+          transition={{ duration: 1.2, ease: 'easeIn' }}
+        />
       )}
     </div>
   );

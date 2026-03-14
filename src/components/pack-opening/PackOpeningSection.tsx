@@ -6,6 +6,7 @@ import { apiService, PackInfo, PackPurchaseResponse, UserPoints } from '../../se
 import { useAuthentication } from '../../hooks/useAuthentication';
 import { usePackOpeningMachine } from './usePackOpeningMachine';
 import { useTestPack } from './useTestPack';
+import { useRiveAssets } from './useRiveAssets';
 import { getRarityFromRating } from './constants';
 import type { RevealCard } from './types';
 import fakeData from '../../fakedata.json';
@@ -42,8 +43,9 @@ export default function PackOpeningSection() {
 
   const { user, authenticated } = usePrivy();
   const { isAuthenticated, isAuthenticating, authenticate, error: authError, walletConnected } = useAuthentication();
-  const { phase, selectPack, purchaseSuccess, purchaseFailure, testOpen, revealCard, allRevealed, reset } = usePackOpeningMachine();
+  const { phase, dispatch, selectPack, purchaseSuccess, purchaseFailure, testOpen, revealCard, allRevealed, reset } = usePackOpeningMachine();
   const { generateTestCards } = useTestPack();
+  const riveAssets = useRiveAssets();
 
   // Load packs and user points
   useEffect(() => {
@@ -182,10 +184,10 @@ export default function PackOpeningSection() {
     testOpen(cards, testPack);
   }, [generateTestCards, testOpen]);
 
-  // Handle opening animation complete - auto-handled by state machine
+  // Handle opening animation complete — driven by Rive burstComplete event or PackRipAnimation onComplete
   const handleOpeningComplete = useCallback(() => {
-    // State machine auto-advances via useEffect in usePackOpeningMachine
-  }, []);
+    dispatch({ type: 'OPENING_COMPLETE' });
+  }, [dispatch]);
 
   return (
     <div className="relative">
@@ -204,6 +206,7 @@ export default function PackOpeningSection() {
           onToggleTestMode={() => setTestMode(prev => !prev)}
           onSelectPack={handleSelectPack}
           onTestOpen={handleTestOpen}
+          riveFoilIdleBuffer={riveAssets.foilIdleBuffer}
         />
       )}
 
@@ -214,6 +217,7 @@ export default function PackOpeningSection() {
             key="opening"
             pack={phase.pack}
             onComplete={handleOpeningComplete}
+            riveBuffer={riveAssets.packOpenBuffer}
           />
         )}
 
@@ -224,6 +228,7 @@ export default function PackOpeningSection() {
             currentIndex={phase.currentIndex}
             onRevealCard={revealCard}
             onAllRevealed={allRevealed}
+            riveCardRevealBuffer={riveAssets.cardRevealBuffer}
           />
         )}
 

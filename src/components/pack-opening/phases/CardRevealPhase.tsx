@@ -1,13 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CardFlipContainer } from '../cards/CardFlipContainer';
 import { ParticleCanvas } from '../effects/ParticleCanvas';
 import { ScreenFlash } from '../effects/ScreenFlash';
 import { RARITY_CONFIG, AUTO_REVEAL_DELAY, CARD_WIDTH, CARD_HEIGHT, CARD_WIDTH_MOBILE, CARD_HEIGHT_MOBILE } from '../constants';
-import type { CardRevealPhaseProps, RevealCard } from '../types';
+import type { CardRevealPhaseProps, RevealCard, RarityTier } from '../types';
 import { useIsMobile } from '../../ui/use-mobile';
 
-export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllRevealed }: CardRevealPhaseProps) {
+const RARITY_ORDER: Record<RarityTier, number> = {
+  common: 0,
+  rare: 1,
+  epic: 2,
+  legendary: 3,
+};
+
+export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllRevealed, riveCardRevealBuffer }: CardRevealPhaseProps) {
   const isMobile = useIsMobile();
   const [particleTrigger, setParticleTrigger] = useState(0);
   const [particleColors, setParticleColors] = useState<string[]>([]);
@@ -18,9 +25,20 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
   const cardW = isMobile ? CARD_WIDTH_MOBILE : CARD_WIDTH;
   const cardH = isMobile ? CARD_HEIGHT_MOBILE : CARD_HEIGHT;
 
-  // Find next unrevealed card
-  const nextUnrevealedIndex = cards.findIndex(c => !c.isRevealed);
+  // Sort cards so the highest-rarity card is revealed last (standard pack-opening UX)
+  const sortedCards = useMemo(() => {
+    const indexed = cards.map((card, originalIndex) => ({ card, originalIndex }));
+    indexed.sort((a, b) => RARITY_ORDER[a.card.rarity] - RARITY_ORDER[b.card.rarity]);
+    return indexed;
+  }, [cards]);
+
+  // Find next unrevealed card (in sorted order)
+  const nextUnrevealedSortedIdx = sortedCards.findIndex(({ card }) => !card.isRevealed);
   const allFlipped = cards.every(c => c.isRevealed);
+
+  // Check if the last card is epic/legendary for dramatic pause
+  const lastCard = sortedCards[sortedCards.length - 1]?.card;
+  const lastCardIsDramatic = lastCard && (lastCard.rarity === 'epic' || lastCard.rarity === 'legendary');
 
   // Auto-advance to summary after all revealed
   useEffect(() => {
@@ -32,18 +50,19 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
 
   // Auto-reveal timer (fallback if user doesn't click)
   useEffect(() => {
-    if (allFlipped || nextUnrevealedIndex === -1) return;
+    if (allFlipped || nextUnrevealedSortedIdx === -1) return;
+    const { originalIndex } = sortedCards[nextUnrevealedSortedIdx];
 
     const timer = setTimeout(() => {
-      handleReveal(nextUnrevealedIndex);
+      handleReveal(originalIndex);
     }, AUTO_REVEAL_DELAY);
     return () => clearTimeout(timer);
-  }, [nextUnrevealedIndex, allFlipped]);
+  }, [nextUnrevealedSortedIdx, allFlipped]);
 
-  const handleReveal = useCallback((index: number) => {
-    if (cards[index]?.isRevealed) return;
+  const handleReveal = useCallback((originalIndex: number) => {
+    if (cards[originalIndex]?.isRevealed) return;
 
-    const card = cards[index];
+    const card = cards[originalIndex];
     const config = RARITY_CONFIG[card.rarity];
 
     // Trigger effects based on rarity
@@ -59,7 +78,7 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
     setRarityLabel({ text: config.label.toUpperCase() + '!', color: config.textColor });
     setTimeout(() => setRarityLabel(null), 1200);
 
-    onRevealCard(index);
+    onRevealCard(originalIndex);
   }, [cards, onRevealCard]);
 
   return (
@@ -117,34 +136,40 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
         )}
       </AnimatePresence>
 
-      {/* Card row */}
+      {/* Card row — sorted by rarity (best last) */}
       <div className="relative z-10 flex flex-wrap justify-center gap-4 px-4">
-        {cards.map((card, index) => (
-          <motion.div
-            key={card.id}
-            initial={{ opacity: 0, scale: 0.3, y: 80 }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              y: 0,
-            }}
-            transition={{
-              delay: 0.3 + index * 0.12,
-              type: 'spring',
-              stiffness: 200,
-              damping: 20,
-            }}
-          >
-            <CardFlipContainer
-              card={card}
-              isFlipped={card.isRevealed}
-              onClick={() => !card.isRevealed && handleReveal(index)}
-              width={cardW}
-              height={cardH}
-              className={!card.isRevealed && index === nextUnrevealedIndex ? 'ring-2 ring-white/30 rounded-xl ring-offset-2 ring-offset-transparent' : ''}
-            />
-          </motion.div>
-        ))}
+        {sortedCards.map(({ card, originalIndex }, sortedIdx) => {
+          const isLastDramatic = sortedIdx === sortedCards.length - 1 && lastCardIsDramatic;
+
+          return (
+            <motion.div
+              key={card.id}
+              initial={{ opacity: 0, scale: 0.3, y: 80 }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: 0,
+              }}
+              transition={{
+                // Last dramatic card gets a slightly longer delay for suspense
+                delay: 0.3 + sortedIdx * 0.12 + (isLastDramatic ? 0.3 : 0),
+                type: 'spring',
+                stiffness: 180,
+                damping: 14, // Lower damping = more overshoot on landing
+              }}
+            >
+              <CardFlipContainer
+                card={card}
+                isFlipped={card.isRevealed}
+                onClick={() => !card.isRevealed && handleReveal(originalIndex)}
+                width={cardW}
+                height={cardH}
+                riveBuffer={riveCardRevealBuffer}
+                className={!card.isRevealed && sortedIdx === nextUnrevealedSortedIdx ? 'ring-2 ring-white/30 rounded-xl ring-offset-2 ring-offset-transparent' : ''}
+              />
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Skip button */}
@@ -154,10 +179,10 @@ export function CardRevealPhase({ cards, currentIndex, onRevealCard, onAllReveal
           animate={{ opacity: 1 }}
           transition={{ delay: 2 }}
           onClick={() => {
-            // Reveal all remaining
-            cards.forEach((card, i) => {
+            // Reveal all remaining in sorted order
+            sortedCards.forEach(({ card, originalIndex }, i) => {
               if (!card.isRevealed) {
-                setTimeout(() => handleReveal(i), i * 100);
+                setTimeout(() => handleReveal(originalIndex), i * 100);
               }
             });
           }}
