@@ -9,7 +9,7 @@ interface MobileSidebarProps {
   onClose: () => void;
 }
 
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'];
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Agent'];
 
 export function MobileSidebar({ activeTab, onTabChange, onClose }: MobileSidebarProps) {
   return (
