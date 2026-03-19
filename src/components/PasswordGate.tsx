@@ -11,7 +11,10 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState('');
   const [isChecking, setIsChecking] = useState(true);
 
-  const correctPassword = import.meta.env.VITE_ACCESS_PASSWORD;
+  const validPasswords = [
+    import.meta.env.VITE_ACCESS_PASSWORD,
+    import.meta.env.VITE_ACCESS_PASSWORD_2,
+  ].filter(Boolean);
 
   useEffect(() => {
     // Check if user has already authenticated in this session
@@ -24,8 +27,8 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (password === correctPassword) {
+
+    if (validPasswords.includes(password)) {
       sessionStorage.setItem(PASSWORD_STORAGE_KEY, 'true');
       setIsAuthenticated(true);
       setError('');

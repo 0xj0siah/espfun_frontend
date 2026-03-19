@@ -2,27 +2,27 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
-import { Trophy, Crown, Award, TrendingUp, DollarSign, Star } from 'lucide-react';
+import { Trophy, Crown, TrendingUp, DollarSign, Star } from 'lucide-react';
 
 export default function LeaderboardSection() {
   const leaderboard = [
-    { rank: 1, username: 'CryptoMaster', points: 2847, teamValue: '8.3 ETH', reward: '5.0 ETH' },
-    { rank: 2, username: 'EsportsKing', points: 2698, teamValue: '7.9 ETH', reward: '3.0 ETH' },
-    { rank: 3, username: 'DigitalNinja', points: 2534, teamValue: '7.2 ETH', reward: '2.0 ETH' },
-    { rank: 4, username: 'GameTheory', points: 2421, teamValue: '6.8 ETH', reward: '1.5 ETH' },
-    { rank: 5, username: 'BlockchainBoss', points: 2398, teamValue: '6.5 ETH', reward: '1.0 ETH' },
-    { rank: 6, username: 'MetaGamer', points: 2287, teamValue: '6.1 ETH', reward: '0.8 ETH' },
-    { rank: 7, username: 'ProPlayer99', points: 2156, teamValue: '5.9 ETH', reward: '0.6 ETH' },
-    { rank: 8, username: 'EliteStrat', points: 2098, teamValue: '5.7 ETH', reward: '0.5 ETH' },
-    { rank: 9, username: 'TechSavvy', points: 1987, teamValue: '5.4 ETH', reward: '0.4 ETH' },
-    { rank: 10, username: 'QuantumGamer', points: 1876, teamValue: '5.2 ETH', reward: '0.3 ETH' },
-    { rank: 15, username: 'You', points: 1227, teamValue: '5.5 ETH', reward: '0.1 ETH', isCurrentUser: true }
+    { rank: 1, address: '0x1a2B...3c4D', points: 2847, teamValue: '1,240 USDC', reward: '5,000 pts' },
+    { rank: 2, address: '0x5e6F...7a8B', points: 2698, teamValue: '1,180 USDC', reward: '3,000 pts' },
+    { rank: 3, address: '0x9c0D...1e2F', points: 2534, teamValue: '1,075 USDC', reward: '2,000 pts' },
+    { rank: 4, address: '0x3a4B...5c6D', points: 2421, teamValue: '1,015 USDC', reward: '1,500 pts' },
+    { rank: 5, address: '0x7e8F...9a0B', points: 2398, teamValue: '970 USDC', reward: '1,000 pts' },
+    { rank: 6, address: '0x2c3D...4e5F', points: 2287, teamValue: '910 USDC', reward: '800 pts' },
+    { rank: 7, address: '0x6a7B...8c9D', points: 2156, teamValue: '880 USDC', reward: '600 pts' },
+    { rank: 8, address: '0x0e1F...2a3B', points: 2098, teamValue: '850 USDC', reward: '500 pts' },
+    { rank: 9, address: '0x4c5D...6e7F', points: 1987, teamValue: '805 USDC', reward: '400 pts' },
+    { rank: 10, address: '0x8a9B...0c1D', points: 1876, teamValue: '775 USDC', reward: '300 pts' },
+    { rank: 15, address: 'You', points: 1227, teamValue: '820 USDC', reward: '100 pts', isCurrentUser: true }
   ];
 
   const weeklyLeaders = [
-    { username: 'RisingPhoenix', weeklyPoints: 456, change: '+12' },
-    { username: 'FlashGaming', weeklyPoints: 423, change: '+8' },
-    { username: 'StormBreaker', weeklyPoints: 398, change: '+15' }
+    { address: '0xd4E5...f6A7', weeklyPoints: 456, change: '+12' },
+    { address: '0xb8C9...d0E1', weeklyPoints: 423, change: '+8' },
+    { address: '0xf2A3...b4C5', weeklyPoints: 398, change: '+15' }
   ];
 
   return (
@@ -81,13 +81,13 @@ export default function LeaderboardSection() {
                   
                   <ImageWithFallback
                     src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.rank}`}
-                    alt={player.username}
+                    alt={player.address}
                     className="w-8 h-8 rounded-full object-cover"
                   />
                   
                   <div>
                     <h4 className={`text-sm ${player.isCurrentUser ? 'text-primary' : ''}`}>
-                      {player.username}
+                      {player.address}
                     </h4>
                     <p className="text-xs text-muted-foreground">Team Value: {player.teamValue}</p>
                   </div>
@@ -116,10 +116,10 @@ export default function LeaderboardSection() {
                   <div className="flex items-center space-x-2">
                     <ImageWithFallback
                       src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${index + 20}`}
-                      alt={player.username}
+                      alt={player.address}
                       className="w-6 h-6 rounded-full object-cover"
                     />
-                    <p className="text-sm">{player.username}</p>
+                    <p className="text-sm">{player.address}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-primary">{player.weeklyPoints}</p>
@@ -137,20 +137,20 @@ export default function LeaderboardSection() {
               Prize Pool
             </h3>
             <div className="text-center space-y-2">
-              <p className="text-2xl text-primary">125.7 ETH</p>
+              <p className="text-2xl text-primary">125,000 pts</p>
               <p className="text-sm text-muted-foreground">Total Prize Pool</p>
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>1st Place</span>
-                  <span className="text-primary">5.0 ETH</span>
+                  <span className="text-primary">5,000 pts</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Top 10</span>
-                  <span className="text-primary">20.5 ETH</span>
+                  <span className="text-primary">20,500 pts</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Top 100</span>
-                  <span className="text-primary">65.2 ETH</span>
+                  <span className="text-primary">65,200 pts</span>
                 </div>
               </div>
             </div>
