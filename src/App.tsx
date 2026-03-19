@@ -19,7 +19,7 @@ import { GameProvider } from './context/GameContext';
 import './utils/contractDebug';
 
 // Import icons
-import { Github, Twitter } from 'lucide-react';
+import { Github } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Team');
@@ -91,8 +91,8 @@ export default function App() {
         return <LeaderboardSection />;
       case 'Pack Opening':
         return <PackOpeningSection />;
-      case 'Agent':
-        return <AgentSection />;
+      // case 'Agent':
+      //   return <AgentSection />;
       default:
         return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
     }
@@ -123,15 +123,6 @@ export default function App() {
                   >
                     <Github className="h-5 w-5" />
                     <span className="text-sm font-medium">GitHub</span>
-                  </a>
-                  <a
-                    href="https://x.com/esp_fun"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    <Twitter className="h-5 w-5" />
-                    <span className="text-sm font-medium">X / Twitter</span>
                   </a>
                 </div>
                 <p className="text-xs text-muted-foreground">

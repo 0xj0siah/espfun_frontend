@@ -1,7 +1,7 @@
 
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Github, Twitter } from 'lucide-react';
+import { Github } from 'lucide-react';
 
 interface MobileSidebarProps {
   activeTab: string;
@@ -9,7 +9,7 @@ interface MobileSidebarProps {
   onClose: () => void;
 }
 
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Agent'];
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening'];
 
 export function MobileSidebar({ activeTab, onTabChange, onClose }: MobileSidebarProps) {
   return (
@@ -57,15 +57,6 @@ export function MobileSidebar({ activeTab, onTabChange, onClose }: MobileSidebar
           >
             <Github className="h-5 w-5" />
             <span className="text-sm font-medium">GitHub</span>
-          </a>
-          <a
-            href="https://x.com/esp_fun"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
-          >
-            <Twitter className="h-5 w-5" />
-            <span className="text-sm font-medium">X / Twitter</span>
           </a>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-3">
