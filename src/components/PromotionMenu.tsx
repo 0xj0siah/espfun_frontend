@@ -4,8 +4,9 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Alert, AlertDescription } from './ui/alert';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Scissors, TrendingUp, Star, X, ArrowLeft, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { Scissors, TrendingUp, Star, X, ArrowLeft, Sparkles, AlertCircle, Loader2, Wallet, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseUnits } from 'viem';
@@ -354,108 +355,133 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
               exit={{ opacity: 0, x: -20 }}
               className="p-6 space-y-4"
             >
-              <div className="text-center mb-6">
-                <h4 className="text-lg font-semibold text-foreground mb-2">Choose Action</h4>
-                <p className="text-sm text-muted-foreground">
-                  Manage your {player.name} shares
-                </p>
+              {/* Stats strip */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-xl bg-card/50 backdrop-blur-sm border border-accent/20 p-3 text-center">
+                  <div className="text-lg font-bold text-foreground">{player.lockedShares || '0'}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Shares</div>
+                </div>
+                <div className="rounded-xl bg-card/50 backdrop-blur-sm border border-accent/20 p-3 text-center">
+                  <div className={`text-sm font-bold bg-gradient-to-r ${tierColors[player.tier]} bg-clip-text text-transparent`}>
+                    {player.tier.toUpperCase()}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Current Tier</div>
+                </div>
+                <div className="rounded-xl bg-card/50 backdrop-blur-sm border border-accent/20 p-3 text-center">
+                  {loadingCosts ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mx-auto" />
+                  ) : (
+                    <div className="text-sm font-bold text-foreground">{player.price}</div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-0.5">Price</div>
+                </div>
               </div>
 
               {/* Authentication Status */}
               {!walletConnected && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <AlertCircle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Wallet Not Connected</span>
-                  </div>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Please connect your wallet to manage player shares.
-                  </p>
-                </div>
+                <Alert className="border-yellow-500/30 bg-yellow-500/10">
+                  <Wallet className="h-4 w-4 text-yellow-500" />
+                  <AlertDescription className="text-yellow-200">
+                    <span className="font-medium">Wallet Not Connected</span>
+                    <p className="text-xs opacity-80 mt-0.5">Please connect your wallet to manage player shares.</p>
+                  </AlertDescription>
+                </Alert>
               )}
 
               {walletConnected && !isAuthenticated && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center gap-2 text-blue-800">
-                    {isAuthenticating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4" />
-                    )}
-                    <span className="text-sm font-medium">
+                <Alert className="border-blue-500/30 bg-blue-500/10">
+                  {isAuthenticating ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-blue-400" />
+                  )}
+                  <AlertDescription className="text-blue-200">
+                    <span className="font-medium">
                       {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
                     </span>
-                  </div>
-                  <p className="text-xs text-blue-700 mt-1">
-                    {isAuthenticating 
-                      ? 'Please wait while we authenticate your wallet...' 
-                      : 'Authenticating automatically...'
-                    }
-                  </p>
-                  {authError && (
-                    <p className="text-xs text-red-600 mt-1">
-                      {authError}
+                    <p className="text-xs opacity-80 mt-0.5">
+                      {isAuthenticating
+                        ? 'Please wait while we authenticate your wallet...'
+                        : 'Authenticating automatically...'
+                      }
                     </p>
-                  )}
-                </div>
+                    {authError && (
+                      <p className="text-xs text-red-400 mt-1">{authError}</p>
+                    )}
+                  </AlertDescription>
+                </Alert>
               )}
 
               <div className="space-y-3">
-                {/* Promote Button */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    onClick={() => setActiveAction('promote')}
+                {/* Promote Card */}
+                <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}>
+                  <button
+                    onClick={() => canPromote && isAuthenticated && !isAuthenticating && setActiveAction('promote')}
                     disabled={!canPromote || !isAuthenticated || isAuthenticating}
-                    className="w-full h-16 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg relative transition-all duration-300"
+                    className="w-full rounded-2xl border border-green-500/25 bg-gradient-to-br from-green-950/60 via-emerald-950/40 to-background/80 backdrop-blur-sm p-4 relative overflow-hidden group transition-all duration-300 hover:border-green-500/50 hover:shadow-lg hover:shadow-green-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-left"
                   >
-                    {/* No overlay or white effect for dark mode. Only subtle color change. Uses dark: classes for dark mode hover. */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/[0.03] to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     <div className="flex items-center gap-4 relative z-10">
-                      <div className="p-2 bg-white/20 rounded-xl">
-                        <TrendingUp className="h-6 w-6" />
+                      <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/30 to-emerald-500/20 border border-green-500/30 flex items-center justify-center">
+                        <TrendingUp className="h-5 w-5 text-green-400" />
                       </div>
-                      <div className="text-left">
-                        <div className="font-semibold text-base">Promote Player</div>
-                        {canPromote ? (
-                          <div className="text-sm opacity-90">
-                            Upgrade to {nextPlayerTier?.toUpperCase()}
-                          </div>
-                        ) : (
-                          <div className="text-sm opacity-90">
-                            Already at max tier
-                          </div>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">Promote</span>
+                          {canPromote && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/25">
+                              {player.tier.toUpperCase()} → {nextPlayerTier?.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-0.5">
+                          {loadingCosts ? (
+                            <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />Loading cost...</span>
+                          ) : promotionCost !== null ? (
+                            <span>{promotionCost.toLocaleString()} <span className="text-green-400/70">skill pts</span> per share</span>
+                          ) : canPromote ? (
+                            'Use skill points to upgrade tier'
+                          ) : (
+                            'Already at maximum tier'
+                          )}
+                        </div>
                       </div>
-                      {canPromote && <Sparkles className="h-5 w-5 ml-auto" />}
+                      {canPromote && <Sparkles className="h-4 w-4 text-green-400/60 shrink-0" />}
                     </div>
-                  </Button>
+                  </button>
                 </motion.div>
 
-                {/* Cut Button */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    onClick={() => setActiveAction('cut')}
+                {/* Cut Card */}
+                <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}>
+                  <button
+                    onClick={() => isAuthenticated && !isAuthenticating && setActiveAction('cut')}
                     disabled={!isAuthenticated || isAuthenticating}
-                    className="w-full h-16 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg relative transition-all duration-300"
+                    className="w-full rounded-2xl border border-blue-500/25 bg-gradient-to-br from-blue-950/60 via-purple-950/40 to-background/80 backdrop-blur-sm p-4 relative overflow-hidden group transition-all duration-300 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-left"
                   >
-                    {/* No overlay or white effect for dark mode. Only subtle color change. Uses dark: classes for dark mode hover. */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/[0.03] to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     <div className="flex items-center gap-4 relative z-10">
-                      <div className="p-2 bg-white/20 rounded-xl">
-                        <Scissors className="h-6 w-6" />
+                      <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/30 to-purple-500/20 border border-blue-500/30 flex items-center justify-center">
+                        <Scissors className="h-5 w-5 text-blue-400" />
                       </div>
-                      <div className="text-left">
-                        <div className="font-semibold text-base">Cut Player</div>
-                        <div className="text-sm opacity-90">
-                          Remove shares from team
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">Cut</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/25">
+                            {player.lockedShares || '0'} shares
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-0.5">
+                          {loadingCosts ? (
+                            <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />Loading reward...</span>
+                          ) : cutValue !== null ? (
+                            <span>{cutValue.toLocaleString()} <span className="text-blue-400/70">tournament pts</span> per share</span>
+                          ) : (
+                            'Sell shares for tournament points'
+                          )}
                         </div>
                       </div>
                     </div>
-                  </Button>
+                  </button>
                 </motion.div>
               </div>
             </motion.div>
@@ -471,49 +497,49 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
               className="p-6 space-y-6"
             >
               <div className="text-center">
-                <h4 className="text-lg font-semibold text-foreground mb-2">Promote Shares</h4>
+                <h4 className="text-lg font-semibold text-foreground mb-1">Promote Shares</h4>
                 <p className="text-sm text-muted-foreground">
-                  Choose how many shares to promote
+                  Upgrade to {nextPlayerTier?.toUpperCase()} tier
                 </p>
-                {loadingCosts ? (
-                  <div className="text-sm text-blue-500 mt-2">Loading promotion costs...</div>
-                ) : promotionCost !== null ? (
-                  <div className="text-sm text-blue-600 font-medium mt-2">
-                    Cost: {promotionCost} skill points per share
-                  </div>
-                ) : null}
+              </div>
+
+              {/* Cost info card */}
+              <div className="rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/10 border border-green-500/20 p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" />Cost per share</span>
+                  {loadingCosts ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  ) : promotionCost !== null ? (
+                    <span className="font-semibold text-green-400">{promotionCost.toLocaleString()} SP</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </div>
                 {userPoints && (
-                  <div className="text-sm text-muted-foreground mt-2">
-                    Your balance: {userPoints.skillPoints.toLocaleString()} skill points
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Your balance</span>
+                    <span className="font-medium">{userPoints.skillPoints.toLocaleString()} SP</span>
                   </div>
                 )}
               </div>
 
               {/* Authentication Status for Promote Menu */}
               {walletConnected && !isAuthenticated && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <div className="flex items-center gap-2 text-blue-800">
-                    {isAuthenticating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {isAuthenticating ? 'Authenticating...' : 'Authenticating...'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-700 mt-1">
-                    {isAuthenticating 
-                      ? 'Please wait while we authenticate your wallet...' 
-                      : 'Authentication in progress...'
-                    }
-                  </p>
-                </div>
+                <Alert className="border-blue-500/30 bg-blue-500/10">
+                  {isAuthenticating ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-blue-400" />
+                  )}
+                  <AlertDescription className="text-blue-200 text-xs">
+                    {isAuthenticating ? 'Authenticating your wallet...' : 'Authentication in progress...'}
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* Manual Input */}
-              <div className="space-y-2">
-                <Label htmlFor="promote-shares" className="text-sm font-medium">Custom Amount</Label>
+              <div className="rounded-xl bg-card/50 backdrop-blur-sm border border-accent/20 p-4 space-y-3">
+                <Label htmlFor="promote-shares" className="text-sm font-medium">Shares to Promote</Label>
                 <Input
                   id="promote-shares"
                   type="number"
@@ -522,7 +548,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     const value = e.target.value;
                     setPromoteShares(value);
                     setSelectedPercentage(null);
-                    
+
                     // Trigger real-time cost calculation
                     const shares = parseInt(value);
                     if (shares > 0 && player) {
@@ -534,37 +560,37 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   placeholder="Enter shares to promote"
                   max={totalShares}
                   min={1}
-                  className="h-12 text-center text-lg"
+                  className="h-12 text-center text-lg bg-background/50 border-accent/20 focus:border-accent/40"
                 />
                 <p className="text-xs text-muted-foreground text-center">
                   Available: {player.lockedShares || '0'} shares
                 </p>
                 {(promotionCost !== null || realTimePromotionCost !== null) && promoteShares && parseInt(promoteShares) > 0 && (
-                  <div className={`text-sm font-medium text-center mt-1 ${
-                    userPoints && realTimePromotionCost !== null && realTimePromotionCost > userPoints.skillPoints
-                      ? 'text-red-500'
-                      : userPoints && promotionCost !== null && (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints
-                      ? 'text-red-500'
-                      : 'text-blue-600'
+                  <div className={`rounded-lg p-3 text-sm font-medium text-center ${
+                    userPoints && (
+                      (realTimePromotionCost !== null && realTimePromotionCost > userPoints.skillPoints) ||
+                      (realTimePromotionCost === null && promotionCost !== null && (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints)
+                    )
+                      ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                      : 'bg-green-500/10 border border-green-500/20 text-green-400'
                   }`}>
                     {loadingRealTimeCosts ? (
-                      <div className="text-xs text-muted-foreground">Calculating cost...</div>
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-xs">Calculating cost...</span>
+                      </div>
                     ) : realTimePromotionCost !== null ? (
                       <>
-                        Total cost: {realTimePromotionCost.toLocaleString()} skill points
+                        Total: {realTimePromotionCost.toLocaleString()} skill points
                         {userPoints && realTimePromotionCost > userPoints.skillPoints && (
-                          <div className="text-xs text-red-400 mt-1">
-                            Insufficient skill points
-                          </div>
+                          <div className="text-xs mt-0.5">Insufficient skill points</div>
                         )}
                       </>
                     ) : promotionCost !== null ? (
                       <>
-                        Total cost: {(promotionCost * parseInt(promoteShares)).toLocaleString()} skill points
+                        Total: {(promotionCost * parseInt(promoteShares)).toLocaleString()} skill points
                         {userPoints && (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints && (
-                          <div className="text-xs text-red-400 mt-1">
-                            Insufficient skill points
-                          </div>
+                          <div className="text-xs mt-0.5">Insufficient skill points</div>
                         )}
                       </>
                     ) : null}
@@ -579,9 +605,12 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   {[25, 50, 75, 100].map((percentage) => (
                     <motion.div key={percentage} whileTap={{ scale: 0.95 }} className="flex-1">
                       <Button
-                        variant={selectedPercentage === percentage ? "default" : "outline"}
                         onClick={() => handlePercentageSelect(percentage, true)}
-                        className="w-full h-8 text-xs font-medium px-2"
+                        className={`w-full h-8 text-xs font-medium px-2 border transition-all duration-200 ${
+                          selectedPercentage === percentage
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white border-0 shadow-sm'
+                            : 'bg-transparent border-accent/30 text-muted-foreground hover:border-green-500/50 hover:text-green-400'
+                        }`}
                       >
                         {percentage}%
                       </Button>
@@ -591,11 +620,11 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <Button
                   variant="outline"
                   onClick={resetForm}
-                  className="flex-1 h-12"
+                  className="flex-1 h-12 border-accent/30 hover:bg-accent/10"
                   disabled={loading}
                 >
                   Cancel
@@ -603,29 +632,30 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <Button
                   onClick={handlePromoteSubmit}
                   disabled={
-                    loading || 
-                    !promoteShares || 
+                    loading ||
+                    !promoteShares ||
                     parseInt(promoteShares) <= 0 ||
                     !isAuthenticated ||
                     isAuthenticating ||
                     (userPoints && (
                       (realTimePromotionCost !== null && realTimePromotionCost > userPoints.skillPoints) ||
-                      (realTimePromotionCost === null && promotionCost && promoteShares && 
+                      (realTimePromotionCost === null && promotionCost && promoteShares &&
                        (promotionCost * parseInt(promoteShares)) > userPoints.skillPoints)
                     ))
                   }
-                  className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 transition-all duration-300"
+                  className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 relative overflow-hidden group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                 >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                   {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="flex items-center gap-2 relative z-10">
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Promoting...
                     </div>
                   ) : (
-                    <>
-                      <TrendingUp className="h-4 w-4 mr-2" />
+                    <div className="flex items-center gap-2 relative z-10">
+                      <TrendingUp className="h-4 w-4" />
                       Promote
-                    </>
+                    </div>
                   )}
                 </Button>
               </div>
@@ -642,49 +672,49 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
               className="p-6 space-y-6"
             >
               <div className="text-center">
-                <h4 className="text-lg font-semibold text-foreground mb-2">Cut Shares</h4>
+                <h4 className="text-lg font-semibold text-foreground mb-1">Cut Shares</h4>
                 <p className="text-sm text-muted-foreground">
-                  Choose how many shares to cut
+                  Remove shares and earn tournament points
                 </p>
-                {loadingCosts ? (
-                  <div className="text-sm text-green-500 mt-2">Loading cut values...</div>
-                ) : cutValue !== null ? (
-                  <div className="text-sm text-green-600 font-medium mt-2">
-                    Reward: {cutValue} tournament points per share
-                  </div>
-                ) : null}
+              </div>
+
+              {/* Reward info card */}
+              <div className="rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/10 border border-blue-500/20 p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" />Reward per share</span>
+                  {loadingCosts ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  ) : cutValue !== null ? (
+                    <span className="font-semibold text-blue-400">{cutValue.toLocaleString()} TP</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </div>
                 {userPoints && (
-                  <div className="text-sm text-muted-foreground mt-2">
-                    Your balance: {userPoints.tournamentPoints.toLocaleString()} tournament points
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Your balance</span>
+                    <span className="font-medium">{userPoints.tournamentPoints.toLocaleString()} TP</span>
                   </div>
                 )}
               </div>
 
               {/* Authentication Status for Cut Menu */}
               {walletConnected && !isAuthenticated && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <div className="flex items-center gap-2 text-blue-800">
-                    {isAuthenticating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {isAuthenticating ? 'Authenticating...' : 'Authenticating...'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-700 mt-1">
-                    {isAuthenticating 
-                      ? 'Please wait while we authenticate your wallet...' 
-                      : 'Authentication in progress...'
-                    }
-                  </p>
-                </div>
+                <Alert className="border-blue-500/30 bg-blue-500/10">
+                  {isAuthenticating ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-blue-400" />
+                  )}
+                  <AlertDescription className="text-blue-200 text-xs">
+                    {isAuthenticating ? 'Authenticating your wallet...' : 'Authentication in progress...'}
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* Manual Input */}
-              <div className="space-y-2">
-                <Label htmlFor="cut-shares" className="text-sm font-medium">Custom Amount</Label>
+              <div className="rounded-xl bg-card/50 backdrop-blur-sm border border-accent/20 p-4 space-y-3">
+                <Label htmlFor="cut-shares" className="text-sm font-medium">Shares to Cut</Label>
                 <Input
                   id="cut-shares"
                   type="number"
@@ -693,7 +723,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     const value = e.target.value;
                     setCutShares(value);
                     setSelectedPercentage(null);
-                    
+
                     // Trigger real-time cost calculation
                     const shares = parseInt(value);
                     if (shares > 0 && player) {
@@ -705,19 +735,22 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   placeholder="Enter shares to cut"
                   max={totalShares}
                   min={1}
-                  className="h-12 text-center text-lg"
+                  className="h-12 text-center text-lg bg-background/50 border-accent/20 focus:border-accent/40"
                 />
                 <p className="text-xs text-muted-foreground text-center">
                   Available: {player.lockedShares || '0'} shares
                 </p>
                 {(cutValue !== null || realTimeCutValue !== null) && cutShares && parseInt(cutShares) > 0 && (
-                  <div className="text-sm text-green-600 font-medium text-center mt-1">
+                  <div className="rounded-lg p-3 text-sm font-medium text-center bg-blue-500/10 border border-blue-500/20 text-blue-400">
                     {loadingRealTimeCosts ? (
-                      <div className="text-xs text-muted-foreground">Calculating reward...</div>
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-xs">Calculating reward...</span>
+                      </div>
                     ) : realTimeCutValue !== null ? (
-                      <>Total reward: {realTimeCutValue.toLocaleString()} tournament points</>
+                      <>Total: {realTimeCutValue.toLocaleString()} tournament points</>
                     ) : cutValue !== null ? (
-                      <>Total reward: {(cutValue * parseInt(cutShares)).toLocaleString()} tournament points</>
+                      <>Total: {(cutValue * parseInt(cutShares)).toLocaleString()} tournament points</>
                     ) : null}
                   </div>
                 )}
@@ -730,9 +763,12 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   {[25, 50, 75, 100].map((percentage) => (
                     <motion.div key={percentage} whileTap={{ scale: 0.95 }} className="flex-1">
                       <Button
-                        variant={selectedPercentage === percentage ? "default" : "outline"}
                         onClick={() => handlePercentageSelect(percentage, false)}
-                        className="w-full h-8 text-xs font-medium px-2"
+                        className={`w-full h-8 text-xs font-medium px-2 border transition-all duration-200 ${
+                          selectedPercentage === percentage
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 shadow-sm'
+                            : 'bg-transparent border-accent/30 text-muted-foreground hover:border-blue-500/50 hover:text-blue-400'
+                        }`}
                       >
                         {percentage}%
                       </Button>
@@ -742,11 +778,11 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <Button
                   variant="outline"
                   onClick={resetForm}
-                  className="flex-1 h-12"
+                  className="flex-1 h-12 border-accent/30 hover:bg-accent/10"
                   disabled={loading}
                 >
                   Cancel
@@ -754,18 +790,19 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                 <Button
                   onClick={handleCutSubmit}
                   disabled={loading || !cutShares || parseInt(cutShares) <= 0 || !isAuthenticated || isAuthenticating}
-                  className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 transition-all duration-300"
+                  className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 relative overflow-hidden group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                 >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                   {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="flex items-center gap-2 relative z-10">
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Cutting...
                     </div>
                   ) : (
-                    <>
-                      <Scissors className="h-4 w-4 mr-2" />
+                    <div className="flex items-center gap-2 relative z-10">
+                      <Scissors className="h-4 w-4" />
                       Cut
-                    </>
+                    </div>
                   )}
                 </Button>
               </div>

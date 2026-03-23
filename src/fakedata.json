@@ -5601,15 +5601,30 @@
       "rating": 98,
       "image": "/images/lol/T1/Faker.webp",
       "stats": {
-        "kills": 5.2,
-        "deaths": 2.1,
-        "assists": 7.8,
-        "winRate": 72
+        "kills": 3.74,
+        "deaths": 3.13,
+        "assists": 6.7,
+        "winRate": 61
       },
       "recentMatches": [
-        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 310 },
-        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 295 },
-        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 260 }
+        {
+          "opponent": "Dplus Kia",
+          "result": "loss",
+          "score": "2-3",
+          "performance": 185
+        },
+        {
+          "opponent": "BNK FEARX",
+          "result": "loss",
+          "score": "1-3",
+          "performance": 190
+        },
+        {
+          "opponent": "Dplus Kia",
+          "result": "win",
+          "score": "3-0",
+          "performance": 305
+        }
       ],
       "team": "t1",
       "gridID": null,
@@ -5626,15 +5641,30 @@
       "rating": 93,
       "image": "/images/lol/GenG/Kiin.webp",
       "stats": {
-        "kills": 3.8,
-        "deaths": 2.5,
-        "assists": 6.2,
-        "winRate": 70
+        "kills": 2.78,
+        "deaths": 2.56,
+        "assists": 5.22,
+        "winRate": 67
       },
       "recentMatches": [
-        { "opponent": "T1", "result": "win", "score": "3-1", "performance": 285 },
-        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 270 },
-        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 240 }
+        {
+          "opponent": "G2 Esports",
+          "result": "loss",
+          "score": "0-3",
+          "performance": 5
+        },
+        {
+          "opponent": "LYON",
+          "result": "win",
+          "score": "3-0",
+          "performance": 310
+        },
+        {
+          "opponent": "JD Gaming",
+          "result": "win",
+          "score": "3-0",
+          "performance": 175
+        }
       ],
       "team": "geng",
       "gridID": null,
@@ -5651,15 +5681,30 @@
       "rating": 91,
       "image": "/images/lol/T1/Oner.webp",
       "stats": {
-        "kills": 4.1,
-        "deaths": 2.8,
-        "assists": 8.5,
-        "winRate": 68
+        "kills": 4.83,
+        "deaths": 3,
+        "assists": 7.57,
+        "winRate": 61
       },
       "recentMatches": [
-        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 275 },
-        { "opponent": "BLG", "result": "loss", "score": "2-3", "performance": 255 },
-        { "opponent": "HLE", "result": "win", "score": "3-2", "performance": 268 }
+        {
+          "opponent": "Dplus Kia",
+          "result": "loss",
+          "score": "2-3",
+          "performance": 350
+        },
+        {
+          "opponent": "BNK FEARX",
+          "result": "loss",
+          "score": "1-3",
+          "performance": 180
+        },
+        {
+          "opponent": "Dplus Kia",
+          "result": "win",
+          "score": "3-0",
+          "performance": 385
+        }
       ],
       "team": "t1",
       "gridID": null,
@@ -5676,15 +5721,30 @@
       "rating": 92,
       "image": "/images/lol/GenG/Ruler.webp",
       "stats": {
-        "kills": 6.3,
-        "deaths": 2.4,
-        "assists": 5.9,
-        "winRate": 71
+        "kills": 4,
+        "deaths": 1.78,
+        "assists": 4.78,
+        "winRate": 67
       },
       "recentMatches": [
-        { "opponent": "T1", "result": "win", "score": "3-1", "performance": 290 },
-        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 278 },
-        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 250 }
+        {
+          "opponent": "G2 Esports",
+          "result": "loss",
+          "score": "0-3",
+          "performance": 35
+        },
+        {
+          "opponent": "LYON",
+          "result": "win",
+          "score": "3-0",
+          "performance": 295
+        },
+        {
+          "opponent": "JD Gaming",
+          "result": "win",
+          "score": "3-0",
+          "performance": 285
+        }
       ],
       "team": "geng",
       "gridID": null,
@@ -5701,15 +5761,30 @@
       "rating": 94,
       "image": "/images/lol/T1/Keria.webp",
       "stats": {
-        "kills": 1.5,
-        "deaths": 2.2,
-        "assists": 11.3,
-        "winRate": 72
+        "kills": 0.83,
+        "deaths": 2.7,
+        "assists": 12.78,
+        "winRate": 61
       },
       "recentMatches": [
-        { "opponent": "Gen.G", "result": "win", "score": "3-1", "performance": 280 },
-        { "opponent": "BLG", "result": "win", "score": "3-2", "performance": 272 },
-        { "opponent": "HLE", "result": "loss", "score": "1-3", "performance": 248 }
+        {
+          "opponent": "Dplus Kia",
+          "result": "loss",
+          "score": "2-3",
+          "performance": 285
+        },
+        {
+          "opponent": "BNK FEARX",
+          "result": "loss",
+          "score": "1-3",
+          "performance": 160
+        },
+        {
+          "opponent": "Dplus Kia",
+          "result": "win",
+          "score": "3-0",
+          "performance": 330
+        }
       ],
       "team": "t1",
       "gridID": null,
@@ -5726,15 +5801,30 @@
       "rating": 96,
       "image": "/images/lol/GenG/Chovy.webp",
       "stats": {
-        "kills": 5.8,
-        "deaths": 1.9,
-        "assists": 7.1,
-        "winRate": 69
+        "kills": 3.78,
+        "deaths": 1.44,
+        "assists": 5.56,
+        "winRate": 67
       },
       "recentMatches": [
-        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 275 },
-        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 310 },
-        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 298 }
+        {
+          "opponent": "G2 Esports",
+          "result": "loss",
+          "score": "0-3",
+          "performance": 40
+        },
+        {
+          "opponent": "LYON",
+          "result": "win",
+          "score": "3-0",
+          "performance": 320
+        },
+        {
+          "opponent": "JD Gaming",
+          "result": "win",
+          "score": "3-0",
+          "performance": 285
+        }
       ],
       "team": "geng",
       "gridID": null,
@@ -5751,15 +5841,30 @@
       "rating": 87,
       "image": "/images/lol/T1/Doran.webp",
       "stats": {
-        "kills": 3.2,
-        "deaths": 2.7,
-        "assists": 5.8,
-        "winRate": 65
+        "kills": 3.13,
+        "deaths": 2.91,
+        "assists": 5.96,
+        "winRate": 61
       },
       "recentMatches": [
-        { "opponent": "Gen.G", "result": "loss", "score": "1-3", "performance": 245 },
-        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 268 },
-        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 258 }
+        {
+          "opponent": "Dplus Kia",
+          "result": "loss",
+          "score": "2-3",
+          "performance": 270
+        },
+        {
+          "opponent": "BNK FEARX",
+          "result": "loss",
+          "score": "1-3",
+          "performance": 105
+        },
+        {
+          "opponent": "Dplus Kia",
+          "result": "win",
+          "score": "3-0",
+          "performance": 275
+        }
       ],
       "team": "t1",
       "gridID": null,
@@ -5776,15 +5881,30 @@
       "rating": 95,
       "image": "/images/lol/GenG/Canyon.webp",
       "stats": {
-        "kills": 4.5,
-        "deaths": 2.3,
-        "assists": 9.1,
+        "kills": 2.44,
+        "deaths": 1.67,
+        "assists": 6.56,
         "winRate": 67
       },
       "recentMatches": [
-        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 265 },
-        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 300 },
-        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 288 }
+        {
+          "opponent": "G2 Esports",
+          "result": "loss",
+          "score": "0-3",
+          "performance": 10
+        },
+        {
+          "opponent": "LYON",
+          "result": "win",
+          "score": "3-0",
+          "performance": 295
+        },
+        {
+          "opponent": "JD Gaming",
+          "result": "win",
+          "score": "3-0",
+          "performance": 255
+        }
       ],
       "team": "geng",
       "gridID": null,
@@ -5801,15 +5921,30 @@
       "rating": 88,
       "image": "/images/lol/T1/Peyz.webp",
       "stats": {
-        "kills": 5.5,
-        "deaths": 2.6,
-        "assists": 5.4,
-        "winRate": 64
+        "kills": 5.91,
+        "deaths": 2.91,
+        "assists": 6.22,
+        "winRate": 61
       },
       "recentMatches": [
-        { "opponent": "Gen.G", "result": "loss", "score": "1-3", "performance": 250 },
-        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 278 },
-        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 265 }
+        {
+          "opponent": "Dplus Kia",
+          "result": "loss",
+          "score": "2-3",
+          "performance": 285
+        },
+        {
+          "opponent": "BNK FEARX",
+          "result": "loss",
+          "score": "1-3",
+          "performance": 220
+        },
+        {
+          "opponent": "Dplus Kia",
+          "result": "win",
+          "score": "3-0",
+          "performance": 495
+        }
       ],
       "team": "t1",
       "gridID": null,
@@ -5826,15 +5961,30 @@
       "rating": 89,
       "image": "/images/lol/GenG/Duro.webp",
       "stats": {
-        "kills": 1.2,
-        "deaths": 2.4,
-        "assists": 10.8,
-        "winRate": 66
+        "kills": 0.78,
+        "deaths": 2.44,
+        "assists": 9,
+        "winRate": 67
       },
       "recentMatches": [
-        { "opponent": "T1", "result": "loss", "score": "1-3", "performance": 252 },
-        { "opponent": "HLE", "result": "win", "score": "3-0", "performance": 275 },
-        { "opponent": "DRX", "result": "win", "score": "3-1", "performance": 262 }
+        {
+          "opponent": "G2 Esports",
+          "result": "loss",
+          "score": "0-3",
+          "performance": 0
+        },
+        {
+          "opponent": "LYON",
+          "result": "win",
+          "score": "3-0",
+          "performance": 270
+        },
+        {
+          "opponent": "JD Gaming",
+          "result": "win",
+          "score": "3-0",
+          "performance": 220
+        }
       ],
       "team": "geng",
       "gridID": null,

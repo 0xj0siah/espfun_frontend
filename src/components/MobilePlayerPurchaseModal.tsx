@@ -1186,6 +1186,25 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                           <p className="text-[10px] text-muted-foreground">Win Rate</p>
                         </div>
                       </div>
+                    ) : player.stats ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-center p-2 bg-accent/50 rounded-lg">
+                          <p className="text-base font-bold text-primary">{player.stats.kills.toFixed(1)}</p>
+                          <p className="text-[10px] text-muted-foreground">Avg Kills</p>
+                        </div>
+                        <div className="text-center p-2 bg-accent/50 rounded-lg">
+                          <p className="text-base font-bold text-primary">{player.stats.deaths.toFixed(1)}</p>
+                          <p className="text-[10px] text-muted-foreground">Avg Deaths</p>
+                        </div>
+                        <div className="text-center p-2 bg-accent/50 rounded-lg">
+                          <p className="text-base font-bold text-primary">{player.stats.assists.toFixed(1)}</p>
+                          <p className="text-[10px] text-muted-foreground">Avg Assists</p>
+                        </div>
+                        <div className="text-center p-2 bg-accent/50 rounded-lg">
+                          <p className="text-base font-bold text-primary">{player.stats.winRate}%</p>
+                          <p className="text-[10px] text-muted-foreground">Win Rate</p>
+                        </div>
+                      </div>
                     ) : (
                       <p className="text-xs text-center text-muted-foreground py-4">No stats available</p>
                     )}
@@ -1237,6 +1256,26 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                             <span className={`text-xs font-bold ${match.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
                               {match.result.toUpperCase()}
                             </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : player.recentMatches && player.recentMatches.length > 0 ? (
+                      <div className="space-y-2">
+                        {player.recentMatches.map((match, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${match.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium truncate">vs {match.opponent}</p>
+                                <p className="text-[10px] text-muted-foreground">{match.score}</p>
+                              </div>
+                            </div>
+                            <div className="text-right ml-2">
+                              <span className={`text-xs font-bold ${match.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
+                                {match.result.toUpperCase()}
+                              </span>
+                              <p className="text-[10px] text-muted-foreground">{match.performance} pts</p>
+                            </div>
                           </div>
                         ))}
                       </div>

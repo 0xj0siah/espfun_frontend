@@ -1938,8 +1938,36 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                         <p className="text-xs text-muted-foreground">Win Rate</p>
                       </div>
                     </>
+                  ) : player.stats ? (
+                    // Fall back to local stats (e.g. Leaguepedia data)
+                    <>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {player.stats.kills.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Avg Kills</p>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {player.stats.deaths.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Avg Deaths</p>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {player.stats.assists.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Avg Assists</p>
+                      </div>
+                      <div className="text-center p-2 bg-accent/50 rounded-lg">
+                        <p className="text-lg font-bold text-primary">
+                          {player.stats.winRate}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">Win Rate</p>
+                      </div>
+                    </>
                   ) : (
-                    // No data available yet
+                    // No data available at all
                     <div className="col-span-4 text-center py-4 text-muted-foreground">
                       <p className="text-sm">No statistics available</p>
                       <p className="text-xs mt-1">Player stats will appear here when available</p>
@@ -1973,6 +2001,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   <div className="mt-2 flex items-center text-xs text-muted-foreground">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
                     Loading stats from Grid.gg...
+                  </div>
+                )}
+                {!gridStats && !gridStatsLoading && !player.gridID && player.stats && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                    Tournament data from Leaguepedia
                   </div>
                 )}
                 {!gridStats && !gridStatsLoading && player.gridID && (
@@ -2033,8 +2067,31 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                         </div>
                       </div>
                     ))
+                  ) : player.recentMatches && player.recentMatches.length > 0 ? (
+                    // Fall back to local recent matches (e.g. Leaguepedia data)
+                    player.recentMatches.map((match, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            match.result === 'win' ? 'bg-green-500' : 'bg-red-500'
+                          }`}></div>
+                          <div>
+                            <p className="text-xs font-medium">vs {match.opponent}</p>
+                            <p className="text-[10px] text-muted-foreground">{match.score}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                            {match.result.toUpperCase()}
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {match.performance} pts
+                          </p>
+                        </div>
+                      </div>
+                    ))
                   ) : (
-                    // No data available yet
+                    // No data available at all
                     <div className="text-center py-4 text-muted-foreground">
                       <p className="text-sm">No recent matches available</p>
                       <p className="text-xs mt-1">Match data will appear here when available</p>
@@ -2059,6 +2116,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   <div className="mt-2 flex items-center text-xs text-muted-foreground">
                     <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
                     Waiting for match data
+                  </div>
+                )}
+                {seriesData.length === 0 && !seriesLoading && !player.teamGridId && player.recentMatches?.length > 0 && (
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                    Tournament data from Leaguepedia
                   </div>
                 )}
               </Card>
