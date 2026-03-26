@@ -528,7 +528,7 @@ export default function TeamSection({
           </TabsTrigger>
           <TabsTrigger value="development" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <TrendingUp className="w-4 h-4 mr-2" />
-            Development
+            Benched
           </TabsTrigger>
           {
           <TabsTrigger value="contracts" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
@@ -671,13 +671,13 @@ export default function TeamSection({
           {developmentLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <span className="ml-2 text-muted-foreground">Loading development players...</span>
+              <span className="ml-2 text-muted-foreground">Loading benched players...</span>
             </div>
           ) : developmentPlayers.totalPlayers === 0 ? (
             <div className="text-center py-8">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Development Players</h3>
-              <p className="text-muted-foreground">Start developing players to promote them to your active squad</p>
+              <h3 className="text-lg font-medium mb-2">No Benched Players</h3>
+              <p className="text-muted-foreground">Players from packs start here. Spend skill points to activate them in your lineup.</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -715,8 +715,8 @@ export default function TeamSection({
                               alt={player.name}
                               className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md ring-2 ring-white/20 group-hover:ring-purple-200 transition-all duration-300 opacity-85"
                             />
-                            {/* Development badge overlay */}
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center z-20">
+                            {/* Benched badge overlay */}
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center z-20">
                               <TrendingUp className="w-3 h-3 text-white" />
                             </div>
                           </div>
@@ -732,9 +732,9 @@ export default function TeamSection({
                         </div>
                         {/* Locked shares badge with enhanced styling */}
                         <div className="flex flex-col items-end ml-3">
-                          <Badge 
-                            variant="secondary" 
-                            className="text-xs bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border border-purple-200/50 px-3 py-1 shadow-sm font-medium"
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-gradient-to-r from-amber-100 to-orange-100 text-amber-800 border border-amber-200/50 px-3 py-1 shadow-sm font-medium"
                           >
                             {player.lockedShares} shares
                           </Badge>
@@ -750,10 +750,10 @@ export default function TeamSection({
                           >
                             {player.price}
                           </Badge>
-                          {/* Development progress indicator */}
+                          {/* Benched status indicator */}
                           <div className="flex items-center space-x-1">
-                            <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                            <span className="text-xs text-purple-600 font-medium">Developing</span>
+                            <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                            <span className="text-xs text-amber-600 font-medium">Benched</span>
                           </div>
                         </div>
                         

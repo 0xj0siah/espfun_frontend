@@ -1025,7 +1025,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       // Reset closing state and show modal content
       isClosingRef.current = false;
       setIsModalContentVisible(true);
-      
+
       // Reset form state
       setUsdcAmount('');
       setAction('buy');
@@ -1329,7 +1329,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             onClick={() => {
               // Start the closing animation
               setIsModalContentVisible(false);
-              
+
               // Close modal after animation completes (0.3s to match the exit animation)
               setTimeout(() => {
                 // Reset all states
@@ -1339,7 +1339,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 setSlippage(0.5);
                 updateAlertState('idle');
                 isClosingRef.current = false;
-                
+
                 // Close the modal
                 onClose();
               }, 300);
@@ -1351,9 +1351,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             <X className="h-4 w-4" />
           </Button>
-          
+
           {/* Modal Content with synchronized animation - maintain size during closing */}
-          <div className="h-[600px] overflow-hidden"> {/* Fixed height to prevent size shifting */}
+          <div className="h-[600px] overflow-hidden">
             <AnimatePresence mode="wait">
               {isModalContentVisible && (
                 <motion.div

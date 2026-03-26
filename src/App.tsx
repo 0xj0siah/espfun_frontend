@@ -7,6 +7,7 @@ import LiveScoresSection from './components/LiveScoresSection';
 import LeaderboardSection from './components/LeaderboardSection';
 import PackOpeningSection from './components/pack-opening/PackOpeningSection';
 import AgentSection from './components/AgentSection';
+import StakingSection from './components/StakingSection';
 import { PasswordGate } from './components/PasswordGate';
 import { usePlayerPrices } from './hooks/usePlayerPricing';
 import fakeData from './fakedata.json';
@@ -91,6 +92,8 @@ export default function App() {
         return <LeaderboardSection />;
       case 'Pack Opening':
         return <PackOpeningSection />;
+      case 'Staking':
+        return <StakingSection />;
       // case 'Agent':
       //   return <AgentSection />;
       default:

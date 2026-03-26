@@ -8,6 +8,7 @@ import DevelopmentPlayersABI from './abis/DevelopmentPlayers.json';
 import PlayerContractsABI from './abis/PlayerContracts.json';
 import PlayerPackABI from './abis/PlayerPack.json';
 import FDFPairABI from './abis/FDFPair.json';
+import ESPStakingABI from './abis/ESPStaking.json';
 
 // Export ABIs
 export {
@@ -17,6 +18,7 @@ export {
   PlayerContractsABI,
   PlayerPackABI,
   FDFPairABI,
+  ESPStakingABI,
 };
 
 // Contract addresses (Updated from setup.md - ESP Fun System Fully Operational!)
@@ -28,6 +30,8 @@ export const CONTRACT_ADDRESSES = {
   PlayerPack: '0x6351A397a17718Ba614b1dffF183557aca55F24A',
   FDFPair: '0xF41Ab3e0dE047E53e9D75ebCfc65D0ac727C7B59',
   TUSDC: '0xEc25C405ec25BB24Ad004198D1B3111e8de808f8',
+  ESPStaking: '0x0000000000000000000000000000000000000000', // Update after deployment
+  ESP: '0x0000000000000000000000000000000000000000',        // ESP token address — update after deployment
 } as const;
 
 // Type definitions for the contracts
@@ -95,6 +99,50 @@ export const CONTRACTS = {
         "type": "function",
         "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}],
         "outputs": [],
+        "stateMutability": "nonpayable"
+      }
+    ],
+  },
+  ESPStaking: {
+    address: CONTRACT_ADDRESSES.ESPStaking,
+    abi: ESPStakingABI,
+  },
+  ESP: {
+    address: CONTRACT_ADDRESSES.ESP,
+    abi: [
+      {
+        "name": "decimals",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint8"}],
+        "stateMutability": "view"
+      },
+      {
+        "name": "symbol",
+        "type": "function",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "string"}],
+        "stateMutability": "view"
+      },
+      {
+        "name": "balanceOf",
+        "type": "function",
+        "inputs": [{"name": "account", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+      },
+      {
+        "name": "allowance",
+        "type": "function",
+        "inputs": [{"name": "owner", "type": "address"}, {"name": "spender", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view"
+      },
+      {
+        "name": "approve",
+        "type": "function",
+        "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}],
+        "outputs": [{"name": "", "type": "bool"}],
         "stateMutability": "nonpayable"
       }
     ],
