@@ -21,6 +21,7 @@ import './utils/contractDebug';
 
 // Import icons
 import { Github } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Team');
@@ -142,6 +143,7 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-500/5 to-emerald-600/5 rounded-full blur-3xl"></div>
         </div>
       </div>
+      <Toaster richColors position="bottom-right" />
       </GameProvider>
       </AuthProvider>
     </PasswordGate>

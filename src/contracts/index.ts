@@ -1,5 +1,5 @@
 // Contract ABIs and addresses for ESP.fun
-// All contracts deployed on Monad Testnet
+// All contracts deployed on Base Sepolia
 
 // Import ABIs (these are raw ABI arrays)
 import FeeManagerABI from './abis/FeeManager.json';
@@ -9,6 +9,9 @@ import PlayerContractsABI from './abis/PlayerContracts.json';
 import PlayerPackABI from './abis/PlayerPack.json';
 import FDFPairABI from './abis/FDFPair.json';
 import ESPStakingABI from './abis/ESPStaking.json';
+import BondingCurveABI from './abis/BondingCurve.json';
+import TUSDCABI from './abis/TUSDC.json';
+import ESPABI from './abis/ESP.json';
 
 // Export ABIs
 export {
@@ -19,6 +22,9 @@ export {
   PlayerPackABI,
   FDFPairABI,
   ESPStakingABI,
+  BondingCurveABI,
+  TUSDCABI,
+  ESPABI,
 };
 
 // Contract addresses (Updated from setup.md - ESP Fun System Fully Operational!)
@@ -32,6 +38,7 @@ export const CONTRACT_ADDRESSES = {
   TUSDC: '0xEc25C405ec25BB24Ad004198D1B3111e8de808f8',
   ESPStaking: '0x0000000000000000000000000000000000000000', // Update after deployment
   ESP: '0x0000000000000000000000000000000000000000',        // ESP token address — update after deployment
+  BondingCurve: '0x0000000000000000000000000000000000000000', // Update after deployment
 } as const;
 
 // Type definitions for the contracts
@@ -65,87 +72,19 @@ export const CONTRACTS = {
   },
   TUSDC: {
     address: CONTRACT_ADDRESSES.TUSDC,
-    abi: [
-      {
-        "name": "decimals",
-        "type": "function",
-        "inputs": [],
-        "outputs": [{"name": "", "type": "uint8"}],
-        "stateMutability": "view"
-      },
-      {
-        "name": "balanceOf",
-        "type": "function",
-        "inputs": [{"name": "account", "type": "address"}],
-        "outputs": [{"name": "", "type": "uint256"}],
-        "stateMutability": "view"
-      },
-      {
-        "name": "allowance",
-        "type": "function",
-        "inputs": [{"name": "owner", "type": "address"}, {"name": "spender", "type": "address"}],
-        "outputs": [{"name": "", "type": "uint256"}],
-        "stateMutability": "view"
-      },
-      {
-        "name": "approve",
-        "type": "function",
-        "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}],
-        "outputs": [{"name": "", "type": "bool"}],
-        "stateMutability": "nonpayable"
-      },
-      {
-        "name": "mint",
-        "type": "function",
-        "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-      }
-    ],
+    abi: TUSDCABI,
   },
   ESPStaking: {
     address: CONTRACT_ADDRESSES.ESPStaking,
     abi: ESPStakingABI,
   },
+  BondingCurve: {
+    address: CONTRACT_ADDRESSES.BondingCurve,
+    abi: BondingCurveABI,
+  },
   ESP: {
     address: CONTRACT_ADDRESSES.ESP,
-    abi: [
-      {
-        "name": "decimals",
-        "type": "function",
-        "inputs": [],
-        "outputs": [{"name": "", "type": "uint8"}],
-        "stateMutability": "view"
-      },
-      {
-        "name": "symbol",
-        "type": "function",
-        "inputs": [],
-        "outputs": [{"name": "", "type": "string"}],
-        "stateMutability": "view"
-      },
-      {
-        "name": "balanceOf",
-        "type": "function",
-        "inputs": [{"name": "account", "type": "address"}],
-        "outputs": [{"name": "", "type": "uint256"}],
-        "stateMutability": "view"
-      },
-      {
-        "name": "allowance",
-        "type": "function",
-        "inputs": [{"name": "owner", "type": "address"}, {"name": "spender", "type": "address"}],
-        "outputs": [{"name": "", "type": "uint256"}],
-        "stateMutability": "view"
-      },
-      {
-        "name": "approve",
-        "type": "function",
-        "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}],
-        "outputs": [{"name": "", "type": "bool"}],
-        "stateMutability": "nonpayable"
-      }
-    ],
+    abi: ESPABI,
   },
 } as const;
 
@@ -154,10 +93,19 @@ export function getContractData(contractName: ContractName) {
   return CONTRACTS[contractName];
 }
 
-// Network configuration (Monad Testnet)
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
+
+/** Check whether a contract has a real deployed address (not zero-address). */
+export function isContractDeployed(contractName: ContractName): boolean {
+  return CONTRACT_ADDRESSES[contractName] !== ZERO_ADDRESS;
+}
+
+// Network configuration (Base Sepolia)
+// TODO: Align Privy chain config in main.tsx with NETWORK_CONFIG
 export const NETWORK_CONFIG = {
   chainId: 84532,
   name: 'Base Sepolia',
+  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
   rpcUrl: 'https://sepolia.base.org',
   blockExplorer: 'https://sepolia.basescan.org',
 } as const;

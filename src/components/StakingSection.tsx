@@ -6,56 +6,51 @@ import { Input } from './ui/input';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Separator } from './ui/separator';
+import { Skeleton } from './ui/skeleton';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { motion } from 'motion/react';
 import { Coins, TrendingUp, Wallet, Info, CheckCircle, XCircle, Loader2, ExternalLink, ArrowDownToLine, ArrowUpFromLine, Gift } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useWalletTransactions } from '../hooks/useWalletTransactions';
 import { useStaking } from '../hooks/useStaking';
-import { createPublicClient, http, parseUnits, encodeFunctionData } from 'viem';
-import { CONTRACTS, CONTRACT_ADDRESSES, NETWORK_CONFIG } from '../contracts';
+import { usePublicClient } from '../hooks/usePublicClient';
+import { parseUnits, encodeFunctionData } from 'viem';
+import { CONTRACT_ADDRESSES, CONTRACTS, NETWORK_CONFIG, isContractDeployed as checkContractDeployed } from '../contracts';
+import { toast } from 'sonner';
 
 type TxState = 'idle' | 'approving' | 'staking' | 'unstaking' | 'claiming' | 'distributing' | 'success' | 'error';
 
-// Mock daily revenue share data — replace with real API/contract data after deployment
-const DAILY_REVENUE_DATA = [
-  { date: 'Mar 10', usdc: 0 },
-  { date: 'Mar 11', usdc: 0 },
-  { date: 'Mar 12', usdc: 0 },
-  { date: 'Mar 13', usdc: 0 },
-  { date: 'Mar 14', usdc: 0 },
-  { date: 'Mar 15', usdc: 0 },
-  { date: 'Mar 16', usdc: 0 },
-  { date: 'Mar 17', usdc: 0 },
-  { date: 'Mar 18', usdc: 0 },
-  { date: 'Mar 19', usdc: 0 },
-  { date: 'Mar 20', usdc: 0 },
-  { date: 'Mar 21', usdc: 0 },
-  { date: 'Mar 22', usdc: 0 },
-  { date: 'Mar 23', usdc: 0 },
-];
+/** Deterministic seed from a date string — stable across renders */
+function seedFromDate(dateStr: string): number {
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) {
+    hash = (hash * 31 + dateStr.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
 
-const publicClient = createPublicClient({
-  chain: {
-    id: NETWORK_CONFIG.chainId,
-    name: NETWORK_CONFIG.name,
-    rpcUrls: {
-      default: { http: [NETWORK_CONFIG.rpcUrl] },
-      public: { http: [NETWORK_CONFIG.rpcUrl] },
-    },
-    blockExplorers: {
-      default: { name: 'Explorer', url: NETWORK_CONFIG.blockExplorer },
-    },
-    nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-    testnet: true,
-  },
-  transport: http(NETWORK_CONFIG.rpcUrl, { timeout: 30000, retryCount: 3 }),
-});
+/** Generate 14-day placeholder chart data — replace with real API/contract data after deployment */
+function generatePlaceholderRevenueData(): { date: string; usdc: number }[] {
+  const data: { date: string; usdc: number }[] = [];
+  const now = new Date();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const label = `${months[d.getMonth()]} ${d.getDate()}`;
+    const seed = seedFromDate(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    const usdc = parseFloat(((seed % 5000) / 100).toFixed(2)); // 0–50 range
+    data.push({ date: label, usdc });
+  }
+  return data;
+}
 
 export default function StakingSection() {
   const { login, authenticated } = usePrivy();
   const { wallets } = useWallets();
   const { sendTransactionWithWallet } = useWalletTransactions();
+  const publicClient = usePublicClient();
 
   const walletAddress = wallets[0]?.address;
   const staking = useStaking(walletAddress);
@@ -69,8 +64,37 @@ export default function StakingSection() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
-  const isContractDeployed =
-    CONTRACT_ADDRESSES.ESPStaking !== '0x0000000000000000000000000000000000000000';
+  const isContractDeployed = checkContractDeployed('ESPStaking');
+
+  // Placeholder chart data (deterministic, stable across renders)
+  const revenueData = useMemo(() => generatePlaceholderRevenueData(), []);
+
+  // Input validation
+  const stakeError = useMemo(() => {
+    if (!stakeAmount) return null;
+    const num = parseFloat(stakeAmount);
+    if (isNaN(num) || num <= 0) return 'Enter a valid amount';
+    try {
+      const amount = parseUnits(stakeAmount, 18);
+      if (amount > staking.userEspBalance) return 'Insufficient ESP balance';
+    } catch {
+      return 'Enter a valid amount';
+    }
+    return null;
+  }, [stakeAmount, staking.userEspBalance]);
+
+  const unstakeError = useMemo(() => {
+    if (!unstakeAmount) return null;
+    const num = parseFloat(unstakeAmount);
+    if (isNaN(num) || num <= 0) return 'Enter a valid amount';
+    try {
+      const amount = parseUnits(unstakeAmount, 18);
+      if (amount > staking.userStakedAmount) return 'Exceeds staked amount';
+    } catch {
+      return 'Enter a valid amount';
+    }
+    return null;
+  }, [unstakeAmount, staking.userStakedAmount]);
 
   const resetTxState = () => {
     setTxState('idle');
@@ -112,12 +136,14 @@ export default function StakingSection() {
       await publicClient.waitForTransactionReceipt({ hash: result.hash as `0x${string}` });
 
       setTxState('success');
+      toast.success(`Successfully staked ${stakeAmount} ESP`);
       setStakeAmount('');
       await staking.refresh();
     } catch (err: any) {
       console.error('Stake error:', err);
       setTxState('error');
       setTxError(err.message || 'Transaction failed');
+      toast.error(err.message || 'Stake failed');
     }
   };
 
@@ -141,12 +167,14 @@ export default function StakingSection() {
       await publicClient.waitForTransactionReceipt({ hash: result.hash as `0x${string}` });
 
       setTxState('success');
+      toast.success(`Successfully unstaked ${unstakeAmount} ESP`);
       setUnstakeAmount('');
       await staking.refresh();
     } catch (err: any) {
       console.error('Unstake error:', err);
       setTxState('error');
       setTxError(err.message || 'Transaction failed');
+      toast.error(err.message || 'Unstake failed');
     }
   };
 
@@ -169,11 +197,13 @@ export default function StakingSection() {
       await publicClient.waitForTransactionReceipt({ hash: result.hash as `0x${string}` });
 
       setTxState('success');
+      toast.success('Claimed USDC rewards');
       await staking.refresh();
     } catch (err: any) {
       console.error('Claim error:', err);
       setTxState('error');
       setTxError(err.message || 'Transaction failed');
+      toast.error(err.message || 'Claim failed');
     }
   };
 
@@ -196,11 +226,13 @@ export default function StakingSection() {
       await publicClient.waitForTransactionReceipt({ hash: result.hash as `0x${string}` });
 
       setTxState('success');
+      toast.success('Rewards distributed');
       await staking.refresh();
     } catch (err: any) {
       console.error('Distribute error:', err);
       setTxState('error');
       setTxError(err.message || 'Transaction failed');
+      toast.error(err.message || 'Distribution failed');
     }
   };
 
@@ -290,34 +322,48 @@ export default function StakingSection() {
               <TabsContent value="stake" className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">Amount to Stake</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      value={stakeAmount}
-                      onChange={(e) => setStakeAmount(e.target.value)}
-                      disabled={isTxPending}
-                      min="0"
-                      step="any"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => setStakeAmount(staking.userEspBalance > BigInt(0) ? formatUnitsRaw(staking.userEspBalance, 18) : '')}
-                      disabled={isTxPending}
-                    >
-                      Max
-                    </Button>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={stakeAmount}
+                    onChange={(e) => setStakeAmount(e.target.value)}
+                    disabled={isTxPending}
+                    min="0"
+                    step="any"
+                    className={stakeError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                  />
+                  <div className="flex gap-1.5 mt-2">
+                    {[25, 50, 75, 100].map(pct => (
+                      <Button
+                        key={pct}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs h-7"
+                        onClick={() => {
+                          const balance = staking.userEspBalance;
+                          if (balance <= BigInt(0)) return;
+                          const amount = (balance * BigInt(pct)) / BigInt(100);
+                          setStakeAmount(formatUnitsRaw(amount, 18));
+                        }}
+                        disabled={isTxPending}
+                      >
+                        {pct === 100 ? 'MAX' : `${pct}%`}
+                      </Button>
+                    ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Balance: {staking.formatted.userEspBalance} ESP
-                  </p>
+                  <div className="flex justify-between mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Balance: {staking.formatted.userEspBalance} ESP
+                    </p>
+                    {stakeError && (
+                      <p className="text-xs text-red-500">{stakeError}</p>
+                    )}
+                  </div>
                 </div>
 
                 <Button
                   onClick={handleStake}
-                  disabled={isTxPending || !stakeAmount || !isContractDeployed || parseFloat(stakeAmount) <= 0}
+                  disabled={isTxPending || !stakeAmount || !isContractDeployed || !!stakeError}
                   className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
                 >
                   {isTxPending && txState !== 'unstaking' ? (
@@ -327,89 +373,54 @@ export default function StakingSection() {
                   )}
                 </Button>
 
-                {/* Daily Revenue Chart */}
-                <div className="pt-4">
-                  <p className="text-xs text-muted-foreground mb-2">Daily Revenue Distributed (USDC)</p>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <AreaChart data={DAILY_REVENUE_DATA} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="opacity-10" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 10, fill: 'currentColor' }}
-                        className="text-muted-foreground"
-                        tickLine={false}
-                        axisLine={false}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis
-                        tick={{ fontSize: 10, fill: 'currentColor' }}
-                        className="text-muted-foreground"
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(v) => `$${v}`}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--background))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                        formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="usdc"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        fill="url(#revenueGradient)"
-                        dot={false}
-                        activeDot={{ r: 4, fill: '#10b981' }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
               </TabsContent>
 
               {/* Unstake Tab */}
               <TabsContent value="unstake" className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">Amount to Unstake</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      value={unstakeAmount}
-                      onChange={(e) => setUnstakeAmount(e.target.value)}
-                      disabled={isTxPending}
-                      min="0"
-                      step="any"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => setUnstakeAmount(staking.userStakedAmount > BigInt(0) ? formatUnitsRaw(staking.userStakedAmount, 18) : '')}
-                      disabled={isTxPending}
-                    >
-                      Max
-                    </Button>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={unstakeAmount}
+                    onChange={(e) => setUnstakeAmount(e.target.value)}
+                    disabled={isTxPending}
+                    min="0"
+                    step="any"
+                    className={unstakeError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                  />
+                  <div className="flex gap-1.5 mt-2">
+                    {[25, 50, 75, 100].map(pct => (
+                      <Button
+                        key={pct}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs h-7"
+                        onClick={() => {
+                          const staked = staking.userStakedAmount;
+                          if (staked <= BigInt(0)) return;
+                          const amount = (staked * BigInt(pct)) / BigInt(100);
+                          setUnstakeAmount(formatUnitsRaw(amount, 18));
+                        }}
+                        disabled={isTxPending}
+                      >
+                        {pct === 100 ? 'MAX' : `${pct}%`}
+                      </Button>
+                    ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Staked: {staking.formatted.userStakedAmount} ESP
-                  </p>
+                  <div className="flex justify-between mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Staked: {staking.formatted.userStakedAmount} ESP
+                    </p>
+                    {unstakeError && (
+                      <p className="text-xs text-red-500">{unstakeError}</p>
+                    )}
+                  </div>
                 </div>
 
                 <Button
                   onClick={handleUnstake}
-                  disabled={isTxPending || !unstakeAmount || !isContractDeployed || parseFloat(unstakeAmount) <= 0}
+                  disabled={isTxPending || !unstakeAmount || !isContractDeployed || !!unstakeError}
                   className="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white"
                 >
                   {isTxPending && txState === 'unstaking' ? (
@@ -447,6 +458,56 @@ export default function StakingSection() {
                   </Alert>
                 </div>
               )}
+
+              {/* Daily Revenue Chart — visible on both tabs */}
+              <div className="pt-4">
+                <p className="text-xs text-muted-foreground mb-2">Daily Revenue Distributed (USDC)</p>
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="opacity-10" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: 'currentColor' }}
+                      className="text-muted-foreground"
+                      tickLine={false}
+                      axisLine={false}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'currentColor' }}
+                      className="text-muted-foreground"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => `$${v}`}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                      }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="usdc"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fill="url(#revenueGradient)"
+                      dot={false}
+                      activeDot={{ r: 4, fill: '#10b981' }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </Tabs>
           )}
         </Card>
@@ -462,20 +523,58 @@ export default function StakingSection() {
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total ESP Staked</span>
-                <span className="text-primary font-medium">{staking.formatted.totalStaked}</span>
+                {staking.loading ? <Skeleton className="h-4 w-20" /> : (
+                  <span className="text-primary font-medium">{staking.formatted.totalStaked}</span>
+                )}
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Revenue Share</span>
-                <span className="text-primary font-medium">{staking.formatted.stakerSharePercent}</span>
+                <span className="text-muted-foreground flex items-center gap-1">
+                  Revenue Share
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Percentage of platform trading fees distributed to ESP stakers</TooltipContent>
+                  </Tooltip>
+                </span>
+                {staking.loading ? <Skeleton className="h-4 w-12" /> : (
+                  <span className="text-primary font-medium">{staking.formatted.stakerSharePercent}</span>
+                )}
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  Estimated APY
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Based on recent reward distribution rate. Available after contract deployment.</TooltipContent>
+                  </Tooltip>
+                </span>
+                {staking.loading ? <Skeleton className="h-4 w-12" /> : (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">&mdash;</span>
+                )}
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total Rewards Paid</span>
-                <span className="text-primary font-medium">{staking.formatted.totalRewardsDistributed} USDC</span>
+                {staking.loading ? <Skeleton className="h-4 w-24" /> : (
+                  <span className="text-primary font-medium">{staking.formatted.totalRewardsDistributed} USDC</span>
+                )}
               </div>
               <Separator className="my-2" />
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Undistributed</span>
-                <span className="text-primary font-medium">{staking.formatted.undistributedRewards} USDC</span>
+                <span className="text-muted-foreground flex items-center gap-1">
+                  Undistributed
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">USDC fees collected but not yet distributed to stakers. Anyone can trigger distribution.</TooltipContent>
+                  </Tooltip>
+                </span>
+                {staking.loading ? <Skeleton className="h-4 w-20" /> : (
+                  <span className="text-primary font-medium">{staking.formatted.undistributedRewards} USDC</span>
+                )}
               </div>
               {staking.undistributedRewards > BigInt(0) && authenticated && (
                 <Button
@@ -505,17 +604,39 @@ export default function StakingSection() {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Your Staked ESP</span>
-                  <span className="text-primary font-medium">{staking.formatted.userStakedAmount}</span>
+                  {staking.loading ? <Skeleton className="h-4 w-20" /> : (
+                    <span className="text-primary font-medium">{staking.formatted.userStakedAmount}</span>
+                  )}
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Your Share</span>
-                  <span className="text-primary font-medium">{staking.formatted.userSharePercent}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Pending Rewards</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                    {staking.formatted.userPendingRewards} USDC
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    Your Share
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Your percentage of the total staked ESP pool</TooltipContent>
+                    </Tooltip>
                   </span>
+                  {staking.loading ? <Skeleton className="h-4 w-12" /> : (
+                    <span className="text-primary font-medium">{staking.formatted.userSharePercent}</span>
+                  )}
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    Pending Rewards
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">USDC rewards earned but not yet claimed to your wallet</TooltipContent>
+                    </Tooltip>
+                  </span>
+                  {staking.loading ? <Skeleton className="h-4 w-20" /> : (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                      {staking.formatted.userPendingRewards} USDC
+                    </span>
+                  )}
                 </div>
                 {staking.userPendingRewards > BigInt(0) && (
                   <Button

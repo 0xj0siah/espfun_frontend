@@ -22,6 +22,13 @@ import { AuthenticationStatus } from './AuthenticationStatus';
 import { GridDetailedPlayerStats, SeriesState, MatchResult } from '../utils/api';
 import { useGridCache } from '../hooks/useGridCache';
 import { readContractCached } from '../utils/contractCache';
+import { useTradingPhase } from '../hooks/useTradingPhase';
+import { useTradeQuote } from '../hooks/useTradeQuote';
+import { usePlayerTokenBalance } from '../hooks/usePlayerTokenBalance';
+import { useBondingCurveTrade } from '../hooks/useBondingCurveTrade';
+import { usePublicClient } from '../hooks/usePublicClient';
+import { TradingPhase, FeeType, feeTypeLabel, feeTypeBadgeColor, EMPTY_QUOTE } from '../types/trading';
+import { Progress } from './ui/progress';
 
 interface Player {
   id: number;
@@ -173,27 +180,39 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     walletConnected 
   } = useAuthentication();
 
-  // Create clients for contract interactions
-  const publicClient = createPublicClient({
-    chain: {
-      id: NETWORK_CONFIG.chainId,
-      name: NETWORK_CONFIG.name,
-      rpcUrls: {
-        default: { http: [NETWORK_CONFIG.rpcUrl] },
-        public: { http: [NETWORK_CONFIG.rpcUrl] },
-      },
-      blockExplorers: {
-        default: { name: 'MonadScan', url: NETWORK_CONFIG.blockExplorer },
-      },
-      nativeCurrency: {
-        name: 'MON',
-        symbol: 'MON',
-        decimals: 18,
-      },
-      testnet: true,
-    },
-    transport: http(NETWORK_CONFIG.rpcUrl),
+  // Memoized public client for contract interactions
+  const publicClient = usePublicClient();
+
+  // Phase detection: bonding curve vs FDFPair
+  const {
+    phase: tradingPhase,
+    launch: launchInfo,
+    progress: launchProgress,
+    userCurveBalance,
+    refresh: refreshPhase,
+  } = useTradingPhase(player?.id ?? null, user?.wallet?.address);
+
+  // Phase-aware trade quote (debounced)
+  const quote = useTradeQuote({
+    playerId: player?.id ?? null,
+    action,
+    inputAmount: usdcAmount,
+    phase: tradingPhase,
   });
+
+  // Phase-aware player token balance
+  const {
+    balance: playerTokenBalance,
+    formattedBalance: playerTokenBalanceFormatted,
+    refresh: refreshTokenBalance,
+  } = usePlayerTokenBalance({
+    playerId: player?.id ?? null,
+    walletAddress: user?.wallet?.address,
+    phase: tradingPhase,
+  });
+
+  // Bonding curve trade execution
+  const bondingCurveTrade = useBondingCurveTrade();
 
   // Get currency token address from FDFPair contract
   const getCurrencyTokenAddress = async (): Promise<string> => {
@@ -1121,14 +1140,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   
   const currentPrice = getRealPrice();
 
-  // Calculate expected amount BEFORE slippage using real pool price
+  // Calculate expected amount using contract quote when available, fallback to pool price math
   const usdc = parseFloat(usdcAmount) || 0;
-  // Calculate expected receive amount with fees applied
-  // For buys: receive tokens (no fee deduction on output, fee is added to input cost)
-  // For sells: receive USDC minus the sell fee
-  const expectedReceive = action === 'buy'
-    ? usdc / currentPrice  // Tokens received (fee is paid from input, not deducted from output)
-    : (usdc * currentPrice) * (1 - (sellFeeRate / 10000)); // USDC received after sell fee
+  const expectedReceive = quote.amountToReceive > 0n
+    ? parseFloat(formatUnits(quote.amountToReceive, action === 'buy' ? 18 : 6))
+    : action === 'buy'
+      ? usdc / currentPrice
+      : (usdc * currentPrice) * (1 - (sellFeeRate / 10000));
 
   // Calculate price impact using real pool data
   const realPriceImpactData = calculatePriceImpact(player.id, usdcAmount, action);
@@ -1198,44 +1216,72 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     setIsLoading(true);
     updateAlertState('pending', `${action === 'buy' ? 'Purchasing' : 'Selling'} ${player.name} tokens...`);
-    
+
     try {
-      console.log('🔄 UPDATED CODE RUNNING - handleConfirm function with slippage fix');
-      
-      if (action === 'buy') {
-        // Calculate token amount to buy using real pool price
-        const tokenAmount = (parseFloat(usdcAmount) / currentPrice).toString();
-        
-        // Calculate max currency spend with slippage protection AND buy fee
-        // User wants to spend 'usdcAmount', but due to slippage AND fees, they might need to spend more
-        // Buy fee is in basis points (1000 = 1%, 100 = 0.1%)
-        const feeMultiplier = 1 + (buyFeeRate / 10000); // Convert basis points to decimal
-        const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100) * feeMultiplier).toString();
-        
-        console.log(`💰 Buy calculation: ${usdcAmount} USDC / ${currentPrice.toFixed(8)} price = ${tokenAmount} tokens`);
-        console.log(`💵 BUY FEE: ${buyFeeRate} fee units (${(buyFeeRate / 1000).toFixed(2)}%)`);
-        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage + ${(buyFeeRate / 1000).toFixed(2)}% fee = ${maxCurrencyWithSlippage} USDC max spend`);
-        console.log(`📊 Price check: Current pool price ${currentPrice.toFixed(8)} USDC/token`);
-        console.log(`⚠️  Warning: AMM price impact may require more than ${maxCurrencyWithSlippage} USDC for ${tokenAmount} tokens`);
-        
-        // Check if user has sufficient balance for the slippage-adjusted amount
-        const userBalance = parseFloat(userUsdcBalance);
-        const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
-        if (userBalance < maxSpendAmount) {
-          updateAlertState('error', `Insufficient USDC balance for slippage + fees. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage + ${(buyFeeRate / 1000).toFixed(2)}% fee`);
-          return;
+      if (tradingPhase === TradingPhase.BondingCurve) {
+        // ═══ BONDING CURVE TRADING (no signatures needed) ═══
+        if (action === 'buy') {
+          // For bonding curve buy: user specifies USDC, quote gives token amount
+          const tokenAmount = quote.amountToReceive > 0n
+            ? formatUnits(quote.amountToReceive, 18)
+            : (parseFloat(usdcAmount) / currentPrice).toString();
+          const maxSpend = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
+
+          await bondingCurveTrade.buy({
+            playerId: player.id,
+            tokenAmount,
+            maxCurrencySpend: maxSpend,
+          });
+        } else {
+          // For bonding curve sell: user specifies tokens, quote gives USDC refund
+          const minReceive = quote.amountToReceive > 0n
+            ? formatUnits(
+                quote.amountToReceive * BigInt(10000 - Math.floor(slippage * 100)) / 10000n,
+                6
+              )
+            : (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
+
+          await bondingCurveTrade.sell({
+            playerId: player.id,
+            tokenAmount: usdcAmount,
+            minCurrencyToReceive: minReceive,
+          });
         }
-        
-        console.log(`🚀 CALLING buyTokens with maxCurrencyWithSlippage: ${maxCurrencyWithSlippage}`);
-        await buyTokens(player.id, tokenAmount, maxCurrencyWithSlippage);
+
+        // Refresh phase and balances after bonding curve trade
+        refreshPhase();
+        refreshTokenBalance();
+        await updateBalanceAfterTransaction();
+        updateAlertState('success', `Successfully ${action === 'buy' ? 'bought' : 'sold'} tokens!`, bondingCurveTrade.transactionHash);
+
       } else {
-        // For selling, usdcAmount represents the number of tokens to sell
-        // Sell fee reduces the amount received (subtract fee from proceeds)
-        const feeMultiplier = 1 - (sellFeeRate / 10000); // Convert basis points to decimal
-        const minCurrency = (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100) * feeMultiplier).toString();
-        console.log(`💰 Sell calculation: ${usdcAmount} tokens * ${currentPrice.toFixed(8)} price * ${1 - slippage / 100} slippage * ${feeMultiplier.toFixed(4)} fee = ${minCurrency} USDC`);
-        console.log(`💵 SELL FEE: ${sellFeeRate} fee units (${(sellFeeRate / 1000).toFixed(2)}%)`);
-        await sellTokens(player.id, usdcAmount, minCurrency);
+        // ═══ FDFPAIR TRADING (existing flow with signatures) ═══
+        if (action === 'buy') {
+          // Use quote for accurate pricing, add slippage on top (fee is already included in quote)
+          const tokenAmount = quote.amountToReceive > 0n
+            ? formatUnits(quote.amountToReceive, 18)
+            : (parseFloat(usdcAmount) / currentPrice).toString();
+          const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
+
+          const userBal = parseFloat(userUsdcBalance);
+          const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
+          if (userBal < maxSpendAmount) {
+            updateAlertState('error', `Insufficient USDC balance. You have ${userBal.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage`);
+            return;
+          }
+
+          await buyTokens(player.id, tokenAmount, maxCurrencyWithSlippage);
+        } else {
+          // Use quote for accurate min receive, subtract slippage
+          const minCurrency = quote.amountToReceive > 0n
+            ? formatUnits(
+                quote.amountToReceive * BigInt(10000 - Math.floor(slippage * 100)) / 10000n,
+                6
+              )
+            : (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
+
+          await sellTokens(player.id, usdcAmount, minCurrency);
+        }
       }
       
       // Call optional callback
@@ -1320,9 +1366,17 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl border-0 shadow-2xl" hideCloseButton>
+      <DialogContent
+        className="max-w-4xl border-0 shadow-2xl !animate-none origin-center"
+        hideCloseButton
+        style={{
+          opacity: isModalContentVisible ? 1 : 0,
+          scale: isModalContentVisible ? '1' : '0.05',
+          transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
         <div className="relative">
-          {/* Close button - hide during closing animation */}
+          {/* Close button */}
           <Button
             variant="ghost"
             size="sm"
@@ -1330,7 +1384,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               // Start the closing animation
               setIsModalContentVisible(false);
 
-              // Close modal after animation completes (0.3s to match the exit animation)
+              // Close modal after animation completes (300ms to match the exit animation)
               setTimeout(() => {
                 // Reset all states
                 setShowBuySellMenu(false);
@@ -1344,25 +1398,14 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 onClose();
               }, 300);
             }}
-            className={`absolute -top-2 -right-2 z-10 overflow-hidden group h-8 w-8 p-0 rounded-full hover:bg-background/50 transition-opacity duration-300 ${
-              !isModalContentVisible ? 'opacity-0' : 'opacity-100'
-            }`}
+            className="absolute -top-2 -right-2 z-10 overflow-hidden group h-8 w-8 p-0 rounded-full hover:bg-background/50"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             <X className="h-4 w-4" />
           </Button>
 
-          {/* Modal Content with synchronized animation - maintain size during closing */}
+          {/* Modal Content */}
           <div className="h-[600px] overflow-hidden">
-            <AnimatePresence mode="wait">
-              {isModalContentVisible && (
-                <motion.div
-                  layout={false}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 30 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                >
         
           <DialogHeader className="space-y-4">
             <div className="flex items-start justify-between">
@@ -1472,6 +1515,120 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         )}
 
         <div className="space-y-6">
+          {/* Bonding Curve Progress Bar */}
+          {tradingPhase === TradingPhase.BondingCurve && launchProgress && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg border border-accent/30 bg-accent/10 p-4"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-yellow-500" />
+                  Bonding Curve Launch
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {(launchProgress.percentComplete / 100).toFixed(1)}% funded
+                </span>
+              </div>
+              <Progress value={launchProgress.percentComplete / 100} className="h-2 mb-1.5" />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{parseFloat(formatUnits(launchProgress.raised, 6)).toFixed(2)} USDC raised</span>
+                <span>Target: {parseFloat(formatUnits(launchProgress.target, 6)).toFixed(2)} USDC</span>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Graduated — Claim Tokens Banner */}
+          {tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg border border-green-500/30 bg-green-500/10 p-4"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Token Launch Graduated!
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    You have {parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} unclaimed tokens. Claim to trade on the open market.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      updateAlertState('pending', 'Claiming tokens...');
+                      await bondingCurveTrade.claim(player.id);
+                      refreshPhase();
+                      refreshTokenBalance();
+                      updateAlertState('success', 'Tokens claimed! You can now trade on the market.', bondingCurveTrade.transactionHash);
+                    } catch (err) {
+                      updateAlertState('error', `Claim failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                    }
+                  }}
+                  disabled={bondingCurveTrade.isLoading}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shrink-0"
+                >
+                  {bondingCurveTrade.isLoading ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Claiming...
+                    </div>
+                  ) : 'Claim Tokens'}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Cancelled — Refund Banner */}
+          {tradingPhase === TradingPhase.Cancelled && userCurveBalance > 0n && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg border border-red-500/30 bg-red-500/10 p-4"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <XCircle className="w-4 h-4 text-red-500" />
+                    Launch Cancelled
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This token launch was cancelled. You can claim a USDC refund for your {parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} tokens.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      updateAlertState('pending', 'Processing refund...');
+                      await bondingCurveTrade.refund(player.id);
+                      refreshPhase();
+                      refreshTokenBalance();
+                      await updateBalanceAfterTransaction();
+                      updateAlertState('success', 'Refund processed!', bondingCurveTrade.transactionHash);
+                    } catch (err) {
+                      updateAlertState('error', `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                    }
+                  }}
+                  disabled={bondingCurveTrade.isLoading}
+                  className="shrink-0"
+                >
+                  {bondingCurveTrade.isLoading ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Processing...
+                    </div>
+                  ) : 'Claim Refund'}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
           {/* Price and Purchase */}
           <Card className="p-6 bg-gradient-to-r from-accent/30 to-accent/10 border-0">
             <div className="text-center">
@@ -1548,6 +1705,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                         Balance: {parseFloat(userUsdcBalance).toFixed(2)} USDC
                       </span>
                     )}
+                    {action === 'sell' && playerTokenBalance > 0n && (
+                      <span className="text-xs text-muted-foreground">
+                        Balance: {parseFloat(playerTokenBalanceFormatted).toFixed(4)} tokens
+                      </span>
+                    )}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
@@ -1595,7 +1757,18 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
                 {/* Output Amount */}
                 <div className="space-y-2">
-                  <span className="text-sm font-medium">You receive</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">You receive</span>
+                    {(quote.loading || quote.stale) && usdcAmount && parseFloat(usdcAmount) > 0 && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        {quote.stale ? 'Updating...' : 'Loading quote...'}
+                      </div>
+                    )}
+                    {quote.error && (
+                      <span className="text-xs text-red-500">{quote.error}</span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Input
                       readOnly
@@ -1604,7 +1777,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                           ? '0.00'
                           : formatNumber(expectedReceive)
                       }
-                      className="w-full text-2xl font-bold pr-24 bg-background/30 border-accent/20"
+                      className={`w-full text-2xl font-bold pr-24 bg-background/30 border-accent/20 ${quote.stale ? 'opacity-60' : ''}`}
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
                       <span className="text-xl font-bold text-foreground/80">
@@ -1714,23 +1887,41 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     <div className="flex justify-between text-sm mt-2 pt-2 border-t border-border/50">
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">{action === 'buy' ? 'Buy' : 'Sell'} Fee</span>
+                        {quote.feeType !== null && quote.feeType !== FeeType.Normal && (
+                          <Badge variant="outline" className={`text-[10px] px-1 py-0 ${feeTypeBadgeColor(quote.feeType)}`}>
+                            {feeTypeLabel(quote.feeType)}
+                          </Badge>
+                        )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
                               <Info className="w-4 h-4 text-muted-foreground" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Protocol fee charged on this transaction</p>
+                              <p>
+                                {tradingPhase === TradingPhase.BondingCurve
+                                  ? 'Flat 2% fee on bonding curve trades'
+                                  : 'Dynamic protocol fee (5-25%) based on market conditions'}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </div>
-                      <span className="font-medium">
-                        {action === 'buy' 
-                          ? `${(buyFeeRate / 1000).toFixed(2)}%`
-                          : `${(sellFeeRate / 1000).toFixed(2)}%`
-                        }
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {quote.feeRate > 0
+                            ? `${(quote.feeRate / 1000).toFixed(2)}%`
+                            : action === 'buy'
+                              ? `${(buyFeeRate / 1000).toFixed(2)}%`
+                              : `${(sellFeeRate / 1000).toFixed(2)}%`
+                          }
+                        </span>
+                        {quote.feeAmount > 0n && (
+                          <span className="text-xs text-muted-foreground">
+                            ({parseFloat(formatUnits(quote.feeAmount, 6)).toFixed(2)} USDC)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1764,7 +1955,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   </Button>
                   <Button
                     onClick={handleConfirm}
-                    disabled={!usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading}
+                    disabled={
+                      !usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading ||
+                      tradingPhase === TradingPhase.Cancelled ||
+                      (tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n)
+                    }
                     className={`relative overflow-hidden group flex-1 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 ${
                       action === 'buy'
                         ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
@@ -2128,9 +2323,6 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             </div>
           )}
         </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
           </div>
         </div>
       </DialogContent>

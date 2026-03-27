@@ -85,6 +85,16 @@ class ContractCacheManager {
       case 'getAllPlayerIds':
       case 'getCurrencyInfo':
         return this.STATIC_DATA_TTL;
+      case 'getBuyPrice':
+      case 'getSellPrice':
+      case 'getCurrentPrice':
+        return 15000; // 15s for trade quotes
+      case 'getLaunchInfo':
+      case 'getProgress':
+      case 'getAllLaunchIds':
+        return 30000; // 30s for launch state
+      case 'getUserBalance':
+        return 10000; // 10s for user balances
       case 'usedNonces':
       case 'getCurrentNonce':
         return 0; // No caching for nonce functions to ensure fresh data

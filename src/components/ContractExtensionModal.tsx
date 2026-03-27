@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';
+import { Progress } from './ui/progress';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Input } from './ui/input';
 import { Alert, AlertDescription } from './ui/alert';
+import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Clock, TrendingUp, AlertCircle, X, Plus, Minus } from 'lucide-react';
-import { formatEther, parseUnits } from 'viem';
 
 interface PlayerStats {
   kills: number;
@@ -63,9 +64,11 @@ export default function ContractExtensionModal({
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [isModalContentVisible, setIsModalContentVisible] = useState(true);
 
   useEffect(() => {
     if (isOpen && player) {
+      setIsModalContentVisible(true);
       setNumberOfGames(10);
       setTransactionStatus('idle');
       setStatusMessage('');
@@ -122,7 +125,11 @@ export default function ContractExtensionModal({
       
       // Auto-close after success
       setTimeout(() => {
-        onClose();
+        setIsModalContentVisible(false);
+        setTimeout(() => {
+          setIsModalContentVisible(true);
+          onClose();
+        }, 300);
       }, 2000);
     } catch (error) {
       console.error('Extension failed:', error);
@@ -138,86 +145,117 @@ export default function ContractExtensionModal({
   const contractStatus = gamesRemaining <= 3 ? 'expiring' : gamesRemaining <= 6 ? 'active' : 'healthy';
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
-      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <FileText className="w-6 h-6" />
-              <h2 className="text-xl font-bold">Extend Contract</h2>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="text-white hover:bg-white/20 h-8 w-8 p-0 rounded-full"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent
+        className="max-w-md border-0 shadow-2xl !animate-none origin-center"
+        hideCloseButton
+        style={{
+          opacity: isModalContentVisible ? 1 : 0,
+          scale: isModalContentVisible ? '1' : '0.05',
+          transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <div className="relative">
+          {/* Close button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setIsModalContentVisible(false);
+              setTimeout(() => {
+                setIsModalContentVisible(true);
+                onClose();
+              }, 300);
+            }}
+            className="absolute -top-2 -right-2 z-10 h-8 w-8 p-0 rounded-full hover:bg-background/50"
+          >
+            <X className="h-4 w-4" />
+          </Button>
 
-          {/* Player Info */}
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <div 
-                className="absolute inset-0 rounded-lg opacity-50"
-                style={{
-                  backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
-                  backgroundSize: 'contain',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat'
-                }}
-              />
-              <ImageWithFallback
-                src={player.image}
-                alt={player.name}
-                className="relative w-16 h-16 rounded-lg object-contain shadow-lg"
-              />
+          {/* Header */}
+          <DialogHeader className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <div
+                    className="absolute inset-0 rounded-xl opacity-50 z-0"
+                    style={{
+                      backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                      backgroundSize: 'contain',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  />
+                  <ImageWithFallback
+                    src={player.image}
+                    alt={player.name}
+                    className="relative z-10 w-20 h-20 rounded-xl object-contain shadow-lg opacity-85"
+                  />
+                </div>
+                <div>
+                  <DialogTitle className="text-2xl bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                    {player.name}
+                  </DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Extend contract for {player.name}
+                  </DialogDescription>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Badge variant="outline" className="flex items-center space-x-1">
+                      <FileText className="w-3 h-3" />
+                      <span>Contract</span>
+                    </Badge>
+                    <Badge variant="secondary">{player.game}</Badge>
+                    <Badge variant="secondary">
+                      {(Number(player.ownedShares || BigInt(0)) / 1e18).toFixed(2)} shares
+                    </Badge>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold">{player.name}</h3>
-              <p className="text-sm text-white/80">{player.game} • {player.position}</p>
-              <Badge variant="secondary" className="mt-1 bg-white/20 text-white border-0">
-                {(Number(player.ownedShares || BigInt(0)) / 1e18).toFixed(2)} shares
-              </Badge>
-            </div>
-          </div>
-        </div>
+          </DialogHeader>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
+          {/* Content */}
+          <div className="space-y-6 mt-6">
           {/* Current Status */}
-          <Card className="p-4 border-2 border-dashed">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-muted-foreground">Current Status</span>
-              <Badge 
-                variant="secondary"
-                className={`${
-                  contractStatus === 'expiring' ? 'bg-red-100 text-red-700 border-red-200' :
-                  contractStatus === 'active' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                  'bg-green-100 text-green-700 border-green-200'
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="p-4 border-2 border-dashed">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Current Status</span>
+                <Badge
+                  variant="secondary"
+                  className={`${
+                    contractStatus === 'expiring' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' :
+                    contractStatus === 'active' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800' :
+                    'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
+                  }`}
+                >
+                  <Clock className="w-3 h-3 mr-1" />
+                  {gamesRemaining} games left
+                </Badge>
+              </div>
+
+              <Progress
+                value={Math.min((gamesRemaining / 10) * 100, 100)}
+                className={`h-2 ${
+                  contractStatus === 'expiring' ? '[&>[data-slot=progress-indicator]]:bg-red-500' :
+                  contractStatus === 'active' ? '[&>[data-slot=progress-indicator]]:bg-yellow-500' :
+                  '[&>[data-slot=progress-indicator]]:bg-green-500'
                 }`}
-              >
-                <Clock className="w-3 h-3 mr-1" />
-                {gamesRemaining} games left
-              </Badge>
-            </div>
-            
-            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${
-                  contractStatus === 'expiring' ? 'bg-red-500' :
-                  contractStatus === 'active' ? 'bg-yellow-500' :
-                  'bg-green-500'
-                }`}
-                style={{ width: `${Math.min((gamesRemaining / 10) * 100, 100)}%` }}
               />
-            </div>
-          </Card>
+            </Card>
+          </motion.div>
 
           {/* Game Selection */}
-          <div className="space-y-3">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="space-y-3"
+          >
             <label className="text-sm font-medium">Number of Games to Add</label>
             <div className="flex items-center space-x-3">
               <Button
@@ -229,7 +267,7 @@ export default function ContractExtensionModal({
               >
                 <Minus className="h-4 w-4" />
               </Button>
-              
+
               <Input
                 type="number"
                 value={numberOfGames}
@@ -238,7 +276,7 @@ export default function ContractExtensionModal({
                 min={5}
                 max={100}
               />
-              
+
               <Button
                 variant="outline"
                 size="icon"
@@ -253,64 +291,95 @@ export default function ContractExtensionModal({
               <span>Min: 5 games</span>
               <span>Max: 100 games</span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Cost Breakdown */}
-          <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Cost per game</span>
-                <span className="font-medium">{costPerGame} USDC</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Number of games</span>
-                <span className="font-medium">×{numberOfGames}</span>
-              </div>
-              <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">Total Cost</span>
-                  <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    {totalCost} USDC
-                  </span>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Cost per game</span>
+                  <span className="font-medium">{costPerGame} USDC</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Number of games</span>
+                  <span className="font-medium">×{numberOfGames}</span>
+                </div>
+                <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">Total Cost</span>
+                    <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                      {totalCost} USDC
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </motion.div>
 
           {/* New Total */}
-          <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+          >
             <div className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5 text-green-600" />
+              <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
               <span className="text-sm font-medium">New Total</span>
             </div>
-            <span className="text-lg font-bold text-green-600">
+            <span className="text-lg font-bold text-green-600 dark:text-green-400">
               {newTotal} games
             </span>
-          </div>
+          </motion.div>
 
           {/* Status Alert */}
-          {transactionStatus !== 'idle' && (
-            <Alert className={`${
-              transactionStatus === 'success' ? 'bg-green-50 border-green-200' :
-              transactionStatus === 'error' ? 'bg-red-50 border-red-200' :
-              'bg-blue-50 border-blue-200'
-            }`}>
-              <AlertCircle className={`h-4 w-4 ${
-                transactionStatus === 'success' ? 'text-green-600' :
-                transactionStatus === 'error' ? 'text-red-600' :
-                'text-blue-600'
-              }`} />
-              <AlertDescription className="text-sm">
-                {statusMessage}
-              </AlertDescription>
-            </Alert>
-          )}
+          <AnimatePresence>
+            {transactionStatus !== 'idle' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Alert className={`${
+                  transactionStatus === 'success' ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' :
+                  transactionStatus === 'error' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' :
+                  'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+                }`}>
+                  <AlertCircle className={`h-4 w-4 ${
+                    transactionStatus === 'success' ? 'text-green-600 dark:text-green-400' :
+                    transactionStatus === 'error' ? 'text-red-600 dark:text-red-400' :
+                    'text-blue-600 dark:text-blue-400'
+                  }`} />
+                  <AlertDescription className="text-sm">
+                    {statusMessage}
+                  </AlertDescription>
+                </Alert>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Action Buttons */}
-          <div className="flex space-x-3">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="flex space-x-3"
+          >
             <Button
               variant="outline"
-              onClick={onClose}
+              onClick={() => {
+                setIsModalContentVisible(false);
+                setTimeout(() => {
+                  setIsModalContentVisible(true);
+                  onClose();
+                }, 300);
+              }}
               className="flex-1"
               disabled={isLoading}
             >
@@ -324,6 +393,7 @@ export default function ContractExtensionModal({
               <FileText className="w-4 h-4 mr-2" />
               {isLoading ? 'Processing...' : `Extend Contract`}
             </Button>
+          </motion.div>
           </div>
         </div>
       </DialogContent>

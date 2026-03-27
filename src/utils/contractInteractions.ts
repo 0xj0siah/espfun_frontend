@@ -1,14 +1,6 @@
 // Contract interaction utilities using viem and Privy
-import { createPublicClient, http, createWalletClient, custom } from 'viem';
-import { monadTestnet } from 'viem/chains';
 import { CONTRACT_ADDRESSES, CONTRACTS } from '../contracts';
 import { readContractCached } from './contractCache';
-
-// Create public client for read operations
-const publicClient = createPublicClient({
-  chain: monadTestnet,
-  transport: http('https://testnet-rpc.monad.xyz')
-});
 
 // Development Players contract functions
 export async function getUserPlayerIds(userAddress: string): Promise<bigint[]> {

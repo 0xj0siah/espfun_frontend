@@ -214,7 +214,15 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl border-0 shadow-2xl" hideCloseButton>
+      <DialogContent
+        className="max-w-2xl border-0 shadow-2xl !animate-none origin-center"
+        hideCloseButton
+        style={{
+          opacity: isModalContentVisible ? 1 : 0,
+          scale: isModalContentVisible ? '1' : '0.05',
+          transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
         <div className="relative">
           {/* Close button */}
           <Button

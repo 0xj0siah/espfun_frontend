@@ -5,6 +5,8 @@ import { formatEther } from 'viem';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { Progress } from './ui/progress';
+import { Skeleton } from './ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
@@ -208,7 +210,7 @@ export default function TeamSection({
           points: 0, // Will be replaced with total value
           ownedShares: balance,
           totalValue: calculateTotalValue(balance, playerIdNum), // Use player ID instead of price
-          gamesRemaining: Math.floor(Math.random() * 10) + 1, // Filler data: 1-10 games (will be replaced with backend data)
+          gamesRemaining: (playerIdNum % 10) + 1, // Deterministic placeholder (will be replaced with backend data)
           // Add required fields for Player interface
           level: 1,
           xp: 50,
@@ -787,8 +789,24 @@ export default function TeamSection({
 
         <TabsContent value="contracts" className="space-y-6">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="p-4">
+                  <div className="flex items-start space-x-3 mb-4">
+                    <Skeleton className="w-14 h-14 rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-32" />
+                      <Skeleton className="h-5 w-16" />
+                    </div>
+                  </div>
+                  <div className="space-y-3 pt-3 border-t">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-2 w-full rounded-full" />
+                    <Skeleton className="h-9 w-full rounded" />
+                  </div>
+                </Card>
+              ))}
             </div>
           ) : filteredOwnedPlayers.length === 0 ? (
             <div className="text-center py-8">
@@ -814,8 +832,8 @@ export default function TeamSection({
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredOwnedPlayers.map((player, index) => {
-                  // Filler data for contract information (will be replaced with backend data later)
-                  const gamesRemaining = Math.floor(Math.random() * 10) + 1; // 1-10 games
+                  // Deterministic placeholder (will be replaced with backend data later)
+                  const gamesRemaining = player.gamesRemaining ?? ((player.id % 10) + 1);
                   const contractStatus = gamesRemaining <= 3 ? 'expiring' : gamesRemaining <= 6 ? 'active' : 'healthy';
                   const extensionPrice = (parseFloat(player.price) * 0.1).toFixed(4); // 10% of player price as extension cost
                   
@@ -893,25 +911,23 @@ export default function TeamSection({
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground">Contract Status</span>
                               <span className={`font-medium ${
-                                contractStatus === 'expiring' ? 'text-red-600' :
-                                contractStatus === 'active' ? 'text-yellow-600' :
-                                'text-green-600'
+                                contractStatus === 'expiring' ? 'text-red-600 dark:text-red-400' :
+                                contractStatus === 'active' ? 'text-yellow-600 dark:text-yellow-400' :
+                                'text-green-600 dark:text-green-400'
                               }`}>
                                 {contractStatus === 'expiring' ? 'Expiring Soon' :
                                  contractStatus === 'active' ? 'Active' :
                                  'Healthy'}
                               </span>
                             </div>
-                            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full transition-all duration-300 ${
-                                  contractStatus === 'expiring' ? 'bg-red-500' :
-                                  contractStatus === 'active' ? 'bg-yellow-500' :
-                                  'bg-green-500'
-                                }`}
-                                style={{ width: `${(gamesRemaining / 10) * 100}%` }}
-                              />
-                            </div>
+                            <Progress
+                              value={Math.min((gamesRemaining / 10) * 100, 100)}
+                              className={`h-2 ${
+                                contractStatus === 'expiring' ? '[&>[data-slot=progress-indicator]]:bg-red-500' :
+                                contractStatus === 'active' ? '[&>[data-slot=progress-indicator]]:bg-yellow-500' :
+                                '[&>[data-slot=progress-indicator]]:bg-green-500'
+                              }`}
+                            />
                           </div>
 
                           {/* Extend Button */}

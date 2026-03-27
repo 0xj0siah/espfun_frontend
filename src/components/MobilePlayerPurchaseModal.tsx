@@ -22,6 +22,13 @@ import { AuthenticationStatus } from './AuthenticationStatus';
 import { GridDetailedPlayerStats, SeriesState, MatchResult } from '../utils/api';
 import { useGridCache } from '../hooks/useGridCache';
 import { readContractCached } from '../utils/contractCache';
+import { useTradingPhase } from '../hooks/useTradingPhase';
+import { useTradeQuote } from '../hooks/useTradeQuote';
+import { usePlayerTokenBalance } from '../hooks/usePlayerTokenBalance';
+import { useBondingCurveTrade } from '../hooks/useBondingCurveTrade';
+import { usePublicClient } from '../hooks/usePublicClient';
+import { TradingPhase, FeeType, feeTypeLabel, feeTypeBadgeColor, EMPTY_QUOTE } from '../types/trading';
+import { Progress } from './ui/progress';
 
 interface Player {
   id: number;
@@ -60,6 +67,7 @@ interface MobilePlayerPurchaseModalProps {
 }
 
 export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onPurchase }: MobilePlayerPurchaseModalProps) {
+  const [isModalContentVisible, setIsModalContentVisible] = useState(true);
   const [showBuySellMenu, setShowBuySellMenu] = useState(false);
   const [usdcAmount, setUsdcAmount] = useState('');
   const [action, setAction] = useState<'buy' | 'sell'>('buy');
@@ -88,26 +96,39 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
   const { signTypedData } = useSignTypedData();
   const { loadPlayerData } = useGridCache();
 
-  const publicClient = createPublicClient({
-    chain: {
-      id: NETWORK_CONFIG.chainId,
-      name: NETWORK_CONFIG.name,
-      rpcUrls: {
-        default: { http: [NETWORK_CONFIG.rpcUrl] },
-        public: { http: [NETWORK_CONFIG.rpcUrl] },
-      },
-      blockExplorers: {
-        default: { name: 'MonadScan', url: NETWORK_CONFIG.blockExplorer },
-      },
-      nativeCurrency: {
-        name: 'MON',
-        symbol: 'MON',
-        decimals: 18,
-      },
-      testnet: true,
-    },
-    transport: http(NETWORK_CONFIG.rpcUrl),
+  // Memoized public client
+  const publicClient = usePublicClient();
+
+  // Phase detection: bonding curve vs FDFPair
+  const {
+    phase: tradingPhase,
+    launch: launchInfo,
+    progress: launchProgress,
+    userCurveBalance,
+    refresh: refreshPhase,
+  } = useTradingPhase(player?.id ?? null, user?.wallet?.address);
+
+  // Phase-aware trade quote (debounced)
+  const quote = useTradeQuote({
+    playerId: player?.id ?? null,
+    action,
+    inputAmount: usdcAmount,
+    phase: tradingPhase,
   });
+
+  // Phase-aware player token balance
+  const {
+    balance: playerTokenBalance,
+    formattedBalance: playerTokenBalanceFormatted,
+    refresh: refreshTokenBalance,
+  } = usePlayerTokenBalance({
+    playerId: player?.id ?? null,
+    walletAddress: user?.wallet?.address,
+    phase: tradingPhase,
+  });
+
+  // Bonding curve trade execution
+  const bondingCurveTrade = useBondingCurveTrade();
 
   const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
     setTransactionStatus(status);
@@ -596,6 +617,7 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
 
   useEffect(() => {
     if (isOpen && player) {
+      setIsModalContentVisible(true);
       setUsdcAmount('');
       setAction('buy');
       setSlippage(0.5);
@@ -673,7 +695,11 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
 
   const currentPrice = getRealPrice();
   const usdc = parseFloat(usdcAmount) || 0;
-  const expectedReceive = action === 'buy' ? usdc / currentPrice : usdc * currentPrice;
+  const expectedReceive = quote.amountToReceive > 0n
+    ? parseFloat(formatUnits(quote.amountToReceive, action === 'buy' ? 18 : 6))
+    : action === 'buy'
+      ? usdc / currentPrice
+      : usdc * currentPrice;
   const realPriceImpactData = calculatePriceImpact(player.id, usdcAmount, action);
   const priceImpact = realPriceImpactData ? realPriceImpactData.priceImpact.toFixed(2) : '0.00';
   const isPriceImpactHigh = parseFloat(priceImpact) > 5;
@@ -717,45 +743,72 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
     updateAlertState('pending', `${action === 'buy' ? 'Purchasing' : 'Selling'} ${player.name} tokens...`);
     
     try {
-      console.log('🔄 UPDATED CODE RUNNING - handleConfirm function with slippage fix');
-      
-      if (action === 'buy') {
-        // Calculate token amount to buy using real pool price
-        const tokenAmount = (parseFloat(usdcAmount) / currentPrice).toString();
-        
-        // Calculate max currency spend with slippage protection
-        // User wants to spend 'usdcAmount', but due to slippage, they might need to spend more
-        const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
-        
-        console.log(`💰 Buy calculation: ${usdcAmount} USDC / ${currentPrice.toFixed(8)} price = ${tokenAmount} tokens`);
-        console.log(`🛡️ SLIPPAGE PROTECTION: ${usdcAmount} USDC base + ${slippage}% slippage = ${maxCurrencyWithSlippage} USDC max spend`);
-        console.log(`📊 Price check: Current pool price ${currentPrice.toFixed(8)} USDC/token`);
-        console.log(`⚠️  Warning: AMM price impact may require more than ${maxCurrencyWithSlippage} USDC for ${tokenAmount} tokens`);
-        
-        // Check if user has sufficient balance for the slippage-adjusted amount
-        const userBalance = parseFloat(userUsdcBalance);
-        const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
-        if (userBalance < maxSpendAmount) {
-          updateAlertState('error', `Insufficient USDC balance for slippage. You have ${userBalance.toFixed(2)} USDC but may need up to ${maxSpendAmount.toFixed(2)} USDC with ${slippage}% slippage`);
-          setIsLoading(false);
-          return;
+      if (tradingPhase === TradingPhase.BondingCurve) {
+        // ═══ BONDING CURVE TRADING (no signatures needed) ═══
+        if (action === 'buy') {
+          const tokenAmount = quote.amountToReceive > 0n
+            ? formatUnits(quote.amountToReceive, 18)
+            : (parseFloat(usdcAmount) / currentPrice).toString();
+          const maxSpend = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
+
+          await bondingCurveTrade.buy({
+            playerId: player.id,
+            tokenAmount,
+            maxCurrencySpend: maxSpend,
+          });
+        } else {
+          const minReceive = quote.amountToReceive > 0n
+            ? formatUnits(
+                quote.amountToReceive * BigInt(10000 - Math.floor(slippage * 100)) / 10000n,
+                6
+              )
+            : (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
+
+          await bondingCurveTrade.sell({
+            playerId: player.id,
+            tokenAmount: usdcAmount,
+            minCurrencyToReceive: minReceive,
+          });
         }
-        
-        console.log(`🚀 CALLING buyTokens with maxCurrencyWithSlippage: ${maxCurrencyWithSlippage}`);
-        await buyTokens(player.id, tokenAmount, maxCurrencyWithSlippage);
+
+        refreshPhase();
+        refreshTokenBalance();
+        await checkUserUsdcBalance();
+        updateAlertState('success', `Successfully ${action === 'buy' ? 'bought' : 'sold'} tokens!`, bondingCurveTrade.transactionHash);
+
       } else {
-        // For selling, usdcAmount represents the number of tokens to sell
-        const minCurrency = (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
-        console.log(`💰 Sell calculation: ${usdcAmount} tokens * ${currentPrice.toFixed(8)} price * ${1 - slippage / 100} slippage = ${minCurrency} USDC`);
-        await sellTokens(player.id, usdcAmount, minCurrency);
+        // ═══ FDFPAIR TRADING (existing flow with signatures) ═══
+        if (action === 'buy') {
+          const tokenAmount = quote.amountToReceive > 0n
+            ? formatUnits(quote.amountToReceive, 18)
+            : (parseFloat(usdcAmount) / currentPrice).toString();
+          const maxCurrencyWithSlippage = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
+
+          const userBalance = parseFloat(userUsdcBalance);
+          const maxSpendAmount = parseFloat(maxCurrencyWithSlippage);
+          if (userBalance < maxSpendAmount) {
+            updateAlertState('error', `Insufficient USDC. You have ${userBalance.toFixed(2)} but may need ${maxSpendAmount.toFixed(2)} with ${slippage}% slippage`);
+            setIsLoading(false);
+            return;
+          }
+
+          await buyTokens(player.id, tokenAmount, maxCurrencyWithSlippage);
+        } else {
+          const minCurrency = quote.amountToReceive > 0n
+            ? formatUnits(
+                quote.amountToReceive * BigInt(10000 - Math.floor(slippage * 100)) / 10000n,
+                6
+              )
+            : (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
+
+          await sellTokens(player.id, usdcAmount, minCurrency);
+        }
       }
-      
+
       // Call optional callback
       if (onPurchase) {
         await onPurchase(player, usdcAmount, action, slippage);
       }
-      
-      // No automatic form reset or modal close - user controls when to close
     } catch (error) {
       console.error('❌ Transaction failed:', error);
       let errorMessage = 'Unknown error occurred';
@@ -775,8 +828,16 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
-      <DialogContent className="!max-w-none !w-screen !h-screen !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !rounded-none !p-0 !m-0 !inset-0 !flex !flex-col !gap-0 border-0 shadow-2xl" hideCloseButton>
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent
+        className="!max-w-none !w-screen !h-screen !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !rounded-none !p-0 !m-0 !inset-0 !flex !flex-col !gap-0 border-0 shadow-2xl !animate-none origin-center"
+        hideCloseButton
+        style={{
+          opacity: isModalContentVisible ? 1 : 0,
+          scale: isModalContentVisible ? '1' : '0.05',
+          transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
         {/* Fixed Header */}
         <div className="bg-gradient-to-r from-accent/30 to-accent/10 border-b p-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
@@ -817,7 +878,13 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                 </div>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 rounded-full">
+            <Button variant="ghost" size="sm" onClick={() => {
+              setIsModalContentVisible(false);
+              setTimeout(() => {
+                setIsModalContentVisible(true);
+                onClose();
+              }, 300);
+            }} className="h-8 w-8 p-0 rounded-full">
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -863,6 +930,98 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                 <AlertDescription className="text-xs">{statusMessage}</AlertDescription>
               </Alert>
             </motion.div>
+          )}
+
+          {/* Bonding Curve Progress Bar */}
+          {tradingPhase === TradingPhase.BondingCurve && launchProgress && (
+            <div className="mb-3 rounded-lg border border-accent/30 bg-accent/10 p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-yellow-500" />
+                  Bonding Curve Launch
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {(launchProgress.percentComplete / 100).toFixed(1)}%
+                </span>
+              </div>
+              <Progress value={launchProgress.percentComplete / 100} className="h-1.5 mb-1" />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{parseFloat(formatUnits(launchProgress.raised, 6)).toFixed(2)} USDC</span>
+                <span>Target: {parseFloat(formatUnits(launchProgress.target, 6)).toFixed(2)} USDC</span>
+              </div>
+            </div>
+          )}
+
+          {/* Graduated — Claim Tokens Banner */}
+          {tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n && (
+            <div className="mb-3 rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-green-500" />
+                    Launch Graduated!
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} unclaimed tokens
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      updateAlertState('pending', 'Claiming tokens...');
+                      await bondingCurveTrade.claim(player.id);
+                      refreshPhase();
+                      refreshTokenBalance();
+                      updateAlertState('success', 'Tokens claimed!', bondingCurveTrade.transactionHash);
+                    } catch (err) {
+                      updateAlertState('error', `Claim failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                    }
+                  }}
+                  disabled={bondingCurveTrade.isLoading}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs shrink-0"
+                >
+                  {bondingCurveTrade.isLoading ? 'Claiming...' : 'Claim'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Cancelled — Refund Banner */}
+          {tradingPhase === TradingPhase.Cancelled && userCurveBalance > 0n && (
+            <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium flex items-center gap-1">
+                    <XCircle className="w-3 h-3 text-red-500" />
+                    Launch Cancelled
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} tokens refundable
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      updateAlertState('pending', 'Processing refund...');
+                      await bondingCurveTrade.refund(player.id);
+                      refreshPhase();
+                      refreshTokenBalance();
+                      await checkUserUsdcBalance();
+                      updateAlertState('success', 'Refund processed!', bondingCurveTrade.transactionHash);
+                    } catch (err) {
+                      updateAlertState('error', `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                    }
+                  }}
+                  disabled={bondingCurveTrade.isLoading}
+                  className="text-xs shrink-0"
+                >
+                  {bondingCurveTrade.isLoading ? 'Processing...' : 'Refund'}
+                </Button>
+              </div>
+            </div>
           )}
 
           {/* Buy/Sell Section */}
@@ -926,6 +1085,11 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                         Balance: {parseFloat(userUsdcBalance).toFixed(2)} USDC
                       </span>
                     )}
+                    {action === 'sell' && playerTokenBalance > 0n && (
+                      <span className="text-xs text-muted-foreground">
+                        Balance: {parseFloat(playerTokenBalanceFormatted).toFixed(4)} tokens
+                      </span>
+                    )}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
@@ -973,7 +1137,15 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
 
                 {/* Output Amount */}
                 <div className="space-y-2">
-                  <span className="text-xs font-medium">You receive</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium">You receive</span>
+                    {(quote.loading || quote.stale) && usdcAmount && parseFloat(usdcAmount) > 0 && (
+                      <div className="w-2.5 h-2.5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {quote.error && (
+                      <span className="text-[10px] text-red-500">{quote.error}</span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Input
                       readOnly
@@ -982,7 +1154,7 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                           ? '0.00'
                           : formatNumber(expectedReceive)
                       }
-                      className="w-full text-xl font-bold pr-20 bg-background/30 border-accent/20"
+                      className={`w-full text-xl font-bold pr-20 bg-background/30 border-accent/20 ${quote.stale ? 'opacity-60' : ''}`}
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
                       <span className="text-base font-bold text-foreground/80">
@@ -1042,6 +1214,30 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                       </div>
                     )}
                     
+                    {/* Fee Information */}
+                    <div className="flex justify-between text-xs">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">{action === 'buy' ? 'Buy' : 'Sell'} Fee</span>
+                        {quote.feeType !== null && quote.feeType !== FeeType.Normal && (
+                          <Badge variant="outline" className={`text-[9px] px-1 py-0 ${feeTypeBadgeColor(quote.feeType)}`}>
+                            {feeTypeLabel(quote.feeType)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span>
+                          {quote.feeRate > 0
+                            ? `${(quote.feeRate / 1000).toFixed(2)}%`
+                            : tradingPhase === TradingPhase.BondingCurve ? '2.00%' : '--'}
+                        </span>
+                        {quote.feeAmount > 0n && (
+                          <span className="text-[10px] text-muted-foreground">
+                            ({parseFloat(formatUnits(quote.feeAmount, 6)).toFixed(2)})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex justify-between text-xs">
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">Slippage</span>
@@ -1117,7 +1313,11 @@ export default function MobilePlayerPurchaseModal({ player, isOpen, onClose, onP
                   </Button>
                   <Button
                     onClick={handleConfirm}
-                    disabled={!usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading}
+                    disabled={
+                      !usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading ||
+                      tradingPhase === TradingPhase.Cancelled ||
+                      (tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n)
+                    }
                     className={`relative overflow-hidden group flex-1 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 ${
                       action === 'buy'
                         ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
