@@ -36,9 +36,9 @@ export const CONTRACT_ADDRESSES = {
   PlayerPack: '0x6351A397a17718Ba614b1dffF183557aca55F24A',
   FDFPair: '0xF41Ab3e0dE047E53e9D75ebCfc65D0ac727C7B59',
   TUSDC: '0xEc25C405ec25BB24Ad004198D1B3111e8de808f8',
-  ESPStaking: '0x0000000000000000000000000000000000000000', // Update after deployment
-  ESP: '0x0000000000000000000000000000000000000000',        // ESP token address — update after deployment
-  BondingCurve: '0x0000000000000000000000000000000000000000', // Update after deployment
+  ESPStaking: '0x9c288d1c0279a6b2404D483a0c0563C5981Ea845', // Update after deployment
+  ESP: '0x11AD735D35d9baD6e7489D8Bc2295F0E32d26CE7',        // MockESP token (testnet)
+  BondingCurve: '0x20b8685651082943D7d8A2cceB41430664a5274F', // Update after deployment
 } as const;
 
 // Type definitions for the contracts

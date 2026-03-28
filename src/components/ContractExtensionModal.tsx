@@ -9,43 +9,7 @@ import { Input } from './ui/input';
 import { Alert, AlertDescription } from './ui/alert';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Clock, TrendingUp, AlertCircle, X, Plus, Minus } from 'lucide-react';
-
-interface PlayerStats {
-  kills: number;
-  deaths: number;
-  assists: number;
-  winRate: number;
-}
-
-interface MatchResult {
-  opponent: string;
-  result: "win" | "loss";
-  score: string;
-  performance: number;
-}
-
-interface Player {
-  id: number;
-  name: string;
-  game: string;
-  position: string;
-  price: string;
-  points: number;
-  trend: "up" | "down" | "stable";
-  rating: number;
-  image: string;
-  gridID?: string;
-  teamGridId?: string;
-  stats: PlayerStats;
-  recentMatches: MatchResult[];
-  level: number;
-  xp: number;
-  potential: number;
-  lockedShares?: string;
-  ownedShares?: bigint;
-  totalValue?: string;
-  gamesRemaining?: number;
-}
+import { Player } from '../types/player';
 
 interface ContractExtensionModalProps {
   player: Player | null;

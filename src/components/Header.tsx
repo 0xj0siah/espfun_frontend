@@ -23,8 +23,9 @@ interface HeaderProps {
   onTabChange: (tab: string) => void;
 }
 
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking'];
+
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
-  const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking'];
   const { selectedGame, setSelectedGame } = useGameContext();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -239,6 +240,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               variant="outline"
               size="icon"
               onClick={toggleDarkMode}
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               className="h-9 w-9 bg-accent/50 border-0 shadow-sm hidden md:inline-flex"
             >
               {isDarkMode ? (

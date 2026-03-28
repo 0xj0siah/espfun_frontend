@@ -60,7 +60,7 @@ export function MobileSidebar({ activeTab, onTabChange, onClose }: MobileSidebar
           </a>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-3">
-          © 2025 ESP.FUN. All rights reserved.
+          © {new Date().getFullYear()} ESP.FUN. All rights reserved.
         </p>
       </div>
     </div>

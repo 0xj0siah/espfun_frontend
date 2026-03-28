@@ -12,11 +12,9 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
 import { Users, TrendingUp, Zap, Star, Trophy, Target, FileText, Clock } from 'lucide-react';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
-import MobilePlayerPurchaseModal from './MobilePlayerPurchaseModal';
 import ContractExtensionModal from './ContractExtensionModal';
 import { PromotionMenu } from './PromotionMenu';
 import { toast } from "sonner";
-import { useIsMobile } from './ui/use-mobile';
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import fakeData from '../fakedata.json';
 import { getDevelopmentPlayersData, testDevelopmentPlayersContract, getActivePlayerIds, getPlayerBalance } from '../utils/contractInteractions';
@@ -103,7 +101,6 @@ export default function TeamSection({
   });
   const [developmentLoading, setDevelopmentLoading] = useState(false);
   const { user, authenticated } = usePrivy();
-  const isMobile = useIsMobile();
   const { preloadPlayersData } = useGridCache();
   const { selectedGame } = useGameContext();
 
@@ -645,27 +642,15 @@ export default function TeamSection({
           )}
           {/* PlayerPurchaseModal - moved outside TabsContent to prevent layout conflicts */}
           {selectedPlayer && (
-            isMobile ? (
-              <MobilePlayerPurchaseModal
-                player={selectedPlayer}
-                isOpen={isModalOpen}
-                onClose={() => {
-                  setIsModalOpen(false);
-                  setSelectedPlayer(null);
-                }}
-                onPurchase={handlePurchase}
-              />
-            ) : (
-              <PlayerPurchaseModal
-                player={selectedPlayer}
-                isOpen={isModalOpen}
-                onClose={() => {
-                  setIsModalOpen(false);
-                  setSelectedPlayer(null);
-                }}
-                onPurchase={handlePurchase}
-              />
-            )
+            <PlayerPurchaseModal
+              player={selectedPlayer}
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                setSelectedPlayer(null);
+              }}
+              onPurchase={handlePurchase}
+            />
           )}
         </TabsContent>
 

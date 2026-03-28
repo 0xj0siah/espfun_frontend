@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
 import { Trophy, Crown, TrendingUp, DollarSign, Star } from 'lucide-react';
 
-export default function LeaderboardSection() {
+export default memo(function LeaderboardSection() {
   const leaderboard = [
     { rank: 1, address: '0x1a2B...3c4D', points: 2847, teamValue: '1,240 USDC', reward: '5,000 pts' },
     { rank: 2, address: '0x5e6F...7a8B', points: 2698, teamValue: '1,180 USDC', reward: '3,000 pts' },
@@ -81,7 +82,7 @@ export default function LeaderboardSection() {
                   
                   <ImageWithFallback
                     src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.rank}`}
-                    alt={player.address}
+                    alt={`Player rank ${player.rank}`}
                     className="w-8 h-8 rounded-full object-cover"
                   />
                   
@@ -116,7 +117,7 @@ export default function LeaderboardSection() {
                   <div className="flex items-center space-x-2">
                     <ImageWithFallback
                       src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${index + 20}`}
-                      alt={player.address}
+                      alt={`Player rank ${player.rank}`}
                       className="w-6 h-6 rounded-full object-cover"
                     />
                     <p className="text-sm">{player.address}</p>
@@ -185,4 +186,4 @@ export default function LeaderboardSection() {
       </div>
     </div>
   );
-}
+});

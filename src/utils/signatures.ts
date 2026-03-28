@@ -206,6 +206,21 @@ export function validateSellSignatureParams(messageData: any): boolean {
   } catch (error) {
     throw new Error(`Invalid minCurrencyToReceive value: ${messageData.minCurrencyToReceive}`);
   }
-  
+
   return true;
+}
+
+/**
+ * Extracts a signature string from signTypedData result.
+ * Handles both string results and object results (Privy wallets may return objects).
+ */
+export function extractSignature(signResult: unknown): string {
+  if (typeof signResult === 'string') return signResult;
+  if (signResult && typeof signResult === 'object') {
+    const obj = signResult as Record<string, unknown>;
+    const sig = obj.signature || obj.sig || obj.data;
+    if (typeof sig === 'string') return sig;
+    return String(signResult);
+  }
+  throw new Error('Invalid signature response');
 }

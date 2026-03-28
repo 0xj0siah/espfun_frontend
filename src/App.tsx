@@ -1,13 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import Header from './components/Header';
 import { useIsMobile } from './components/ui/use-mobile';
 import TeamSection from './components/TeamSection';
-import TransfersSection from './components/TransfersSection';
-import LiveScoresSection from './components/LiveScoresSection';
-import LeaderboardSection from './components/LeaderboardSection';
-import PackOpeningSection from './components/pack-opening/PackOpeningSection';
-import AgentSection from './components/AgentSection';
-import StakingSection from './components/StakingSection';
 import { PasswordGate } from './components/PasswordGate';
 import { usePlayerPrices } from './hooks/usePlayerPricing';
 import fakeData from './fakedata.json';
@@ -15,9 +9,14 @@ import { getActivePlayerIds } from './utils/contractInteractions';
 import { useAuthentication } from './hooks/useAuthentication';
 import { AuthProvider } from './context/AuthContext';
 import { GameProvider } from './context/GameContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
-// Import debug utility
-import './utils/contractDebug';
+// Lazy-loaded sections (deferred until tab is selected)
+const TransfersSection = lazy(() => import('./components/TransfersSection'));
+const LiveScoresSection = lazy(() => import('./components/LiveScoresSection'));
+const LeaderboardSection = lazy(() => import('./components/LeaderboardSection'));
+const PackOpeningSection = lazy(() => import('./components/pack-opening/PackOpeningSection'));
+const StakingSection = lazy(() => import('./components/StakingSection'));
 
 // Import icons
 import { Github } from 'lucide-react';
@@ -95,8 +94,6 @@ export default function App() {
         return <PackOpeningSection />;
       case 'Staking':
         return <StakingSection />;
-      // case 'Agent':
-      //   return <AgentSection />;
       default:
         return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
     }
@@ -110,7 +107,11 @@ export default function App() {
           <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
-          {renderContent()}
+          <ErrorBoundary>
+            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-pulse text-muted-foreground">Loading...</div></div>}>
+              {renderContent()}
+            </Suspense>
+          </ErrorBoundary>
         </main>
 
         {/* Footer with Social Links (hidden on mobile) */}
@@ -130,7 +131,7 @@ export default function App() {
                   </a>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  © 2025 ESP.FUN. All rights reserved.
+                  © {new Date().getFullYear()} ESP.FUN. All rights reserved.
                 </p>
               </div>
             </div>

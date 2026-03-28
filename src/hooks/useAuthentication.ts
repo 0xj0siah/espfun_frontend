@@ -3,13 +3,16 @@ import { usePrivy, useSignMessage, useWallets } from '@privy-io/react-auth';
 import { authenticateWallet } from '../services/authService';
 import { apiService } from '../services/apiService';
 import { useAuthContext } from '../context/AuthContext';
-
-// Global rate limiting - prevent multiple authentication attempts
-let isGloballyAuthenticating = false;
-let lastAuthAttempt = 0;
-const AUTH_COOLDOWN = 10000; // Increased to 10 seconds due to backend rate limiting
+import { AUTH_COOLDOWN_MS } from '../constants/trading';
 
 export const useAuthentication = () => {
+  const {
+    setGlobalAuthState,
+    isGloballyAuthenticating,
+    setIsGloballyAuthenticating,
+    lastAuthAttempt,
+    setLastAuthAttempt,
+  } = useAuthContext();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +21,6 @@ export const useAuthentication = () => {
   const { authenticated, user } = usePrivy();
   const { signMessage } = useSignMessage();
   const { wallets } = useWallets();
-  const { setGlobalAuthState } = useAuthContext();
 
   // Helper to detect if we're using an embedded wallet
   const isEmbeddedWallet = useCallback(() => {
@@ -35,9 +37,9 @@ export const useAuthentication = () => {
     setHasAttemptedAuth(false);
     // Reset both local and global state
     setGlobalAuthState(false);
-    isGloballyAuthenticating = false;
-    lastAuthAttempt = 0;
-  }, [setGlobalAuthState]);
+    setIsGloballyAuthenticating(false);
+    setLastAuthAttempt(0);
+  }, [setGlobalAuthState, setIsGloballyAuthenticating, setLastAuthAttempt]);
 
   // Track wallet disconnection and address changes to clear authentication
   useEffect(() => {
@@ -102,8 +104,8 @@ export const useAuthentication = () => {
       return false;
     }
 
-    if (now - lastAuthAttempt < AUTH_COOLDOWN) {
-      const waitTime = Math.ceil((AUTH_COOLDOWN - (now - lastAuthAttempt)) / 1000);
+    if (now - lastAuthAttempt < AUTH_COOLDOWN_MS) {
+      const waitTime = Math.ceil((AUTH_COOLDOWN_MS - (now - lastAuthAttempt)) / 1000);
       console.log(`Authentication cooldown active, please wait ${waitTime}s`);
       setError(`Please wait ${waitTime} seconds before trying again (backend rate limiting)`);
       return false;
@@ -129,8 +131,8 @@ export const useAuthentication = () => {
       return true;
     }
 
-    isGloballyAuthenticating = true;
-    lastAuthAttempt = now;
+    setIsGloballyAuthenticating(true);
+    setLastAuthAttempt(now);
     setIsAuthenticating(true);
     setError(null);
     setHasAttemptedAuth(true);
@@ -238,9 +240,9 @@ export const useAuthentication = () => {
       return false;
     } finally {
       setIsAuthenticating(false);
-      isGloballyAuthenticating = false;
+      setIsGloballyAuthenticating(false);
     }
-  }, [authenticated, user?.wallet?.address, signMessage, wallets, isEmbeddedWallet, isAuthenticating, isAuthenticated, setGlobalAuthState]);
+  }, [authenticated, user?.wallet?.address, signMessage, wallets, isEmbeddedWallet, isAuthenticating, isAuthenticated, setGlobalAuthState, isGloballyAuthenticating, lastAuthAttempt, setIsGloballyAuthenticating, setLastAuthAttempt]);
 
   // Validate current token
   const validateToken = useCallback(async (): Promise<boolean> => {

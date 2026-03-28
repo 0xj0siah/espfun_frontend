@@ -3,6 +3,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { formatUnits } from 'viem';
 import { getContractData } from '../contracts';
 import { readContractCached, initializeContractCache } from '../utils/contractCache';
+import { PRICE_POLL_INTERVAL_MS } from '../constants/trading';
 
 // Hook to fetch player price from FDFPair contract
 export function usePlayerPrice(playerId: number) {
@@ -54,7 +55,7 @@ export function usePlayerPrice(playerId: number) {
     }, delay);
 
     // Update prices every 30 seconds
-    const interval = setInterval(fetchPrice, 30000);
+    const interval = setInterval(fetchPrice, PRICE_POLL_INTERVAL_MS);
 
     return () => {
       clearTimeout(timeoutId);
@@ -139,7 +140,7 @@ export function usePlayerPrices(playerIds: number[]) {
     }, delay);
 
     // Update prices every 30 seconds
-    const interval = setInterval(fetchPrices, 30000);
+    const interval = setInterval(fetchPrices, PRICE_POLL_INTERVAL_MS);
 
     return () => {
       clearTimeout(timeoutId);

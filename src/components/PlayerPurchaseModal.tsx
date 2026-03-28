@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock, X } from 'lucide-react';
+import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
@@ -14,7 +14,7 @@ import { usePrivy, useSendTransaction, useWallets, useSignTypedData } from '@pri
 import { useWalletTransactions } from '../hooks/useWalletTransactions';
 import { createPublicClient, createWalletClient, http, parseUnits, formatUnits, custom, encodeFunctionData } from 'viem';
 import { getContractData, NETWORK_CONFIG } from '../contracts';
-import { usePoolInfo } from '../hooks/usePoolInfo';
+import { usePoolInfo, type PriceImpactCalculation } from '../hooks/usePoolInfo';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { createEIP712Domain, createBuyTokensTypedData, validateSignatureParams, createPlayerEIP712Domain, createSellTokensTypedData, validateSellSignatureParams } from '../utils/signatures';
 import { apiService, SellTokensRequest } from '../services/apiService';
@@ -29,6 +29,7 @@ import { useBondingCurveTrade } from '../hooks/useBondingCurveTrade';
 import { usePublicClient } from '../hooks/usePublicClient';
 import { TradingPhase, FeeType, feeTypeLabel, feeTypeBadgeColor, EMPTY_QUOTE } from '../types/trading';
 import { Progress } from './ui/progress';
+import { useIsMobile } from './ui/use-mobile';
 
 interface Player {
   id: number;
@@ -67,6 +68,9 @@ interface PlayerPurchaseModalProps {
 }
 
 export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchase }: PlayerPurchaseModalProps) {
+  const isMobile = useIsMobile();
+  const [showStats, setShowStats] = useState(false);
+  const [showMatches, setShowMatches] = useState(false);
   const [showBuySellMenu, setShowBuySellMenu] = useState(false);
   const [usdcAmount, setUsdcAmount] = useState('');
   const [action, setAction] = useState<'buy' | 'sell'>('buy');
@@ -1016,6 +1020,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   };
 
   const getPositionIcon = (position: string) => {
+    const cls = "w-3 h-3 md:w-4 md:h-4";
     switch (position.toLowerCase()) {
       case 'duelist':
       case 'entry fragger':
@@ -1023,13 +1028,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       case 'rifler':
       case 'awper':
       case 'mid':
-      case 'adc': return <Target className="w-4 h-4" />;
+      case 'adc': return <Target className={cls} />;
       case 'controller':
       case 'support':
-      case 'top': return <Shield className="w-4 h-4" />;
+      case 'top': return <Shield className={cls} />;
       case 'initiator':
-      case 'jungle': return <Zap className="w-4 h-4" />;
-      default: return <Users className="w-4 h-4" />;
+      case 'jungle': return <Zap className={cls} />;
+      default: return <Users className={cls} />;
     }
   };
 
@@ -1050,8 +1055,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       setAction('buy');
       setSlippage(0.5);
       setShowBuySellMenu(false);
+      setShowStats(false);
+      setShowMatches(false);
       updateAlertState('idle');
-      
+
       // Fetch pool info if needed
       if (!fetchedPlayerIds.current.has(player.id)) {
         console.log('📊 Fetching pool info for player:', player.id);
@@ -1148,8 +1155,54 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       ? usdc / currentPrice
       : (usdc * currentPrice) * (1 - (sellFeeRate / 10000));
 
-  // Calculate price impact using real pool data
-  const realPriceImpactData = calculatePriceImpact(player.id, usdcAmount, action);
+  // Calculate price impact — use bonding curve virtual AMM when in bonding phase,
+  // otherwise use FDFPair pool data
+  const calculateBondingCurvePriceImpact = (): PriceImpactCalculation | null => {
+    if (!launchInfo || !usdcAmount || parseFloat(usdcAmount) <= 0) return null;
+
+    const effTokens = Number(launchInfo.virtualTokenReserve - launchInfo.tokensSold) / 1e18;
+    const effCurrency = Number(launchInfo.virtualCurrencyReserve + launchInfo.currencyCollected) / 1e6;
+    if (effTokens <= 0 || effCurrency <= 0) return null;
+
+    const curPrice = effCurrency / effTokens;
+    const tradeAmountNum = parseFloat(usdcAmount);
+
+    let newPrice: number;
+    let tokensTraded: number;
+
+    if (action === 'buy') {
+      // Bonding curve buy: cost = effCurrency * tokens / (effTokens - tokens)
+      // Rearranged for "tokens from USDC": tokens = effTokens * cost / (effCurrency + cost)
+      tokensTraded = (effTokens * tradeAmountNum) / (effCurrency + tradeAmountNum);
+      const newEffTokens = effTokens - tokensTraded;
+      const newEffCurrency = effCurrency + tradeAmountNum;
+      newPrice = newEffCurrency / newEffTokens;
+    } else {
+      // Bonding curve sell: refund = effCurrency * tokens / (effTokens + tokens)
+      tokensTraded = tradeAmountNum; // for sell, input is token amount
+      const newEffTokens = effTokens + tokensTraded;
+      const newEffCurrency = effCurrency - (effCurrency * tokensTraded) / (effTokens + tokensTraded);
+      newPrice = newEffCurrency / newEffTokens;
+    }
+
+    if (!isFinite(newPrice) || newPrice <= 0) return null;
+
+    const impact = ((newPrice - curPrice) / curPrice) * 100;
+    return {
+      priceImpact: Math.abs(impact),
+      priceImpactSigned: impact,
+      newPrice,
+      currentPrice: curPrice,
+      tokensTraded: Math.abs(tokensTraded),
+      effectivePrice: action === 'buy'
+        ? tradeAmountNum / Math.abs(tokensTraded)
+        : Math.abs((effCurrency * tokensTraded) / (effTokens + tokensTraded)) / tokensTraded,
+    };
+  };
+
+  const realPriceImpactData = tradingPhase === TradingPhase.BondingCurve
+    ? calculateBondingCurvePriceImpact()
+    : calculatePriceImpact(player.id, usdcAmount, action);
   const priceImpact = realPriceImpactData ? realPriceImpactData.priceImpact.toFixed(2) : '0.00';
   const isPriceImpactHigh = parseFloat(priceImpact) > 5;
 
@@ -1364,6 +1417,980 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     return matches.slice(0, 3);
   };
 
+  const handleCloseModal = () => {
+    setIsModalContentVisible(false);
+    setTimeout(() => {
+      setShowBuySellMenu(false);
+      setUsdcAmount('');
+      setAction('buy');
+      setSlippage(0.5);
+      setShowStats(false);
+      setShowMatches(false);
+      updateAlertState('idle');
+      isClosingRef.current = false;
+      setIsModalContentVisible(true);
+      onClose();
+    }, 300);
+  };
+
+  // ─── Shared sub-components ───────────────────────────────────────
+  const renderAuthStatus = () => (
+    <>
+      {!walletConnected && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 md:p-4 mx-0 md:mx-1"
+        >
+          <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-xs md:text-sm font-medium">Wallet Not Connected</span>
+          </div>
+          <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+            Please connect your wallet to purchase players and view your balance.
+          </p>
+        </motion.div>
+      )}
+
+      {walletConnected && !isAuthenticated && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 md:p-4 mx-0 md:mx-1"
+        >
+          <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300">
+            {isAuthenticating ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <AlertCircle className="h-4 w-4" />
+            )}
+            <span className="text-xs md:text-sm font-medium">
+              {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
+            </span>
+          </div>
+          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+            {isAuthenticating
+              ? 'Please wait while we authenticate your wallet...'
+              : 'Authenticating automatically...'}
+          </p>
+          {authError && (
+            <p className="text-xs text-red-600 dark:text-red-400 mt-1">{authError}</p>
+          )}
+        </motion.div>
+      )}
+
+      {isAuthenticated && (
+        <div className="px-0 md:px-1">
+          <AuthenticationStatus />
+        </div>
+      )}
+    </>
+  );
+
+  const renderTransactionAlert = () => (
+    showAlert && transactionStatus !== 'idle' ? (
+      <div
+        key={`alert-${alertKey}`}
+        className="w-full mb-3 md:mt-6 md:mb-4"
+        style={{ minHeight: isMobile ? undefined : '120px', clear: 'both' }}
+      >
+        <div className="w-full bg-white dark:bg-gray-900 border-2 rounded-lg shadow-lg overflow-hidden">
+          <div className={`w-full px-3 md:px-4 py-2 md:py-3 border-b-2 relative ${
+            transactionStatus === 'pending'
+              ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-700'
+              : transactionStatus === 'success'
+              ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-700'
+              : 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-700'
+          }`}>
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="flex-shrink-0">
+                {transactionStatus === 'pending' && <Clock className="w-4 h-4 md:w-6 md:h-6 text-blue-600 animate-pulse" />}
+                {transactionStatus === 'success' && <CheckCircle className="w-4 h-4 md:w-6 md:h-6 text-green-600" />}
+                {transactionStatus === 'error' && <XCircle className="w-4 h-4 md:w-6 md:h-6 text-red-600" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`font-bold text-xs md:text-base leading-tight truncate ${
+                  transactionStatus === 'pending'
+                    ? 'text-blue-800 dark:text-blue-200'
+                    : transactionStatus === 'success'
+                    ? 'text-green-800 dark:text-green-200'
+                    : 'text-red-800 dark:text-red-200'
+                }`}>
+                  {statusMessage}
+                </p>
+              </div>
+            </div>
+            {transactionStatus !== 'pending' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setNotificationDismissed(true);
+                  setShowAlert(false);
+                }}
+                className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-black/10 dark:hover:bg-white/10"
+                aria-label="Dismiss notification"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <div className="w-full p-3 md:p-4 space-y-3 md:space-y-4 bg-white dark:bg-gray-900">
+            {transactionHash && (
+              <div className="w-full">
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2 md:p-3">
+                  <div className="mb-2">
+                    <p className="text-[10px] md:text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1 md:mb-2">
+                      Transaction Hash
+                    </p>
+                    <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-1.5 md:p-2 mb-1.5 md:mb-2">
+                      <p className="text-[10px] md:text-xs font-mono text-gray-700 dark:text-gray-300 break-all leading-relaxed">
+                        {formatTransactionHash(transactionHash)}
+                      </p>
+                    </div>
+                    <a
+                      href={`${NETWORK_CONFIG.blockExplorer}/tx/${transactionHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block px-2 md:px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] md:text-xs font-medium rounded border border-blue-200 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-colors"
+                    >
+                      View on Explorer
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : null
+  );
+
+  const renderBondingCurveBanner = () => (
+    <>
+      {tradingPhase === TradingPhase.BondingCurve && launchProgress && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg border border-accent/30 bg-accent/10 p-3 md:p-4 mb-3 md:mb-0"
+        >
+          <div className="flex items-center justify-between mb-1.5 md:mb-2">
+            <span className="text-xs md:text-sm font-medium flex items-center gap-1 md:gap-1.5">
+              <Zap className="w-3 h-3 md:w-4 md:h-4 text-yellow-500" />
+              Bonding Curve Launch
+            </span>
+            <span className="text-xs md:text-sm text-muted-foreground">
+              {(launchProgress.percentComplete / 100).toFixed(1)}%{!isMobile && ' funded'}
+            </span>
+          </div>
+          <Progress value={launchProgress.percentComplete / 100} className="h-1.5 md:h-2 mb-1 md:mb-1.5" />
+          <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
+            <span>{parseFloat(formatUnits(launchProgress.raised, 6)).toFixed(2)} USDC{!isMobile && ' raised'}</span>
+            <span>Target: {parseFloat(formatUnits(launchProgress.target, 6)).toFixed(2)} USDC</span>
+          </div>
+        </motion.div>
+      )}
+
+      {tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 md:p-4 mb-3 md:mb-0"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs md:text-sm font-medium flex items-center gap-1 md:gap-1.5">
+                <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500" />
+                {isMobile ? 'Launch Graduated!' : 'Token Launch Graduated!'}
+              </p>
+              <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+                {parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} unclaimed tokens{!isMobile && '. Claim to trade on the open market.'}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={async () => {
+                try {
+                  updateAlertState('pending', 'Claiming tokens...');
+                  await bondingCurveTrade.claim(player.id);
+                  refreshPhase();
+                  refreshTokenBalance();
+                  updateAlertState('success', isMobile ? 'Tokens claimed!' : 'Tokens claimed! You can now trade on the market.', bondingCurveTrade.transactionHash);
+                } catch (err) {
+                  updateAlertState('error', `Claim failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                }
+              }}
+              disabled={bondingCurveTrade.isLoading}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-xs shrink-0"
+            >
+              {bondingCurveTrade.isLoading ? 'Claiming...' : 'Claim'}
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
+      {tradingPhase === TradingPhase.Cancelled && userCurveBalance > 0n && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 md:p-4 mb-3 md:mb-0"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs md:text-sm font-medium flex items-center gap-1 md:gap-1.5">
+                <XCircle className="w-3 h-3 md:w-4 md:h-4 text-red-500" />
+                Launch Cancelled
+              </p>
+              <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+                {isMobile
+                  ? `${parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} tokens refundable`
+                  : `This token launch was cancelled. You can claim a USDC refund for your ${parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} tokens.`}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  updateAlertState('pending', 'Processing refund...');
+                  await bondingCurveTrade.refund(player.id);
+                  refreshPhase();
+                  refreshTokenBalance();
+                  await updateBalanceAfterTransaction();
+                  updateAlertState('success', 'Refund processed!', bondingCurveTrade.transactionHash);
+                } catch (err) {
+                  updateAlertState('error', `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                }
+              }}
+              disabled={bondingCurveTrade.isLoading}
+              className="text-xs shrink-0"
+            >
+              {bondingCurveTrade.isLoading ? 'Processing...' : isMobile ? 'Refund' : 'Claim Refund'}
+            </Button>
+          </div>
+        </motion.div>
+      )}
+    </>
+  );
+
+  const renderBuySellButtons = () => (
+    !showBuySellMenu ? (
+      <div className={`${isMobile ? 'space-y-2 mb-3' : 'flex gap-2'}`}>
+        <Button
+          onClick={() => {
+            setShowBuySellMenu(true);
+            setAction('buy');
+            updateAlertState('idle');
+            if (isMobile) { setShowStats(false); setShowMatches(false); }
+          }}
+          className={`relative overflow-hidden group bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02] active:scale-95 ${
+            isMobile ? 'w-full h-12' : 'text-lg px-8 py-3 hover:scale-105'
+          }`}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          Purchase Player
+        </Button>
+        <Button
+          onClick={() => {
+            setShowBuySellMenu(true);
+            setAction('sell');
+            updateAlertState('idle');
+            if (isMobile) { setShowStats(false); setShowMatches(false); }
+          }}
+          variant="outline"
+          className={`relative overflow-hidden group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-95 hover:border-red-500 hover:text-red-500 ${
+            isMobile ? 'w-full h-12' : 'text-lg px-8 py-3 hover:scale-105'
+          }`}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          Sell Player
+        </Button>
+      </div>
+    ) : null
+  );
+
+  const renderTradingForm = () => (
+    showBuySellMenu && !isClosingRef.current ? (
+      <Card className={`bg-card/50 backdrop-blur-sm border-accent/20 ${isMobile ? 'mb-3' : 'w-full max-w-md mx-auto'}`}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 30 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="p-4 md:p-6 space-y-4 md:space-y-6"
+        >
+          {/* Transaction Type Toggle */}
+          <div className="flex justify-center space-x-2 mb-2 md:mb-4">
+            <Button
+              variant={action === 'buy' ? "default" : "outline"}
+              onClick={() => setAction('buy')}
+              className={`flex-1 ${action === 'buy' ? 'bg-gradient-to-r from-green-600 to-emerald-600' : ''}`}
+            >
+              Buy
+            </Button>
+            <Button
+              variant={action === 'sell' ? "default" : "outline"}
+              onClick={() => setAction('sell')}
+              className={`flex-1 ${action === 'sell' ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''}`}
+            >
+              Sell
+            </Button>
+          </div>
+
+          {/* Input Amount */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs md:text-sm font-medium">You {action === 'buy' ? 'pay' : 'sell'}</span>
+              {action === 'buy' && userUsdcBalance !== '0' && (
+                <span className="text-xs text-muted-foreground">
+                  Balance: {parseFloat(userUsdcBalance).toFixed(2)} USDC
+                </span>
+              )}
+              {action === 'sell' && playerTokenBalance > 0n && (
+                <span className="text-xs text-muted-foreground">
+                  Balance: {parseFloat(playerTokenBalanceFormatted).toFixed(4)} tokens
+                </span>
+              )}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Enter the amount you want to {action === 'buy' ? 'spend' : 'sell'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <div className="relative">
+              <Input
+                type="number"
+                inputMode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
+                min="0"
+                value={usdcAmount}
+                onChange={e => setUsdcAmount(e.target.value)}
+                className="w-full text-xl md:text-2xl font-bold pr-20 md:pr-24 bg-background/50 border-accent/20 focus:border-accent/40 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="0.00"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                <span className="text-base md:text-xl font-bold text-foreground/80">
+                  {action === 'buy' ? 'USDC' : player.name}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Swap Arrow */}
+          <div className="relative my-2 md:my-4">
+            <Separator />
+            <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background rounded-full p-1 md:p-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setAction(action === 'buy' ? 'sell' : 'buy')}
+                className="h-7 w-7 md:h-8 md:w-8 rounded-full hover:bg-accent/40"
+              >
+                <ArrowUpDown className="h-3 w-3 md:h-4 md:w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Output Amount */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <span className="text-xs md:text-sm font-medium">You receive</span>
+              {(quote.loading || quote.stale) && usdcAmount && parseFloat(usdcAmount) > 0 && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  {!isMobile && (quote.stale ? 'Updating...' : 'Loading quote...')}
+                </div>
+              )}
+              {quote.error && (
+                <span className="text-[10px] md:text-xs text-red-500">{quote.error}</span>
+              )}
+            </div>
+            <div className="relative">
+              <Input
+                readOnly
+                value={
+                  isNaN(expectedReceive) || !isFinite(expectedReceive)
+                    ? '0.00'
+                    : formatNumber(expectedReceive)
+                }
+                className={`w-full text-xl md:text-2xl font-bold pr-20 md:pr-24 bg-background/30 border-accent/20 ${quote.stale ? 'opacity-60' : ''}`}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                <span className="text-base md:text-xl font-bold text-foreground/80">
+                  {action === 'buy' ? player.name : 'USDC'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Transaction Details */}
+          {transactionStatus !== 'pending' && (!showAlert || notificationDismissed) && (
+            <div className="p-3 md:p-4 rounded-lg bg-accent/20 space-y-2 md:space-y-3">
+              <div className="flex justify-between text-xs md:text-sm">
+                <span className="text-muted-foreground">Price Impact</span>
+                <div className="flex items-center gap-1">
+                  {poolLoading && tradingPhase !== TradingPhase.BondingCurve ? (
+                    <span className="text-muted-foreground">{isMobile ? 'Loading...' : 'Loading contract data...'}</span>
+                  ) : poolError && tradingPhase !== TradingPhase.BondingCurve ? (
+                    <span className="text-red-500">{isMobile ? 'Error' : 'Contract Error'}</span>
+                  ) : realPriceImpactData ? (
+                    <span className={isPriceImpactHigh ? 'text-red-500' : 'text-foreground'}>
+                      {priceImpact}%
+                    </span>
+                  ) : usdcAmount && (poolData.size > 0 || tradingPhase === TradingPhase.BondingCurve) ? (
+                    <span className="text-yellow-500">{tradingPhase === TradingPhase.BondingCurve ? 'Enter amount' : 'No Liquidity'}</span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {usdcAmount ? 'Enter amount' : '0.00%'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Pool / Curve reserves info */}
+              {tradingPhase === TradingPhase.BondingCurve && launchInfo ? (
+                <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
+                  <span>Curve Reserves</span>
+                  <span className={`text-right ${isMobile ? 'max-w-[60%] truncate' : ''}`}>
+                    {(() => {
+                      const effCurrency = Number(launchInfo.virtualCurrencyReserve + launchInfo.currencyCollected) / 1e6;
+                      const effTokens = Number(launchInfo.virtualTokenReserve - launchInfo.tokensSold) / 1e18;
+                      const cp = effTokens > 0 ? effCurrency / effTokens : 0;
+                      if (isMobile) return `${effCurrency.toFixed(2)} USDC / ${effTokens.toFixed(2)} tokens`;
+                      return `${effCurrency.toFixed(2)} USDC / ${effTokens.toFixed(2)} tokens (${formatPriceDisplay(cp)} USDC/token)`;
+                    })()}
+                  </span>
+                </div>
+              ) : poolData && poolData.size > 0 && poolData.get(player.id) && (
+                <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
+                  <span>Pool Reserves</span>
+                  <span className={`text-right ${isMobile ? 'max-w-[60%] truncate' : ''}`}>
+                    {(() => {
+                      const pool = poolData.get(player.id);
+                      if (!pool) return 'No data';
+                      const usdcReserve = (Number(pool.currencyReserve) / 1e6).toFixed(2);
+                      const tokenReserve = (Number(pool.playerTokenReserve) / 1e18).toFixed(2);
+                      if (isMobile) return `${usdcReserve} USDC / ${tokenReserve} ${player.name}`;
+                      const cp = pool.currencyReserve > 0n && pool.playerTokenReserve > 0n
+                        ? (Number(pool.currencyReserve) / 1e6) / (Number(pool.playerTokenReserve) / 1e18)
+                        : 0;
+                      return `${usdcReserve} USDC / ${tokenReserve} ${player.name} (${formatPriceDisplay(cp)} USDC/token)`;
+                    })()}
+                  </span>
+                </div>
+              )}
+
+              {/* Effective price */}
+              {realPriceImpactData && realPriceImpactData.effectivePrice && (
+                <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
+                  <span>Effective Price</span>
+                  <span>{formatPriceDisplay(realPriceImpactData.effectivePrice)} USDC{!isMobile && ' per token'}</span>
+                </div>
+              )}
+
+              {/* Fee Information */}
+              <div className="flex justify-between text-xs md:text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">{action === 'buy' ? 'Buy' : 'Sell'} Fee</span>
+                  {quote.feeType !== null && quote.feeType !== FeeType.Normal && (
+                    <Badge variant="outline" className={`text-[9px] md:text-[10px] px-1 py-0 ${feeTypeBadgeColor(quote.feeType)}`}>
+                      {feeTypeLabel(quote.feeType)}
+                    </Badge>
+                  )}
+                  {!isMobile && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="w-4 h-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {tradingPhase === TradingPhase.BondingCurve
+                              ? 'Flat 2% fee on bonding curve trades'
+                              : 'Dynamic protocol fee (5-25%) based on market conditions'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 md:gap-2">
+                  <span className={isMobile ? '' : 'font-medium'}>
+                    {quote.feeRate > 0
+                      ? `${(quote.feeRate / 1000).toFixed(2)}%`
+                      : action === 'buy'
+                        ? `${(buyFeeRate / 1000).toFixed(2)}%`
+                        : `${(sellFeeRate / 1000).toFixed(2)}%`}
+                  </span>
+                  {quote.feeAmount > 0n && (
+                    <span className="text-[10px] md:text-xs text-muted-foreground">
+                      ({parseFloat(formatUnits(quote.feeAmount, 6)).toFixed(2)}{isMobile ? '' : ' USDC'})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Slippage */}
+              <div className="flex justify-between text-xs md:text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">Slippage</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Maximum price movement you're willing to accept</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="flex items-center gap-1 md:gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSlippage(0.5)}
+                    className={`px-2 py-0.5 md:py-1 h-auto text-xs ${slippage === 0.5 ? 'bg-accent' : ''}`}
+                  >
+                    0.5%
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSlippage(1)}
+                    className={`px-2 py-0.5 md:py-1 h-auto text-xs ${slippage === 1 ? 'bg-accent' : ''}`}
+                  >
+                    1%
+                  </Button>
+                  <Input
+                    type="number"
+                    value={slippage}
+                    onChange={e => setSlippage(Number(e.target.value))}
+                    className="w-12 md:w-16 h-6 md:h-8 text-xs md:text-sm"
+                    min="0.1"
+                    max="50"
+                    step="0.1"
+                  />
+                  <span className="text-xs md:text-sm">%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Warning for high price impact */}
+          {transactionStatus !== 'pending' && (!showAlert || notificationDismissed) && isPriceImpactHigh && realPriceImpactData && (
+            <Alert variant="destructive" className="py-2 md:mt-4">
+              <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />
+              <AlertDescription className="text-xs">
+                High price impact ({priceImpact}%). Price will change from {formatPriceDisplay(realPriceImpactData.currentPrice)} to {formatPriceDisplay(realPriceImpactData.newPrice)} USDC.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex space-x-2 md:space-x-3 pt-2 md:mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowBuySellMenu(false);
+                setUsdcAmount('');
+                setAction('buy');
+                setSlippage(0.5);
+                updateAlertState('idle');
+              }}
+              className="relative overflow-hidden group flex-1"
+              disabled={isLoading}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={
+                !usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading ||
+                tradingPhase === TradingPhase.Cancelled ||
+                (tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n)
+              }
+              className={`relative overflow-hidden group flex-1 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 ${
+                action === 'buy'
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+              }`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Processing...
+                </div>
+              ) : (
+                `Confirm ${action === 'buy' ? 'Purchase' : 'Sale'}`
+              )}
+            </Button>
+          </div>
+
+          {/* Transaction Status (inline for mobile, block for desktop) */}
+          {renderTransactionAlert()}
+        </motion.div>
+      </Card>
+    ) : null
+  );
+
+  const renderStatsGrid = () => {
+    const statsContent = gridStatsLoading && !gridStats ? (
+      <>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
+            <div className="h-5 md:h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
+            <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
+          </div>
+        ))}
+      </>
+    ) : gridStats && gridStats.game && gridStats.game.kills && gridStats.game.deaths && gridStats.game.killAssistsGiven ? (
+      <>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{gridStats.game.kills.avg?.toFixed(1) || '0.0'}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Avg Kills</p>
+        </div>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{gridStats.game.deaths.avg?.toFixed(1) || '0.0'}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Avg Deaths</p>
+        </div>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{gridStats.game.killAssistsGiven.avg?.toFixed(1) || '0.0'}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Avg Assists</p>
+        </div>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{`${gridStats.game.wins?.find(w => w.value)?.percentage.toFixed(1) || '0.0'}%`}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Win Rate</p>
+        </div>
+      </>
+    ) : player.stats ? (
+      <>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{player.stats.kills.toFixed(1)}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Avg Kills</p>
+        </div>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{player.stats.deaths.toFixed(1)}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Avg Deaths</p>
+        </div>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{player.stats.assists.toFixed(1)}</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Avg Assists</p>
+        </div>
+        <div className="text-center p-2 bg-accent/50 rounded-lg">
+          <p className="text-base md:text-lg font-bold text-primary">{player.stats.winRate}%</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground">Win Rate</p>
+        </div>
+      </>
+    ) : (
+      <div className="col-span-2 md:col-span-4 text-center py-4 text-muted-foreground">
+        <p className="text-xs md:text-sm">No statistics available</p>
+      </div>
+    );
+
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {statsContent}
+      </div>
+    );
+  };
+
+  const renderStatsSourceIndicator = () => (
+    <>
+      {gridStats && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+          Live data from Grid.gg
+        </div>
+      )}
+      {!gridStats && gridStatsLoading && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+          Loading stats from Grid.gg...
+        </div>
+      )}
+      {!gridStats && !gridStatsLoading && !player.gridID && player.stats && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+          Tournament data from Leaguepedia
+        </div>
+      )}
+      {!gridStats && !gridStatsLoading && player.gridID && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
+          Waiting for player stats
+        </div>
+      )}
+    </>
+  );
+
+  const renderMatchesList = () => {
+    const realMatches = getRealRecentMatches();
+    if (seriesLoading && realMatches.length === 0) {
+      return Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg animate-pulse">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+            <div>
+              <div className="h-3 bg-gray-300 rounded w-20 mb-1"></div>
+              <div className="h-2 bg-gray-300 rounded w-12"></div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="h-4 bg-gray-300 rounded w-12 mb-1"></div>
+            <div className="h-2 bg-gray-300 rounded w-8"></div>
+          </div>
+        </div>
+      ));
+    }
+    if (realMatches.length > 0) {
+      return realMatches.map((match, index) => (
+        <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${match.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium truncate">vs {match.opponent}</p>
+              <p className="text-[10px] text-muted-foreground">{match.score}</p>
+            </div>
+          </div>
+          <div className="text-right ml-2">
+            {isMobile ? (
+              <span className={`text-xs font-bold ${match.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
+                {match.result.toUpperCase()}
+              </span>
+            ) : (
+              <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                {match.result.toUpperCase()}
+              </Badge>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-0.5">{match.performance} pts</p>
+          </div>
+        </div>
+      ));
+    }
+    if (player.recentMatches && player.recentMatches.length > 0) {
+      return player.recentMatches.map((match, index) => (
+        <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${match.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium truncate">vs {match.opponent}</p>
+              <p className="text-[10px] text-muted-foreground">{match.score}</p>
+            </div>
+          </div>
+          <div className="text-right ml-2">
+            {isMobile ? (
+              <span className={`text-xs font-bold ${match.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
+                {match.result.toUpperCase()}
+              </span>
+            ) : (
+              <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                {match.result.toUpperCase()}
+              </Badge>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-0.5">{match.performance} pts</p>
+          </div>
+        </div>
+      ));
+    }
+    return (
+      <div className="text-center py-4 text-muted-foreground">
+        <p className="text-xs md:text-sm">No recent matches available</p>
+      </div>
+    );
+  };
+
+  const renderMatchesSourceIndicator = () => (
+    <>
+      {seriesData.length > 0 && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+          Live series data from Grid.gg
+        </div>
+      )}
+      {seriesData.length === 0 && seriesLoading && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-blue-500 rounded-full mr-1 animate-pulse"></div>
+          Loading match data from Grid.gg...
+        </div>
+      )}
+      {seriesData.length === 0 && !seriesLoading && player.teamGridId && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
+          Waiting for match data
+        </div>
+      )}
+      {seriesData.length === 0 && !seriesLoading && !player.teamGridId && player.recentMatches?.length > 0 && (
+        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+          Tournament data from Leaguepedia
+        </div>
+      )}
+    </>
+  );
+
+  // ─── MOBILE LAYOUT ────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <Dialog open={isOpen} onOpenChange={() => {}}>
+        <DialogContent
+          className="!max-w-none !w-screen !h-screen !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !rounded-none !p-0 !m-0 !inset-0 !flex !flex-col !gap-0 border-0 shadow-2xl !animate-none origin-center"
+          hideCloseButton
+          style={{
+            opacity: isModalContentVisible ? 1 : 0,
+            scale: isModalContentVisible ? '1' : '0.05',
+            transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {/* Fixed Header */}
+          <div className="bg-gradient-to-r from-accent/30 to-accent/10 border-b p-4 flex-shrink-0">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div
+                    className="absolute inset-0 rounded-lg opacity-50"
+                    style={{
+                      backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                      backgroundSize: 'contain',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  />
+                  <ImageWithFallback
+                    src={player.image}
+                    alt={player.name}
+                    className="relative w-12 h-12 rounded-lg object-contain shadow-md"
+                  />
+                  <div className={`absolute -top-1 -right-1 w-5 h-5 text-[9px] rounded-full bg-gradient-to-r ${getRatingColor(player.rating)} flex items-center justify-center text-white font-bold`}>
+                    {player.rating}
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold truncate">{player.name}</h3>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 flex items-center space-x-0.5">
+                      {getPositionIcon(player.position)}
+                      <span>{player.position}</span>
+                    </Badge>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{player.game}</Badge>
+                    <div className={`flex items-center space-x-0.5 text-[10px] ${
+                      player.trend === 'up' ? 'text-green-500' : player.trend === 'down' ? 'text-red-500' : 'text-muted-foreground'
+                    }`}>
+                      {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> : <span>-</span>}
+                      <span>{player.points} pts</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleCloseModal} className="h-8 w-8 p-0 rounded-full">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground mb-1">Current Price</p>
+              <p className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                {formatPriceDisplay(currentPrice)} USDC
+              </p>
+            </div>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+            {renderAuthStatus()}
+            {showAlert && transactionStatus !== 'idle' && !showBuySellMenu && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-3">
+                <Alert className={`${transactionStatus === 'success' ? 'bg-green-50 border-green-200' : transactionStatus === 'error' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                  {transactionStatus === 'success' ? <CheckCircle className="h-4 w-4 text-green-600" /> :
+                   transactionStatus === 'error' ? <XCircle className="h-4 w-4 text-red-600" /> :
+                   <Clock className="h-4 w-4 text-blue-600 animate-spin" />}
+                  <AlertDescription className="text-xs">{statusMessage}</AlertDescription>
+                </Alert>
+              </motion.div>
+            )}
+            {renderBondingCurveBanner()}
+            {renderBuySellButtons()}
+            {renderTradingForm()}
+
+            {/* Collapsible Stats */}
+            {!showBuySellMenu && (
+              <Card className="mb-3">
+                <button
+                  onClick={() => { setShowStats(!showStats); if (!showStats) setShowMatches(false); }}
+                  className="w-full p-3 flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm font-medium">Player Statistics</span>
+                    {gridStatsLoading && <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>}
+                  </div>
+                  {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                <AnimatePresence initial={false}>
+                  {showStats && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="px-3 pb-3 overflow-hidden"
+                    >
+                      <Separator className="mb-3" />
+                      {renderStatsGrid()}
+                      {renderStatsSourceIndicator()}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Card>
+            )}
+
+            {/* Collapsible Recent Matches */}
+            {!showBuySellMenu && (
+              <Card>
+                <button
+                  onClick={() => { setShowMatches(!showMatches); if (!showMatches) setShowStats(false); }}
+                  className="w-full p-3 flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium">Recent Matches</span>
+                    {seriesLoading && <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>}
+                  </div>
+                  {showMatches ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                <AnimatePresence initial={false}>
+                  {showMatches && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="px-3 pb-3 overflow-hidden"
+                    >
+                      <Separator className="mb-3" />
+                      <div className="space-y-2">{renderMatchesList()}</div>
+                      {renderMatchesSourceIndicator()}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Card>
+            )}
+            <div className="h-4"></div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ─── DESKTOP LAYOUT ───────────────────────────────────────────────
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
@@ -1380,24 +2407,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              // Start the closing animation
-              setIsModalContentVisible(false);
-
-              // Close modal after animation completes (300ms to match the exit animation)
-              setTimeout(() => {
-                // Reset all states
-                setShowBuySellMenu(false);
-                setUsdcAmount('');
-                setAction('buy');
-                setSlippage(0.5);
-                updateAlertState('idle');
-                isClosingRef.current = false;
-
-                // Close the modal
-                onClose();
-              }, 300);
-            }}
+            onClick={handleCloseModal}
             className="absolute -top-2 -right-2 z-10 overflow-hidden group h-8 w-8 p-0 rounded-full hover:bg-background/50"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
@@ -1459,175 +2469,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             </div>
           </DialogHeader>
 
-        {/* Authentication Status */}
-        {!walletConnected && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mx-1"
-          >
-            <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">Wallet Not Connected</span>
-            </div>
-            <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
-              Please connect your wallet to purchase players and view your balance.
-            </p>
-          </motion.div>
-        )}
-
-        {walletConnected && !isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mx-1"
-          >
-            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300">
-              {isAuthenticating ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}
-              <span className="text-sm font-medium">
-                {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
-              </span>
-            </div>
-            <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-              {isAuthenticating 
-                ? 'Please wait while we authenticate your wallet...' 
-                : 'Authenticating automatically...'
-              }
-            </p>
-            {authError && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                {authError}
-              </p>
-            )}
-          </motion.div>
-        )}
-
-        {isAuthenticated && (
-          <div className="px-1">
-            <AuthenticationStatus />
-          </div>
-        )}
+        {renderAuthStatus()}
 
         <div className="space-y-6">
-          {/* Bonding Curve Progress Bar */}
-          {tradingPhase === TradingPhase.BondingCurve && launchProgress && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border border-accent/30 bg-accent/10 p-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-yellow-500" />
-                  Bonding Curve Launch
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {(launchProgress.percentComplete / 100).toFixed(1)}% funded
-                </span>
-              </div>
-              <Progress value={launchProgress.percentComplete / 100} className="h-2 mb-1.5" />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{parseFloat(formatUnits(launchProgress.raised, 6)).toFixed(2)} USDC raised</span>
-                <span>Target: {parseFloat(formatUnits(launchProgress.target, 6)).toFixed(2)} USDC</span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Graduated — Claim Tokens Banner */}
-          {tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border border-green-500/30 bg-green-500/10 p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium flex items-center gap-1.5">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Token Launch Graduated!
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    You have {parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} unclaimed tokens. Claim to trade on the open market.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      updateAlertState('pending', 'Claiming tokens...');
-                      await bondingCurveTrade.claim(player.id);
-                      refreshPhase();
-                      refreshTokenBalance();
-                      updateAlertState('success', 'Tokens claimed! You can now trade on the market.', bondingCurveTrade.transactionHash);
-                    } catch (err) {
-                      updateAlertState('error', `Claim failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                    }
-                  }}
-                  disabled={bondingCurveTrade.isLoading}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shrink-0"
-                >
-                  {bondingCurveTrade.isLoading ? (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Claiming...
-                    </div>
-                  ) : 'Claim Tokens'}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Cancelled — Refund Banner */}
-          {tradingPhase === TradingPhase.Cancelled && userCurveBalance > 0n && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border border-red-500/30 bg-red-500/10 p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium flex items-center gap-1.5">
-                    <XCircle className="w-4 h-4 text-red-500" />
-                    Launch Cancelled
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    This token launch was cancelled. You can claim a USDC refund for your {parseFloat(formatUnits(userCurveBalance, 18)).toFixed(4)} tokens.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={async () => {
-                    try {
-                      updateAlertState('pending', 'Processing refund...');
-                      await bondingCurveTrade.refund(player.id);
-                      refreshPhase();
-                      refreshTokenBalance();
-                      await updateBalanceAfterTransaction();
-                      updateAlertState('success', 'Refund processed!', bondingCurveTrade.transactionHash);
-                    } catch (err) {
-                      updateAlertState('error', `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                    }
-                  }}
-                  disabled={bondingCurveTrade.isLoading}
-                  className="shrink-0"
-                >
-                  {bondingCurveTrade.isLoading ? (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Processing...
-                    </div>
-                  ) : 'Claim Refund'}
-                </Button>
-              </div>
-            </motion.div>
-          )}
+          {renderBondingCurveBanner()}
 
           {/* Price and Purchase */}
           <Card className="p-6 bg-gradient-to-r from-accent/30 to-accent/10 border-0">
@@ -1638,444 +2483,15 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               </p>
             </div>
             <div className="flex items-center justify-center">
-              {!showBuySellMenu && (
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => {
-                      setShowBuySellMenu(true);
-                      setAction('buy');
-                      updateAlertState('idle');
-                    }}
-                    className="relative overflow-hidden group bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg text-lg px-8 py-3 transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                    Purchase Player
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      setShowBuySellMenu(true);
-                      setAction('sell');
-                      updateAlertState('idle');
-                    }}
-                    variant="outline"
-                    className="relative overflow-hidden group text-lg px-8 py-3 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 hover:border-red-500 hover:text-red-500"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                    Sell Player
-                  </Button>
-                </div>
-              )}
+              {renderBuySellButtons()}
             </div>
           </Card>
 
-          {/* Buy/Sell Menu */}
-          {showBuySellMenu && !isClosingRef.current && (
-            <Card className="w-full max-w-md mx-auto bg-card/50 backdrop-blur-sm border-accent/20">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 30 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="p-6 space-y-6"
-              >
-                {/* Transaction Type Toggle */}
-                <div className="flex justify-center space-x-2 mb-4">
-                  <Button
-                    variant={action === 'buy' ? "default" : "outline"}
-                    onClick={() => setAction('buy')}
-                    className={`flex-1 ${action === 'buy' ? 'bg-gradient-to-r from-green-600 to-emerald-600' : ''}`}
-                  >
-                    Buy
-                  </Button>
-                  <Button
-                    variant={action === 'sell' ? "default" : "outline"}
-                    onClick={() => setAction('sell')}
-                    className={`flex-1 ${action === 'sell' ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''}`}
-                  >
-                    Sell
-                  </Button>
-                </div>
-
-                {/* Input Amount */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">You {action === 'buy' ? 'pay' : 'sell'}</span>
-                    {action === 'buy' && userUsdcBalance !== '0' && (
-                      <span className="text-xs text-muted-foreground">
-                        Balance: {parseFloat(userUsdcBalance).toFixed(2)} USDC
-                      </span>
-                    )}
-                    {action === 'sell' && playerTokenBalance > 0n && (
-                      <span className="text-xs text-muted-foreground">
-                        Balance: {parseFloat(playerTokenBalanceFormatted).toFixed(4)} tokens
-                      </span>
-                    )}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="w-4 h-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Enter the amount you want to {action === 'buy' ? 'spend' : 'sell'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      pattern="[0-9]*[.,]?[0-9]*"
-                      min="0"
-                      value={usdcAmount}
-                      onChange={e => setUsdcAmount(e.target.value)}
-                      className="w-full text-2xl font-bold pr-24 bg-background/50 border-accent/20 focus:border-accent/40 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0.00"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                      <span className="text-xl font-bold text-foreground/80">
-                        {action === 'buy' ? 'USDC' : player.name}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Swap Arrow */}
-                <div className="relative my-4">
-                  <Separator />
-                  <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background rounded-full p-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setAction(action === 'buy' ? 'sell' : 'buy')}
-                      className="h-8 w-8 rounded-full hover:bg-accent/40"
-                    >
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Output Amount */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">You receive</span>
-                    {(quote.loading || quote.stale) && usdcAmount && parseFloat(usdcAmount) > 0 && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        {quote.stale ? 'Updating...' : 'Loading quote...'}
-                      </div>
-                    )}
-                    {quote.error && (
-                      <span className="text-xs text-red-500">{quote.error}</span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Input
-                      readOnly
-                      value={
-                        isNaN(expectedReceive) || !isFinite(expectedReceive)
-                          ? '0.00'
-                          : formatNumber(expectedReceive)
-                      }
-                      className={`w-full text-2xl font-bold pr-24 bg-background/30 border-accent/20 ${quote.stale ? 'opacity-60' : ''}`}
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                      <span className="text-xl font-bold text-foreground/80">
-                        {action === 'buy' ? player.name : 'USDC'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Transaction Details - Hide during processing and when notification is active (unless dismissed) */}
-                {transactionStatus !== 'pending' && (!showAlert || notificationDismissed) && (
-                  <div className="mt-6 p-4 rounded-lg bg-accent/20 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Price Impact</span>
-                      <div className="flex items-center gap-1">
-                        {poolLoading ? (
-                          <span className="text-muted-foreground">Loading contract data...</span>
-                        ) : poolError ? (
-                          <span className="text-red-500">Contract Error</span>
-                        ) : realPriceImpactData ? (
-                          <span className={isPriceImpactHigh ? 'text-red-500' : 'text-foreground'}>
-                            {priceImpact}%
-                          </span>
-                        ) : usdcAmount && poolData && poolData.size > 0 ? (
-                          <span className="text-yellow-500">No Liquidity</span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {usdcAmount ? 'Enter amount' : '0.00%'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Show pool info when available */}
-                    {poolData && poolData.size > 0 && poolData.get(player.id) && (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Pool Reserves</span>
-                        <span>
-                          {(() => {
-                            const pool = poolData.get(player.id);
-                            if (!pool) return 'No data';
-                            const usdcReserve = (Number(pool.currencyReserve) / 1e6).toFixed(2);
-                            const tokenReserve = (Number(pool.playerTokenReserve) / 1e18).toFixed(2);
-                            const currentPrice = pool.currencyReserve > 0n && pool.playerTokenReserve > 0n
-                              ? (Number(pool.currencyReserve) / 1e6) / (Number(pool.playerTokenReserve) / 1e18)
-                              : 0;
-                            return `${usdcReserve} USDC / ${tokenReserve} ${player.name} (${formatPriceDisplay(currentPrice)} USDC/token)`;
-                          })()}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {/* Show effective price when trade data is available */}
-                    {realPriceImpactData && realPriceImpactData.effectivePrice && (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Effective Price</span>
-                        <span>
-                          {formatPriceDisplay(realPriceImpactData.effectivePrice)} USDC per token
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground">Slippage Tolerance</span>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Info className="w-4 h-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Maximum price movement you're willing to accept</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSlippage(0.5)}
-                          className={`px-2 py-1 h-auto ${slippage === 0.5 ? 'bg-accent' : ''}`}
-                        >
-                          0.5%
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSlippage(1)}
-                          className={`px-2 py-1 h-auto ${slippage === 1 ? 'bg-accent' : ''}`}
-                        >
-                          1%
-                        </Button>
-                        <Input
-                          type="number"
-                          value={slippage}
-                          onChange={e => setSlippage(Number(e.target.value))}
-                          className="w-16 h-8 text-sm"
-                          min="0.1"
-                          max="50"
-                          step="0.1"
-                        />
-                        <span className="text-sm">%</span>
-                      </div>
-                    </div>
-                    
-                    {/* Fee Information */}
-                    <div className="flex justify-between text-sm mt-2 pt-2 border-t border-border/50">
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground">{action === 'buy' ? 'Buy' : 'Sell'} Fee</span>
-                        {quote.feeType !== null && quote.feeType !== FeeType.Normal && (
-                          <Badge variant="outline" className={`text-[10px] px-1 py-0 ${feeTypeBadgeColor(quote.feeType)}`}>
-                            {feeTypeLabel(quote.feeType)}
-                          </Badge>
-                        )}
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Info className="w-4 h-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>
-                                {tradingPhase === TradingPhase.BondingCurve
-                                  ? 'Flat 2% fee on bonding curve trades'
-                                  : 'Dynamic protocol fee (5-25%) based on market conditions'}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">
-                          {quote.feeRate > 0
-                            ? `${(quote.feeRate / 1000).toFixed(2)}%`
-                            : action === 'buy'
-                              ? `${(buyFeeRate / 1000).toFixed(2)}%`
-                              : `${(sellFeeRate / 1000).toFixed(2)}%`
-                          }
-                        </span>
-                        {quote.feeAmount > 0n && (
-                          <span className="text-xs text-muted-foreground">
-                            ({parseFloat(formatUnits(quote.feeAmount, 6)).toFixed(2)} USDC)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Warning for high price impact - Hide during processing and when notification is active (unless dismissed) */}
-                {transactionStatus !== 'pending' && (!showAlert || notificationDismissed) && isPriceImpactHigh && realPriceImpactData && (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      High price impact ({priceImpact}%). Price will change from {formatPriceDisplay(realPriceImpactData.currentPrice)} to {formatPriceDisplay(realPriceImpactData.newPrice)} USDC.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex space-x-3 mt-6">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowBuySellMenu(false);
-                      setUsdcAmount('');
-                      setAction('buy');
-                      setSlippage(0.5);
-                      updateAlertState('idle');
-                    }}
-                    className="relative overflow-hidden group flex-1"
-                    disabled={isLoading}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleConfirm}
-                    disabled={
-                      !usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading ||
-                      tradingPhase === TradingPhase.Cancelled ||
-                      (tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n)
-                    }
-                    className={`relative overflow-hidden group flex-1 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 ${
-                      action === 'buy'
-                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                    }`}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                    {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processing...
-                      </div>
-                    ) : (
-                      `Confirm ${action === 'buy' ? 'Purchase' : 'Sale'}`
-                    )}
-                  </Button>
-                </div>
-
-                {/* Transaction Status Tab - Strict No-Overlap Design */}
-                {showAlert && transactionStatus !== 'idle' && (
-                  <div
-                    key={`alert-${alertKey}`}
-                    className="mt-6 mb-4 w-full"
-                    style={{ minHeight: '120px', clear: 'both' }} // Ensure minimum space and clear floats
-                  >
-                    <div className="w-full bg-white dark:bg-gray-900 border-2 rounded-lg shadow-lg overflow-hidden">
-                      {/* Status Header - Fixed Height */}
-                      <div className={`w-full px-4 py-3 border-b-2 relative ${
-                        transactionStatus === 'pending' 
-                          ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-700' 
-                          : transactionStatus === 'success' 
-                          ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-700' 
-                          : 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-700'
-                      }`}>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0">
-                            {transactionStatus === 'pending' && (
-                              <Clock className="w-6 h-6 text-blue-600 animate-pulse" />
-                            )}
-                            {transactionStatus === 'success' && (
-                              <CheckCircle className="w-6 h-6 text-green-600" />
-                            )}
-                            {transactionStatus === 'error' && (
-                              <XCircle className="w-6 h-6 text-red-600" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-bold text-base leading-tight truncate ${
-                              transactionStatus === 'pending' 
-                                ? 'text-blue-800 dark:text-blue-200' 
-                                : transactionStatus === 'success' 
-                                ? 'text-green-800 dark:text-green-200' 
-                                : 'text-red-800 dark:text-red-200'
-                            }`}>
-                              {statusMessage}
-                            </p>
-                          </div>
-                        </div>
-                        {/* Close Button - Only show for completed transactions */}
-                        {transactionStatus !== 'pending' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setNotificationDismissed(true);
-                              setShowAlert(false);
-                            }}
-                            className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-black/10 dark:hover:bg-white/10"
-                            aria-label="Dismiss notification"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      
-                      {/* Content Area - Separate Container */}
-                      <div className="w-full p-4 space-y-4 bg-white dark:bg-gray-900">
-                        {/* Transaction Hash Section */}
-                        {transactionHash && (
-                          <div className="w-full">
-                            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-3">
-                              <div className="mb-2">
-                                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">
-                                  Transaction Hash
-                                </p>
-                                <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-2 mb-2">
-                                  <p className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all leading-relaxed">
-                                    {formatTransactionHash(transactionHash)}
-                                  </p>
-                                </div>
-                                <a 
-                                  href={`${NETWORK_CONFIG.blockExplorer}/tx/${transactionHash}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded border border-blue-200 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-colors"
-                                >
-                                  View on Explorer →
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            </Card>
-          )}
+          {renderTradingForm()}
 
           {/* Stats and Additional Info (only show when not in buy/sell menu) */}
           {!showBuySellMenu && (
             <div className="grid grid-cols-2 gap-4">
-              {/* Player Stats */}
               <Card className="p-4 border-0 shadow-lg">
                 <h3 className="mb-3 flex items-center text-sm">
                   <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
@@ -2084,96 +2500,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     <div className="ml-2 w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
                   )}
                 </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {gridStatsLoading && !gridStats ? (
-                    // Loading state - show skeleton placeholders
-                    <>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
-                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
-                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
-                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
-                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
-                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
-                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg animate-pulse">
-                        <div className="h-6 bg-gray-300 rounded w-8 mx-auto mb-1"></div>
-                        <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
-                      </div>
-                    </>
-                  ) : gridStats && gridStats.game && gridStats.game.kills && gridStats.game.deaths && gridStats.game.killAssistsGiven ? (
-                    // Show real Grid.gg stats
-                    <>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {gridStats.game.kills.avg?.toFixed(1) || '0.0'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Avg Kills</p>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {gridStats.game.deaths.avg?.toFixed(1) || '0.0'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Avg Deaths</p>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {gridStats.game.killAssistsGiven.avg?.toFixed(1) || '0.0'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Avg Assists</p>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {`${gridStats.game.wins?.find(w => w.value)?.percentage.toFixed(1) || '0.0'}%`}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Win Rate</p>
-                      </div>
-                    </>
-                  ) : player.stats ? (
-                    // Fall back to local stats (e.g. Leaguepedia data)
-                    <>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {player.stats.kills.toFixed(1)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Avg Kills</p>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {player.stats.deaths.toFixed(1)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Avg Deaths</p>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {player.stats.assists.toFixed(1)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Avg Assists</p>
-                      </div>
-                      <div className="text-center p-2 bg-accent/50 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {player.stats.winRate}%
-                        </p>
-                        <p className="text-xs text-muted-foreground">Win Rate</p>
-                      </div>
-                    </>
-                  ) : (
-                    // No data available at all
-                    <div className="col-span-4 text-center py-4 text-muted-foreground">
-                      <p className="text-sm">No statistics available</p>
-                      <p className="text-xs mt-1">Player stats will appear here when available</p>
-                    </div>
-                  )}
-                </div>
-                
+                {renderStatsGrid()}
                 <div className="mt-3">
                   <h4 className="text-xs font-medium mb-1">Performance Rating</h4>
                   <div className="w-full bg-accent rounded-full h-2">
-                    <motion.div 
+                    <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${player.rating}%` }}
                       transition={{ duration: 1, ease: "easeOut" }}
@@ -2184,35 +2515,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     {player.rating}/100 Overall Rating
                   </p>
                 </div>
-                
-                {/* Grid.gg Data Source Indicator */}
-                {gridStats && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                    Live data from Grid.gg
-                  </div>
-                )}
-                {!gridStats && gridStatsLoading && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-                    Loading stats from Grid.gg...
-                  </div>
-                )}
-                {!gridStats && !gridStatsLoading && !player.gridID && player.stats && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-                    Tournament data from Leaguepedia
-                  </div>
-                )}
-                {!gridStats && !gridStatsLoading && player.gridID && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
-                    Waiting for player stats
-                  </div>
-                )}
+                {renderStatsSourceIndicator()}
               </Card>
 
-              {/* Recent Matches */}
               <Card className="p-4 border-0 shadow-lg">
                 <h3 className="mb-3 flex items-center text-sm">
                   <Star className="w-4 h-4 mr-2 text-blue-500" />
@@ -2222,103 +2527,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   )}
                 </h3>
                 <div className="space-y-2">
-                  {seriesLoading && getRealRecentMatches().length === 0 ? (
-                    // Loading state - show skeleton placeholders
-                    Array.from({ length: 3 }).map((_, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg animate-pulse">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                          <div>
-                            <div className="h-3 bg-gray-300 rounded w-20 mb-1"></div>
-                            <div className="h-2 bg-gray-300 rounded w-12"></div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="h-4 bg-gray-300 rounded w-12 mb-1"></div>
-                          <div className="h-2 bg-gray-300 rounded w-8"></div>
-                        </div>
-                      </div>
-                    ))
-                  ) : getRealRecentMatches().length > 0 ? (
-                    // Show real matches
-                    getRealRecentMatches().map((match, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            match.result === 'win' ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
-                          <div>
-                            <p className="text-xs font-medium">vs {match.opponent}</p>
-                            <p className="text-[10px] text-muted-foreground">{match.score}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
-                            {match.result.toUpperCase()}
-                          </Badge>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {match.performance} pts
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : player.recentMatches && player.recentMatches.length > 0 ? (
-                    // Fall back to local recent matches (e.g. Leaguepedia data)
-                    player.recentMatches.map((match, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            match.result === 'win' ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
-                          <div>
-                            <p className="text-xs font-medium">vs {match.opponent}</p>
-                            <p className="text-[10px] text-muted-foreground">{match.score}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
-                            {match.result.toUpperCase()}
-                          </Badge>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {match.performance} pts
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    // No data available at all
-                    <div className="text-center py-4 text-muted-foreground">
-                      <p className="text-sm">No recent matches available</p>
-                      <p className="text-xs mt-1">Match data will appear here when available</p>
-                    </div>
-                  )}
+                  {renderMatchesList()}
                 </div>
-                
-                {/* Series Data Source Indicator */}
-                {seriesData.length > 0 && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-                    Live series data from Grid.gg
-                  </div>
-                )}
-                {seriesData.length === 0 && seriesLoading && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1 animate-pulse"></div>
-                    Loading match data from Grid.gg...
-                  </div>
-                )}
-                {seriesData.length === 0 && !seriesLoading && player.teamGridId && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
-                    Waiting for match data
-                  </div>
-                )}
-                {seriesData.length === 0 && !seriesLoading && !player.teamGridId && player.recentMatches?.length > 0 && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-                    Tournament data from Leaguepedia
-                  </div>
-                )}
+                {renderMatchesSourceIndicator()}
               </Card>
             </div>
           )}
