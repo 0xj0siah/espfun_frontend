@@ -1,4 +1,5 @@
 
+import { useTranslation } from 'react-i18next';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Github } from 'lucide-react';
@@ -9,9 +10,18 @@ interface MobileSidebarProps {
   onClose: () => void;
 }
 
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking'];
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking'] as const;
+const navI18nKeys: Record<string, string> = {
+  'Team': 'nav.team',
+  'Transfers': 'nav.transfers',
+  'Live Scores': 'nav.liveScores',
+  'Leaderboard': 'nav.leaderboard',
+  'Pack Opening': 'nav.packOpening',
+  'Staking': 'nav.staking',
+};
 
 export function MobileSidebar({ activeTab, onTabChange, onClose }: MobileSidebarProps) {
+  const { t } = useTranslation();
   return (
     <div className="h-full flex flex-col">
       {/* Accessibility: DialogTitle and Description (visually hidden) */}
@@ -42,7 +52,7 @@ export function MobileSidebar({ activeTab, onTabChange, onClose }: MobileSidebar
             }`}
             aria-current={activeTab === item ? 'page' : undefined}
           >
-            {item}
+            {t(navI18nKeys[item])}
           </button>
         ))}
       </nav>
@@ -60,7 +70,7 @@ export function MobileSidebar({ activeTab, onTabChange, onClose }: MobileSidebar
           </a>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-3">
-          © {new Date().getFullYear()} ESP.FUN. All rights reserved.
+          © {new Date().getFullYear()} ESP.FUN. {t('footer.allRightsReserved')}
         </p>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
@@ -31,6 +32,7 @@ interface MatchWithScore extends GridMatch {
 }
 
 export default function LiveScoresSection() {
+  const { t } = useTranslation();
   const [upcomingMatches, setUpcomingMatches] = useState<GridMatch[]>([]);
   const [liveAndRecentMatches, setLiveAndRecentMatches] = useState<MatchWithScore[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,9 +185,9 @@ export default function LiveScoresSection() {
           </div>
           <div>
             <h2 className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-              Live Scores & Matches
+              {t('liveScores.title')}
             </h2>
-            <p className="text-sm text-muted-foreground">Real-time updates and upcoming fixtures</p>
+            <p className="text-sm text-muted-foreground">{t('liveScores.subtitle')}</p>
           </div>
         </motion.div>
         <Card className="p-12 text-center border-0 bg-gradient-to-br from-accent/50 to-accent/30">
@@ -259,7 +261,7 @@ export default function LiveScoresSection() {
                         variant={match.status === 'live' ? 'default' : 'secondary'}
                         className={match.status === 'live' ? 'bg-red-500 animate-pulse' : ''}
                       >
-                        {match.status === 'live' ? 'LIVE' : match.status === 'finished' ? 'Finished' : 'Upcoming'}
+                        {match.status === 'live' ? t('liveScores.live') : match.status === 'finished' ? t('liveScores.finished') : t('liveScores.upcoming')}
                       </Badge>
                     </div>
                     <div className="text-right">
@@ -299,7 +301,7 @@ export default function LiveScoresSection() {
         <Card className="p-6 border-0 shadow-lg">
           <h3 className="mb-6 flex items-center">
             <Clock className="w-5 h-5 mr-2 text-blue-500" />
-            Upcoming Matches
+            {t('liveScores.upcomingMatches')}
           </h3>
           <div className="space-y-4">
             {loading && upcomingMatches.length === 0 ? (

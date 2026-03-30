@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePrivy } from "@privy-io/react-auth";
 import type { SmartWallet } from "@privy-io/react-auth";
 import { formatEther } from 'viem';
@@ -17,7 +18,9 @@ import { PromotionMenu } from './PromotionMenu';
 import { toast } from "sonner";
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import fakeData from '../fakedata.json';
-import { getDevelopmentPlayersData, testDevelopmentPlayersContract, getActivePlayerIds, getPlayerBalance } from '../utils/contractInteractions';
+import { getDevelopmentPlayersData, testDevelopmentPlayersContract, getActivePlayerIds, getPlayerBalance, getMultiplePlayerBalances } from '../utils/contractInteractions';
+import { getContractData } from '../contracts';
+import { readContractCached, contractCache } from '../utils/contractCache';
 import { usePoolInfo } from '../hooks/usePoolInfo';
 import { useGridCache } from '../hooks/useGridCache';
 import { useGameContext } from '../context/GameContext';
@@ -55,6 +58,7 @@ interface Player {
   potential: number;
   lockedShares?: string; // Optional property for development players
   ownedShares?: bigint; // Owned shares from Player contract
+  unclaimedBalance?: bigint; // Unclaimed tokens from graduated bonding curve
   totalValue?: string; // Total value of owned shares
   gamesRemaining?: number; // Games remaining on contract
 }
@@ -80,6 +84,7 @@ export default function TeamSection({
   preloadedPrices?: Record<number, string>;
   pricesLoading?: boolean;
 }) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('squad');
   const [teamPlayers, setTeamPlayers] = useState<Player[]>([]);
   const [ownedPlayers, setOwnedPlayers] = useState<Player[]>([]);
@@ -123,9 +128,29 @@ export default function TeamSection({
   // Use preloaded prices from App component
   const playerPrices = preloadedPrices;
 
-  // Debug logging
-  console.log('🎯 TeamSection: preloadedPrices keys:', Object.keys(preloadedPrices || {}));
-  console.log('🎯 TeamSection: pricesLoading:', pricesLoading);
+  // Derive effective prices: pool reserves take precedence over getPrices hook
+  const effectivePrices = useMemo(() => {
+    const combined: Record<number, string> = { ...playerPrices };
+
+    poolData.forEach((pool, playerId) => {
+      if (pool.currencyReserve > 0n && pool.playerTokenReserve > 0n) {
+        const usdcReserve = Number(pool.currencyReserve) / 1e6;
+        const tokenReserve = Number(pool.playerTokenReserve) / 1e18;
+        const price = usdcReserve / tokenReserve;
+        // Keep full precision so total value calculations aren't truncated
+        if (price >= 1) {
+          combined[playerId] = `${price.toFixed(2)} USDC`;
+        } else if (price >= 0.01) {
+          combined[playerId] = `${price.toFixed(4)} USDC`;
+        } else if (price > 0) {
+          const leadingZeros = Math.max(0, Math.floor(-Math.log10(price)));
+          combined[playerId] = `${price.toFixed(leadingZeros + 2)} USDC`;
+        }
+      }
+    });
+
+    return combined;
+  }, [playerPrices, poolData]);
 
   // Memoize calculateTotalValue to prevent unnecessary recalculations
   const calculateTotalValue = useMemo(() => {
@@ -151,7 +176,13 @@ export default function TeamSection({
         }
         
         const totalValue = shares * pricePerShare;
-        return `${totalValue.toFixed(3)} USDC`;
+        if (totalValue >= 1) return `${totalValue.toFixed(2)} USDC`;
+        if (totalValue >= 0.01) return `${totalValue.toFixed(4)} USDC`;
+        if (totalValue > 0) {
+          const leadingZeros = Math.max(0, Math.floor(-Math.log10(totalValue)));
+          return `${totalValue.toFixed(leadingZeros + 2)} USDC`;
+        }
+        return '0.00 USDC';
       } catch (error) {
         console.error('Error calculating total value:', error);
         return '0.000 USDC';
@@ -159,35 +190,98 @@ export default function TeamSection({
     };
   }, [poolData, playerPrices]);
 
-  // Fetch owned players and their balances using individual balanceOf calls
+  // Fetch owned players and their balances using batched balanceOfBatch call
+  // Also checks BondingCurve for graduated launches with unclaimed tokens
   const fetchOwnedPlayers = async (userAddress: string) => {
     try {
       // Get all active player IDs
       const activePlayerIds = await getActivePlayerIds();
       console.log('Active player IDs:', activePlayerIds);
 
-      if (activePlayerIds.length === 0) {
-        setOwnedPlayers([]);
-        return;
-      }
-
-      // Get balances for each active player using individual balanceOf calls
-      console.log('Calling balanceOf for each active player...');
-      const balancePromises = activePlayerIds.map(playerId => {
-        console.log(`Calling balanceOf(${userAddress}, ${playerId})`);
-        return getPlayerBalance(userAddress, playerId);
-      });
-
-      const balances = await Promise.all(balancePromises);
-      console.log('Player balances from balanceOf calls:', balances);
+      // Get balances for all active players in a single batched call (avoids rate limiting)
+      console.log('Calling balanceOfBatch for all active players...');
+      const balances = await getMultiplePlayerBalances(userAddress, activePlayerIds);
 
       // Filter players that the user owns (balance > 0)
       const ownedPlayerData = activePlayerIds
         .map((playerId, index) => ({
           playerId,
-          balance: balances[index]
+          balance: balances[index],
+          unclaimedBalance: 0n,
         }))
-        .filter(({ balance }) => balance > BigInt(0));
+        .filter(({ balance }) => balance > 0n);
+
+      // Also check BondingCurve for graduated launches with unclaimed tokens
+      const bondingCurveContract = getContractData('BondingCurve');
+      const hasBC = bondingCurveContract.address && bondingCurveContract.address !== '0x0000000000000000000000000000000000000000';
+
+      let unclaimedPlayers: { playerId: bigint; unclaimedBalance: bigint }[] = [];
+      if (hasBC) {
+        try {
+          const allLaunchIds = await readContractCached({
+            address: bondingCurveContract.address as `0x${string}`,
+            abi: bondingCurveContract.abi as any,
+            functionName: 'getAllLaunchIds',
+            args: [],
+          }) as bigint[];
+
+          if (allLaunchIds.length > 0) {
+            // For each launched player, check if graduated and user has unclaimed balance
+            const launchChecks = await Promise.all(
+              allLaunchIds.map(async (pid) => {
+                try {
+                  const launchInfo = await readContractCached({
+                    address: bondingCurveContract.address as `0x${string}`,
+                    abi: bondingCurveContract.abi as any,
+                    functionName: 'getLaunchInfo',
+                    args: [pid],
+                  }) as any;
+
+                  const graduated = launchInfo.graduated ?? launchInfo[10] ?? false;
+                  if (!graduated) return null;
+
+                  const userBalance = await readContractCached({
+                    address: bondingCurveContract.address as `0x${string}`,
+                    abi: bondingCurveContract.abi as any,
+                    functionName: 'getUserBalance',
+                    args: [pid, userAddress],
+                  }) as bigint;
+
+                  if (userBalance > 0n) {
+                    return { playerId: pid, unclaimedBalance: userBalance };
+                  }
+                } catch {
+                  // Skip this player on error
+                }
+                return null;
+              })
+            );
+
+            unclaimedPlayers = launchChecks.filter((x): x is NonNullable<typeof x> => x !== null);
+            console.log('Unclaimed graduated players:', unclaimedPlayers);
+          }
+        } catch (err) {
+          console.error('Error checking bonding curve unclaimed balances:', err);
+        }
+      }
+
+      // Merge unclaimed players into owned list (avoid duplicates)
+      const ownedIds = new Set(ownedPlayerData.map(p => Number(p.playerId)));
+      for (const unclaimed of unclaimedPlayers) {
+        const pid = Number(unclaimed.playerId);
+        if (ownedIds.has(pid)) {
+          // Player already in owned list — attach unclaimedBalance
+          const existing = ownedPlayerData.find(p => Number(p.playerId) === pid);
+          if (existing) existing.unclaimedBalance = unclaimed.unclaimedBalance;
+        } else {
+          // Player not in owned list — add as unclaimed-only entry
+          ownedPlayerData.push({
+            playerId: unclaimed.playerId,
+            balance: 0n,
+            unclaimedBalance: unclaimed.unclaimedBalance,
+          });
+        }
+      }
 
       if (ownedPlayerData.length === 0) {
         setOwnedPlayers([]);
@@ -195,27 +289,28 @@ export default function TeamSection({
       }
 
       // Create player objects for owned players
-      const ownedPlayersList = ownedPlayerData.map(({ playerId, balance }, index) => {
+      const ownedPlayersList = ownedPlayerData.map(({ playerId, balance, unclaimedBalance }) => {
         const playerIdNum = Number(playerId);
         const basePlayerData = fakeData.teamPlayers.find(p => p.id === playerIdNum) ||
           fakeData.teamPlayers[playerIdNum % fakeData.teamPlayers.length];
 
+        // Use whichever balance is available for value calculation
+        const displayBalance = balance > 0n ? balance : unclaimedBalance;
+
         return {
           ...basePlayerData,
           id: playerIdNum,
-          price: playerPrices[playerIdNum] || 'Loading...',
-          points: 0, // Will be replaced with total value
+          price: effectivePrices[playerIdNum] || (pricesLoading ? 'Loading...' : '0.00 USDC'),
+          points: 0,
           ownedShares: balance,
-          totalValue: calculateTotalValue(balance, playerIdNum), // Use player ID instead of price
-          gamesRemaining: (playerIdNum % 10) + 1, // Deterministic placeholder (will be replaced with backend data)
-          // Add required fields for Player interface
+          unclaimedBalance: unclaimedBalance > 0n ? unclaimedBalance : undefined,
+          totalValue: calculateTotalValue(displayBalance, playerIdNum),
+          gamesRemaining: (playerIdNum % 10) + 1,
           level: 1,
           xp: 50,
           potential: 75,
-          // Add GRID fields with defaults
           gridID: basePlayerData.gridID || undefined,
           teamGridId: basePlayerData.teamGridId || undefined,
-          // Ensure types are properly cast
           trend: (basePlayerData.trend as "up" | "down" | "stable") || "stable",
           recentMatches: basePlayerData.recentMatches.map(match => ({
             ...match,
@@ -225,7 +320,7 @@ export default function TeamSection({
       });
 
       setOwnedPlayers(ownedPlayersList);
-      
+
       // Fetch pool data for accurate pricing
       const playerIdsForPool = ownedPlayerData.map(({ playerId }) => Number(playerId));
       if (playerIdsForPool.length > 0) {
@@ -235,8 +330,8 @@ export default function TeamSection({
       // Preload Grid.gg data for owned players (with delay to avoid connection issues)
       setTimeout(() => {
         console.log('🔄 Starting Grid.gg data preload for owned players...');
-        preloadPlayersData(ownedPlayersList, 150); // 150ms delay between requests
-      }, 500); // Wait 500ms after component loads before starting preload
+        preloadPlayersData(ownedPlayersList, 150);
+      }, 500);
     } catch (error) {
       console.error('Error fetching owned players:', error);
       setOwnedPlayers([]);
@@ -276,7 +371,7 @@ export default function TeamSection({
         xp: 50,
         potential: 75, // Higher potential for development players
         // Update with contract data - no fallback to fake data
-        price: playerPrices[playerIdNum] || 'Loading...',
+        price: effectivePrices[playerIdNum] || (pricesLoading ? 'Loading...' : '0.00 USDC'),
         // Add development-specific info with formatted shares
         lockedShares: formatShares(lockedBalance),
         // Calculate total value using the same logic as active players
@@ -289,7 +384,7 @@ export default function TeamSection({
         }))
       };
     });
-  }, [developmentPlayers.playerIds, developmentPlayers.lockedBalances, playerPrices, poolData]);
+  }, [developmentPlayers.playerIds, developmentPlayers.lockedBalances, effectivePrices, poolData]);
 
   const handleDevelopmentPlayerClick = (player: any) => {
     // Convert the development player to promotion menu format
@@ -312,44 +407,30 @@ export default function TeamSection({
   };
 
   useEffect(() => {
-    // Use fake data and merge with preloaded contract prices - no fallback to fake data prices
+    // Use fake data and merge with effective prices (pool reserves + hook data)
     const playersWithPricing: Player[] = fakeData.teamPlayers.filter(player => player.game === selectedGame).map(player => {
-      const preloadedPrice = playerPrices[player.id];
-      const finalPrice = preloadedPrice || 'Loading...';
-
-      console.log(`🎯 Player ${player.id} (${player.name}):`, {
-        preloadedPrice,
-        finalPrice,
-        hasPreloadedPrice: !!preloadedPrice
-      });
+      const price = effectivePrices[player.id];
+      const finalPrice = price || (pricesLoading ? 'Loading...' : '0.00 USDC');
 
       return {
         ...player,
-        // Add missing fields for interface compatibility (set to fixed values)
-        level: 1, // Fixed level
-        xp: 50, // Fixed XP value instead of random
-        potential: 50, // Fixed potential
-        // Add GRID fields with defaults
+        level: 1,
+        xp: 50,
+        potential: 50,
         gridID: player.gridID || undefined,
         teamGridId: player.teamGridId || undefined,
-        // Ensure types are properly cast
         trend: player.trend as "up" | "down" | "stable",
         recentMatches: player.recentMatches.map(match => ({
           ...match,
           result: match.result as "win" | "loss"
         })),
-        // Price will be updated when preloaded prices are available - no fallback
         price: finalPrice
       };
     });
 
-    console.log('📊 TeamSection: Processed', playersWithPricing.length, 'players with pricing');
     setTeamPlayers(playersWithPricing);
-
-    // Always set loading to false after processing, regardless of pricesLoading state
-    // This prevents getting stuck in loading state if price fetching fails
     setLoading(false);
-  }, [playerPrices, pricesLoading, selectedGame]); // Update when preloaded prices or game change
+  }, [effectivePrices, pricesLoading, selectedGame]);
 
   // Fetch owned players when component mounts or wallet changes
   useEffect(() => {
@@ -405,15 +486,13 @@ export default function TeamSection({
     return ownedPlayers.filter(player => player.game === selectedGame);
   }, [ownedPlayers, selectedGame]);
 
-  // Update owned players prices when playerPrices changes (without re-fetching balances)
+  // Update owned players prices when effectivePrices changes (without re-fetching balances)
   useEffect(() => {
-    if (ownedPlayers.length > 0 && Object.keys(playerPrices).length > 0) {
-      console.log('🎯 Updating owned players with new prices:', playerPrices);
+    if (ownedPlayers.length > 0 && Object.keys(effectivePrices).length > 0) {
       setOwnedPlayers(prevPlayers =>
         prevPlayers.map(player => {
-          const updatedPrice = playerPrices[player.id];
+          const updatedPrice = effectivePrices[player.id];
           if (updatedPrice && updatedPrice !== player.price) {
-            console.log(`🎯 Updated price for owned player ${player.id} (${player.name}): ${player.price} → ${updatedPrice}`);
             return {
               ...player,
               price: updatedPrice,
@@ -424,7 +503,7 @@ export default function TeamSection({
         })
       );
     }
-  }, [playerPrices, calculateTotalValue]);
+  }, [effectivePrices, calculateTotalValue]);
 
   const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => {
     if (!authenticated || !user?.wallet?.address) {
@@ -508,7 +587,7 @@ export default function TeamSection({
             <h2 className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
               Your Fantasy Team
             </h2>
-            <p className="text-sm text-muted-foreground">Manage and develop your squad</p>
+            <p className="text-sm text-muted-foreground">{t('team.manageSquad')}</p>
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
@@ -544,7 +623,7 @@ export default function TeamSection({
             <div className="text-center py-8">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No Owned Players</h3>
-              <p className="text-muted-foreground">You don't own any player shares yet. Purchase some to see them here!</p>
+              <p className="text-muted-foreground">{t('team.noPlayersOwned')}</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -560,18 +639,24 @@ export default function TeamSection({
                   }}
                   className="cursor-pointer group"
                 >
-                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105">
+                  <Card className={`relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 ${player.unclaimedBalance ? 'ring-2 ring-green-400/60' : ''}`}>
+                    {/* Unclaimed banner */}
+                    {player.unclaimedBalance && (
+                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold text-center py-1 z-20">
+                        {t('team.graduatedClaim')}
+                      </div>
+                    )}
                     {/* Background gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    
+
                     {/* Content container */}
-                    <div className="relative z-10">
+                    <div className={`relative z-10 ${player.unclaimedBalance ? 'mt-4' : ''}`}>
                       {/* Header row with player info and shares badge */}
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3 flex-1">
                           <div className="relative">
                             {/* Team logo background */}
-                            <div 
+                            <div
                               className="absolute inset-0 rounded-xl opacity-50 z-0"
                               style={{
                                 backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
@@ -597,21 +682,31 @@ export default function TeamSection({
                           </div>
                         </div>
                         {/* Shares badge with enhanced styling */}
-                        <div className="flex flex-col items-end ml-3">
-                          <Badge 
-                            variant="secondary" 
-                            className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200/50 px-3 py-1 shadow-sm font-medium"
-                          >
-                            {formatShares(player.ownedShares || BigInt(0))} shares
-                          </Badge>
+                        <div className="flex flex-col items-end ml-3 gap-1">
+                          {player.ownedShares && player.ownedShares > 0n ? (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200/50 px-3 py-1 shadow-sm font-medium"
+                            >
+                              {formatShares(player.ownedShares)} {t('team.shares')}
+                            </Badge>
+                          ) : null}
+                          {player.unclaimedBalance && (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200/50 px-3 py-1 shadow-sm font-medium"
+                            >
+                              {formatShares(player.unclaimedBalance)} {t('team.unclaimed')}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      
+
                       {/* Stats row */}
                       <div className="flex items-center justify-between pt-2 border-t border-border/30">
                         <div className="flex items-center space-x-2">
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className="text-xs px-3 py-1 bg-background/50 border-border/40 hover:bg-accent/50 transition-colors font-medium"
                           >
                             {player.price}
@@ -622,19 +717,19 @@ export default function TeamSection({
                             <span className="text-xs text-green-600 font-medium">+5.2%</span>
                           </div>
                         </div>
-                        
+
                         {/* Total value with enhanced styling */}
                         <div className="text-right">
                           <div className="text-sm font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                             {player.totalValue || '0.000 USDC'}
                           </div>
-                          <div className="text-xs text-muted-foreground/60">Total Value</div>
+                          <div className="text-xs text-muted-foreground/60">{t('team.totalValue')}</div>
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Hover effect border */}
-                    <div className="absolute inset-0 rounded-lg border-2 border-transparent group-hover:border-blue-200/50 transition-colors duration-300" />
+                    <div className={`absolute inset-0 rounded-lg border-2 border-transparent ${player.unclaimedBalance ? 'group-hover:border-green-300/50' : 'group-hover:border-blue-200/50'} transition-colors duration-300`} />
                   </Card>
                 </motion.div>
               ))}
@@ -648,6 +743,16 @@ export default function TeamSection({
               onClose={() => {
                 setIsModalOpen(false);
                 setSelectedPlayer(null);
+                // Invalidate all relevant caches so claimed tokens and new balances appear immediately
+                contractCache.invalidateCache(undefined, 'balanceOf');
+                contractCache.invalidateCache(undefined, 'balanceOfBatch');
+                contractCache.invalidateCache(undefined, 'getUserBalance');
+                contractCache.invalidateCache(undefined, 'getActivePlayerIds');
+                contractCache.invalidateCache(undefined, 'getAllLaunchIds');
+                contractCache.invalidateCache(undefined, 'getLaunchInfo');
+                if (user?.wallet?.address) {
+                  fetchOwnedPlayers(user.wallet.address);
+                }
               }}
               onPurchase={handlePurchase}
             />
@@ -717,13 +822,13 @@ export default function TeamSection({
                             </p>
                           </div>
                         </div>
-                        {/* Locked shares badge with enhanced styling */}
+                        {/* Locked shares badge */}
                         <div className="flex flex-col items-end ml-3">
                           <Badge
                             variant="secondary"
-                            className="text-xs bg-gradient-to-r from-amber-100 to-orange-100 text-amber-800 border border-amber-200/50 px-3 py-1 shadow-sm font-medium"
+                            className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200/50 px-3 py-1 shadow-sm font-medium"
                           >
-                            {player.lockedShares} shares
+                            {player.lockedShares} {t('team.shares')}
                           </Badge>
                         </div>
                       </div>
@@ -749,7 +854,7 @@ export default function TeamSection({
                           <div className="text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                             {player.totalValue || '0.000 USDC'}
                           </div>
-                          <div className="text-xs text-muted-foreground/60">Total Value</div>
+                          <div className="text-xs text-muted-foreground/60">{t('team.totalValue')}</div>
                         </div>
                       </div>
                     </div>
@@ -797,7 +902,7 @@ export default function TeamSection({
             <div className="text-center py-8">
               <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No Active Contracts</h3>
-              <p className="text-muted-foreground">You don't own any player shares yet. Purchase some to manage contracts!</p>
+              <p className="text-muted-foreground">{t('team.noPlayersOwned')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -866,7 +971,7 @@ export default function TeamSection({
                               variant="secondary" 
                               className="mt-1 text-xs"
                             >
-                              {formatShares(player.ownedShares || BigInt(0))} shares
+                              {formatShares(player.ownedShares || BigInt(0))} {t('team.shares')}
                             </Badge>
                           </div>
                         </div>

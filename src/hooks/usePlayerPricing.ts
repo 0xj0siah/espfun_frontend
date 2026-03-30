@@ -5,6 +5,16 @@ import { getContractData } from '../contracts';
 import { readContractCached, initializeContractCache } from '../utils/contractCache';
 import { PRICE_POLL_INTERVAL_MS } from '../constants/trading';
 
+/** Format a USDC price with enough precision to show meaningful digits */
+function formatPrice(price: number): string {
+  if (price === 0) return '0.00 USDC';
+  if (price >= 1) return `${price.toFixed(2)} USDC`;
+  if (price >= 0.01) return `${price.toFixed(4)} USDC`;
+  // Sub-cent: show 2 significant figures after leading zeros
+  const leadingZeros = Math.max(0, Math.floor(-Math.log10(Math.abs(price))));
+  return `${price.toFixed(leadingZeros + 2)} USDC`;
+}
+
 // Hook to fetch player price from FDFPair contract
 export function usePlayerPrice(playerId: number) {
   const [price, setPrice] = useState<string>('0 USDC');
@@ -34,7 +44,7 @@ export function usePlayerPrice(playerId: number) {
         const pricesArray = result as bigint[];
         if (pricesArray.length > 0 && pricesArray[0] > 0n) {
           const priceInUsdc = formatUnits(pricesArray[0], 6);
-          setPrice(`${parseFloat(priceInUsdc).toFixed(2)} USDC`);
+          setPrice(formatPrice(parseFloat(priceInUsdc)));
         } else {
           throw new Error('No price returned from contract');
         }
@@ -67,6 +77,7 @@ export function usePlayerPrice(playerId: number) {
 }
 
 // Hook to fetch multiple player prices at once (more efficient)
+// Queries FDFPair first, then falls back to BondingCurve virtual prices
 export function usePlayerPrices(playerIds: number[]) {
   const [prices, setPrices] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
@@ -78,66 +89,82 @@ export function usePlayerPrices(playerIds: number[]) {
     // Always fetch prices - don't wait for wallet if not authenticated
     // Only wait for wallet if authenticated but not ready
     if (authenticated && !ready) {
-      console.log('🚀 usePlayerPrices: Waiting for wallet to be ready...');
       return;
     }
 
     const fetchPrices = async () => {
       setLoading(true);
-      console.log('🚀 usePlayerPrices: Starting price fetch for', playerIds.length, 'players');
 
       try {
         const fdfPairContract = getContractData('FDFPair');
+        const bondingCurveContract = getContractData('BondingCurve');
         const newPrices: Record<number, string> = {};
 
-        // Don't initialize fallback prices - only set prices when contract succeeds
+        // Query each player individually so one failure doesn't kill the batch.
+        // viem's batch transport combines these into a single JSON-RPC multicall.
+        const results = await Promise.allSettled(
+          playerIds.map(async (playerId) => {
+            // Try FDFPair pool reserves first
+            try {
+              const result = await readContractCached({
+                address: fdfPairContract.address as `0x${string}`,
+                abi: fdfPairContract.abi as any,
+                functionName: 'getPoolInfo',
+                args: [[BigInt(playerId)]],
+              });
 
-        try {
-          console.log('🚀 usePlayerPrices: Attempting to fetch from contract...');
-          const result = await readContractCached({
-            address: fdfPairContract.address as `0x${string}`,
-            abi: fdfPairContract.abi as any,
-            functionName: 'getPrices',
-            args: [playerIds.map(id => BigInt(id))],
-          });
+              const [currencyReserves, playerTokenReserves] = result as [bigint[], bigint[]];
+              const currency = currencyReserves?.[0] ?? 0n;
+              const tokens = playerTokenReserves?.[0] ?? 0n;
 
-          const pricesArray = result as bigint[];
-          console.log('🚀 usePlayerPrices: Contract returned', pricesArray?.length || 0, 'prices');
-
-          if (Array.isArray(pricesArray) && pricesArray.length > 0) {
-            playerIds.forEach((playerId, index) => {
-              if (index < pricesArray.length && pricesArray[index] > 0n) {
-                const priceInUsdc = formatUnits(pricesArray[index], 6);
-                newPrices[playerId] = `${parseFloat(priceInUsdc).toFixed(2)} USDC`;
+              if (currency > 0n && tokens > 0n) {
+                const price = (Number(currency) / 1e6) / (Number(tokens) / 1e18);
+                return { playerId, price: formatPrice(price) };
               }
-            });
-          }
+            } catch {
+              // Pool doesn't exist for this player
+            }
 
-        } catch (error) {
-          console.log('🚀 usePlayerPrices: Contract fetch failed, using fake data prices:', error instanceof Error ? error.message : String(error));
-          // Don't set fallback prices - let components use fake data instead
+            // Fallback: BondingCurve getCurrentPrice
+            if (bondingCurveContract.address && bondingCurveContract.address !== '0x0000000000000000000000000000000000000000') {
+              try {
+                const curvePrice = await readContractCached({
+                  address: bondingCurveContract.address as `0x${string}`,
+                  abi: bondingCurveContract.abi as any,
+                  functionName: 'getCurrentPrice',
+                  args: [BigInt(playerId)],
+                });
+
+                if ((curvePrice as bigint) > 0n) {
+                  const priceInUsdc = formatUnits(curvePrice as bigint, 6);
+                  return { playerId, price: formatPrice(parseFloat(priceInUsdc)) };
+                }
+              } catch {
+                // No bonding curve price either
+              }
+            }
+
+            return { playerId, price: null };
+          })
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.price) {
+            newPrices[result.value.playerId] = result.value.price;
+          }
         }
 
         setPrices(newPrices);
-        console.log('✅ usePlayerPrices: Set prices for', Object.keys(newPrices).length, 'players');
       } catch (error) {
-        console.log('⚠️ usePlayerPrices: Unexpected error:', error instanceof Error ? error.message : String(error));
-        // Ensure we always have an empty object if something goes wrong
         setPrices({});
-        console.log('⚠️ usePlayerPrices: Using empty prices object');
       } finally {
         setLoading(false);
       }
     };
 
-    console.log('🚀 usePlayerPrices: Current prices state before fetch:', Object.keys(prices).length, 'players cached');
-
-    // Add small random delay to stagger initial requests
+    // Small random delay to stagger initial requests
     const delay = Math.random() * 2000;
-    const timeoutId = setTimeout(() => {
-      console.log('🚀 usePlayerPrices: Executing fetch after delay:', delay, 'ms');
-      fetchPrices();
-    }, delay);
+    const timeoutId = setTimeout(fetchPrices, delay);
 
     // Update prices every 30 seconds
     const interval = setInterval(fetchPrices, PRICE_POLL_INTERVAL_MS);
@@ -146,7 +173,7 @@ export function usePlayerPrices(playerIds: number[]) {
       clearTimeout(timeoutId);
       clearInterval(interval);
     };
-  }, [playerIds.length > 0 ? playerIds.join(',') : '', ready || !authenticated]); // Fixed dependency array
+  }, [playerIds.length > 0 ? playerIds.join(',') : '', ready || !authenticated]);
 
   return { prices, loading };
 }

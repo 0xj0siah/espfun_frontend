@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -47,6 +48,7 @@ interface Player {
 }
 
 export default function TransfersSection() {
+  const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,7 +116,7 @@ export default function TransfersSection() {
         result: match.result as "win" | "loss"
       })),
       // Use contract price or show loading
-      price: playerPrices[player.id] || 'Loading...',
+      price: playerPrices[player.id] || (pricesLoading ? 'Loading...' : '0.00 USDC'),
       // Add required grid properties
       gridID: player.gridID || '',
       teamGridId: player.teamGridId || ''
@@ -248,9 +250,9 @@ export default function TransfersSection() {
           </div>
           <div>
             <h2 className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-              Transfer Market
+              {t('transfers.title')}
             </h2>
-            <p className="text-sm text-muted-foreground">Buy and sell fantasy players</p>
+            <p className="text-sm text-muted-foreground">{t('transfers.subtitle')}</p>
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
@@ -264,7 +266,7 @@ export default function TransfersSection() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search players..."
+              placeholder={t('transfers.searchPlayers')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 border-0 bg-accent/50"
@@ -272,12 +274,12 @@ export default function TransfersSection() {
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-48 border-0 bg-accent/50">
-              <SelectValue placeholder="Sort by" />
+              <SelectValue placeholder={t('transfers.sortBy')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="price">Price</SelectItem>
-              <SelectItem value="points">Points</SelectItem>
-              <SelectItem value="rating">Rating</SelectItem>
+              <SelectItem value="price">{t('transfers.price')}</SelectItem>
+              <SelectItem value="points">{t('leaderboard.pts')}</SelectItem>
+              <SelectItem value="rating">{t('transfers.rating')}</SelectItem>
             </SelectContent>
           </Select>
         </div>

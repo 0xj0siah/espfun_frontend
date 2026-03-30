@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -6,6 +7,7 @@ import { motion } from 'motion/react';
 import { Trophy, Crown, TrendingUp, DollarSign, Star } from 'lucide-react';
 
 export default memo(function LeaderboardSection() {
+  const { t } = useTranslation();
   const leaderboard = [
     { rank: 1, address: '0x1a2B...3c4D', points: 2847, teamValue: '1,240 USDC', reward: '5,000 pts' },
     { rank: 2, address: '0x5e6F...7a8B', points: 2698, teamValue: '1,180 USDC', reward: '3,000 pts' },
@@ -39,13 +41,13 @@ export default memo(function LeaderboardSection() {
           </div>
           <div>
             <h2 className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-              Leaderboard
+              {t('leaderboard.title')}
             </h2>
-            <p className="text-sm text-muted-foreground">Global rankings and rewards</p>
+            <p className="text-sm text-muted-foreground">{t('leaderboard.subtitle')}</p>
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 border-0">
-          Season 3 • Week 8
+          {t('leaderboard.seasonWeek', { season: 3, week: 8 })}
         </Badge>
       </div>
 
@@ -54,7 +56,7 @@ export default memo(function LeaderboardSection() {
         <Card className="p-6 lg:col-span-2 border-0 shadow-lg">
           <h3 className="mb-6 flex items-center">
             <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
-            Global Rankings
+            {t('leaderboard.globalRankings')}
           </h3>
           <div className="space-y-3">
             {leaderboard.map((player, index) => (
@@ -90,13 +92,13 @@ export default memo(function LeaderboardSection() {
                     <h4 className={`text-sm ${player.isCurrentUser ? 'text-primary' : ''}`}>
                       {player.address}
                     </h4>
-                    <p className="text-xs text-muted-foreground">Team Value: {player.teamValue}</p>
+                    <p className="text-xs text-muted-foreground">{t('leaderboard.teamValue')}: {player.teamValue}</p>
                   </div>
                 </div>
 
                 <div className="text-right">
                   <p className="text-sm text-primary">{player.points.toLocaleString()} pts</p>
-                  <p className="text-xs text-muted-foreground">Reward: {player.reward}</p>
+                  <p className="text-xs text-muted-foreground">{t('leaderboard.reward')}: {player.reward}</p>
                 </div>
               </motion.div>
             ))}
@@ -109,7 +111,7 @@ export default memo(function LeaderboardSection() {
           <Card className="p-6 border-0 shadow-lg">
             <h3 className="mb-4 flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-green-500" />
-              Weekly Leaders
+              {t('leaderboard.weeklyLeaders')}
             </h3>
             <div className="space-y-3">
               {weeklyLeaders.map((player, index) => (

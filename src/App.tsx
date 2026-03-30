@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import Header from './components/Header';
 import { useIsMobile } from './components/ui/use-mobile';
 import TeamSection from './components/TeamSection';
@@ -23,6 +24,7 @@ import { Github } from 'lucide-react';
 import { Toaster } from 'sonner';
 
 export default function App() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('Team');
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
   const isMobile = useIsMobile();
@@ -108,7 +110,7 @@ export default function App() {
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
           <ErrorBoundary>
-            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-pulse text-muted-foreground">Loading...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
               {renderContent()}
             </Suspense>
           </ErrorBoundary>
@@ -131,7 +133,7 @@ export default function App() {
                   </a>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  © {new Date().getFullYear()} ESP.FUN. All rights reserved.
+                  © {new Date().getFullYear()} ESP.FUN. {t('footer.allRightsReserved')}
                 </p>
               </div>
             </div>

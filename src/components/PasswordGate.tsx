@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,6 +7,7 @@ import { Input } from './ui/input';
 const PASSWORD_STORAGE_KEY = 'espfun_access_granted';
 
 export function PasswordGate({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
@@ -33,7 +35,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(true);
       setError('');
     } else {
-      setError('Incorrect password. Please try again.');
+      setError(t('auth.incorrectPassword'));
       setPassword('');
     }
   };
@@ -62,7 +64,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
           <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-1">
             ESP.FUN
           </h1>
-          <p className="text-xs text-muted-foreground">Enter password</p>
+          <p className="text-xs text-muted-foreground">{t('auth.enterPassword')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -71,7 +73,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder={t('auth.password')}
               className="w-full h-9"
               autoFocus
             />
@@ -84,12 +86,12 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
             type="submit"
             className="w-full h-9 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
           >
-            Access
+            {t('auth.access')}
           </Button>
         </form>
 
         <p className="text-[10px] text-muted-foreground text-center mt-3">
-          Private Access
+          {t('auth.privateAccess')}
         </p>
       </Card>
     </div>

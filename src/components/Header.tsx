@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useIsMobile } from './ui/use-mobile';
 import { Sheet, SheetContent } from './ui/sheet';
 import { MobileSidebar } from './MobileSidebar';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Button } from './ui/button'; 
+import { Button } from './ui/button';
 import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { QRCodeSVG } from 'qrcode.react';
@@ -17,15 +18,26 @@ import { Alert, AlertDescription } from './ui/alert';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { useAuthContext } from '../context/AuthContext';
 import { useGameContext } from '../context/GameContext';
+import { LanguageSelector } from './LanguageSelector';
 
 interface HeaderProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
 
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking'];
+// Tab IDs remain constant (used as internal state keys); display names come from i18n
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking'] as const;
+const navI18nKeys: Record<string, string> = {
+  'Team': 'nav.team',
+  'Transfers': 'nav.transfers',
+  'Live Scores': 'nav.liveScores',
+  'Leaderboard': 'nav.leaderboard',
+  'Pack Opening': 'nav.packOpening',
+  'Staking': 'nav.staking',
+};
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
+  const { t } = useTranslation();
   const { selectedGame, setSelectedGame } = useGameContext();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -58,8 +70,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const { isAuthenticated, isAuthenticating, error: authError, authenticate } = useAuthentication();
 
   const games = [
-    { value: 'CS2', label: 'Counter-Strike 2' },
-    { value: 'LoL', label: 'League of Legends' }
+    { value: 'CS2', label: t('header.cs2') },
+    { value: 'LoL', label: t('header.lol') }
   ];
 
   useEffect(() => {
@@ -82,12 +94,12 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   // Send ETH using Privy wallet
   const handleSend = async () => {
     if (!authenticated) {
-      setError("Please connect your wallet first.");
+      setError(t('send.connectFirst'));
       return;
     }
-    
+
     if (!sendAmount || !recipientAddress) {
-      setError("Please fill in all fields");
+      setError(t('send.fillAllFields'));
       return;
     }
 
@@ -96,7 +108,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
     
     try {
       if (!user?.wallet) {
-        setError("Wallet not available.");
+        setError(t('send.walletNotAvailable'));
         return;
       }
 
@@ -113,7 +125,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
       setRecipientAddress('');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to send transaction");
+      setError(err.message || t('send.sendFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +134,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   // Handle deposit modal actions
   const handleDeposit = () => {
     if (!authenticated) {
-      setError("Please connect your wallet first.");
+      setError(t('send.connectFirst'));
       return;
     }
     setIsDepositModalOpen(true);
@@ -168,7 +180,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               )}
               <div className="ml-3">
                 <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent hidden sm:block">ESP.fun</h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">Fantasy League</p>
+                <p className="text-xs text-muted-foreground hidden sm:block">{t('header.fantasyLeague')}</p>
               </div>
             </div>
 
@@ -188,7 +200,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                     {activeTab === item && (
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-600/10 rounded-lg"></div>
                     )}
-                    <span className="relative z-10">{item}</span>
+                    <span className="relative z-10">{t(navI18nKeys[item])}</span>
                   </button>
                 ))}
               </nav>
@@ -224,7 +236,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
             {/* Game Selector */}
             <Select value={selectedGame} onValueChange={setSelectedGame}>
               <SelectTrigger className="w-44 bg-accent/50 border-0 shadow-sm">
-                <SelectValue placeholder="Select a game" />
+                <SelectValue placeholder={t('header.selectGame')} />
               </SelectTrigger>
               <SelectContent>
                 {games.map((game) => (
@@ -240,7 +252,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               variant="outline"
               size="icon"
               onClick={toggleDarkMode}
-              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={isDarkMode ? t('header.switchToLight') : t('header.switchToDark')}
               className="h-9 w-9 bg-accent/50 border-0 shadow-sm hidden md:inline-flex"
             >
               {isDarkMode ? (
@@ -250,24 +262,27 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               )}
             </Button>
 
+            {/* Language Selector */}
+            <LanguageSelector />
+
             {/* Wallet Connection */}
             {!authenticated ? (
-              <Button 
-                onClick={() => login()} 
+              <Button
+                onClick={() => login()}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg"
                 disabled={!ready}
               >
                 <Wallet className="w-4 h-4 mr-2" />
-                Connect Wallet
+                {t('header.connectWallet')}
               </Button>
             ) : !globalAuthState && !isAuthenticated ? (
-              <Button 
-                onClick={() => authenticate()} 
+              <Button
+                onClick={() => authenticate()}
                 className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg"
                 disabled={isAuthenticating}
               >
                 <Wallet className="w-4 h-4 mr-2" />
-                {isAuthenticating ? "Authenticating..." : "Authenticate"}
+                {isAuthenticating ? t('header.authenticating') : t('header.authenticate')}
               </Button>
             ) : (
               <DropdownMenu>
@@ -276,13 +291,13 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                     <User className="w-4 h-4 mr-2" />
                     {activeWalletAddress
                       ? `${activeWalletAddress.slice(0, 6)}...${activeWalletAddress.slice(-4)}`
-                      : "Wallet"}
+                      : t('header.wallet')}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem>
                     <div className="flex flex-col">
-                      <span className="text-sm">Wallet Address</span>
+                      <span className="text-sm">{t('header.walletAddress')}</span>
                       <span className="text-xs text-muted-foreground">
                         {activeWalletAddress}
                       </span>
@@ -294,17 +309,17 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                     <>
                       <DropdownMenuItem onClick={() => setIsSendModalOpen(true)}>
                         <Send className="w-4 h-4 mr-2" />
-                        Send MON
+                        {t('send.title')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setIsDepositModalOpen(true)}>
                         <ArrowDownToLine className="w-4 h-4 mr-2" />
-                        Deposit
+                        {t('deposit.title')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
                   )}
                   <DropdownMenuItem onClick={logout}>
-                    Disconnect Wallet
+                    {t('header.disconnectWallet')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -317,17 +332,17 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
         <DialogContent className="max-w-[300px] w-[90vw]">
           <DialogHeader className="space-y-2">
-            <DialogTitle>Send MON</DialogTitle>
+            <DialogTitle>{t('send.title')}</DialogTitle>
             <DialogDescription>
-              Send MON to any Monad address
+              {t('send.description')}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <Card className="p-4 bg-accent/30">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Recipient Monad Address</label>
+                  <label className="text-sm font-medium">{t('send.recipientAddress')}</label>
                   <Input
                     placeholder="0x..."
                     value={recipientAddress}
@@ -336,7 +351,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Amount (MON)</label>
+                  <label className="text-sm font-medium">{t('send.amount')}</label>
                   <Input
                     type="number"
                     placeholder="0.0"
@@ -364,14 +379,14 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                 setError(null);
               }}
             >
-              Cancel
+              {t('send.cancel')}
             </Button>
-            <Button 
+            <Button
               onClick={handleSend}
               disabled={isLoading || !sendAmount || !recipientAddress}
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
             >
-              {isLoading ? "Sending..." : "Send MON"}
+              {isLoading ? t('send.sending') : t('send.send')}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </DialogFooter>
@@ -382,9 +397,9 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
       <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
         <DialogContent className="max-w-[300px] w-[90vw]">
           <DialogHeader className="space-y-2">
-            <DialogTitle>Deposit Funds</DialogTitle>
+            <DialogTitle>{t('deposit.title')}</DialogTitle>
             <DialogDescription>
-              Add funds to your wallet using your preferred method
+              {t('deposit.description')}
             </DialogDescription>
           </DialogHeader>
           
@@ -404,7 +419,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Your Wallet Address</p>
+                  <p className="text-sm font-medium">{t('deposit.yourAddress')}</p>
                   <div className="relative">
                     <Input
                       readOnly
@@ -420,18 +435,18 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                       {hasCopied ? (
                         <>
                           <Check className="h-4 w-4" />
-                          <span>Copied</span>
+                          <span>{t('deposit.copied')}</span>
                         </>
                       ) : (
                         <>
                           <Copy className="h-4 w-4" />
-                          <span>Copy</span>
+                          <span>{t('deposit.copy')}</span>
                         </>
                       )}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-4">
-                    Send any supported tokens to this address to deposit funds into your wallet
+                    {t('deposit.sendTokensHint')}
                   </p>
                 </div>
               </div>
@@ -443,7 +458,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               variant="outline"
               onClick={() => setIsDepositModalOpen(false)}
             >
-              Close
+              {t('deposit.close')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 // Replace this with any of the networks listed at https://github.com/wevm/viem/blob/main/src/chains/index.ts
 import {monadTestnet} from 'viem/chains';
 import './index.css';
+import './i18n'; // Initialize i18n before rendering
 
 import {PrivyProvider} from '@privy-io/react-auth';
 

@@ -22,12 +22,12 @@ class ContractCacheManager {
   // Cache TTL settings (in milliseconds)
   private readonly DEFAULT_TTL = 60000; // 1 minute
   private readonly PRICE_TTL = 60000; // 1 minute for prices (reduced frequency)
-  private readonly POOL_INFO_TTL = 120000; // 2 minutes for pool info
+  private readonly POOL_INFO_TTL = 60000; // 1 minute for pool info (used for pricing)
   private readonly STATIC_DATA_TTL = 600000; // 10 minutes for static data like player IDs
   
   // Rate limiting settings
   private readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
-  private readonly MAX_REQUESTS_PER_MINUTE = 30; // Reduced from previous settings
+  private readonly MAX_REQUESTS_PER_MINUTE = 60; // Allow enough headroom for batch operations
   
   private publicClient = createPublicClient({
     chain: {

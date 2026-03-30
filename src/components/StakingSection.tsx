@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -40,13 +41,17 @@ function generatePlaceholderRevenueData(): { date: string; usdc: number }[] {
     d.setDate(d.getDate() - i);
     const label = `${months[d.getMonth()]} ${d.getDate()}`;
     const seed = seedFromDate(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
-    const usdc = parseFloat(((seed % 5000) / 100).toFixed(2)); // 0–50 range
+    // Combine a growth trend with seeded noise for realistic variation
+    const trend = 10 + (13 - i) * 2.5; // gradual uptrend from ~10 to ~42
+    const noise = ((seed % 1000) / 1000) * 20 - 10; // ±10 range
+    const usdc = parseFloat(Math.max(1, trend + noise).toFixed(2));
     data.push({ date: label, usdc });
   }
   return data;
 }
 
 export default function StakingSection() {
+  const { t } = useTranslation();
   const { login, authenticated } = usePrivy();
   const { wallets } = useWallets();
   const { sendTransactionWithWallet } = useWalletTransactions();
@@ -254,7 +259,7 @@ export default function StakingSection() {
 
   // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-16">
       {/* Header */}
       <div className="flex items-center justify-between">
         <motion.div
@@ -262,17 +267,17 @@ export default function StakingSection() {
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center space-x-3"
         >
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-3 rounded-xl">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-3 rounded-xl">
             <Coins className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-              Staking
+              {t('staking.title')}
             </h2>
-            <p className="text-sm text-muted-foreground">Stake ESP tokens to earn USDC from platform fees</p>
+            <p className="text-sm text-muted-foreground">{t('staking.subtitle')}</p>
           </div>
         </motion.div>
-        <Badge variant="secondary" className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 border-0">
+        <Badge variant="secondary" className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 dark:from-blue-900/30 dark:to-purple-900/30 dark:text-blue-300 border-0">
           {staking.formatted.stakerSharePercent} Revenue Share
         </Badge>
       </div>
@@ -296,10 +301,10 @@ export default function StakingSection() {
               <div className="bg-accent/50 p-4 rounded-full">
                 <Wallet className="w-8 h-8 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground">Connect your wallet to start staking</p>
+              <p className="text-muted-foreground">{t('staking.connectWallet')}</p>
               <Button
                 onClick={login}
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
               >
                 Connect Wallet
               </Button>
@@ -321,7 +326,7 @@ export default function StakingSection() {
               {/* Stake Tab */}
               <TabsContent value="stake" className="space-y-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Stake</label>
+                  <label className="text-sm text-muted-foreground mb-2 block">{t('staking.amountToStake')}</label>
                   <Input
                     type="number"
                     placeholder="0.00"
@@ -364,7 +369,7 @@ export default function StakingSection() {
                 <Button
                   onClick={handleStake}
                   disabled={isTxPending || !stakeAmount || !isContractDeployed || !!stakeError}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                 >
                   {isTxPending && txState !== 'unstaking' ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{statusMessage}</>
@@ -378,7 +383,7 @@ export default function StakingSection() {
               {/* Unstake Tab */}
               <TabsContent value="unstake" className="space-y-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Unstake</label>
+                  <label className="text-sm text-muted-foreground mb-2 block">{t('staking.amountToUnstake')}</label>
                   <Input
                     type="number"
                     placeholder="0.00"
@@ -461,13 +466,13 @@ export default function StakingSection() {
 
               {/* Daily Revenue Chart — visible on both tabs */}
               <div className="pt-4">
-                <p className="text-xs text-muted-foreground mb-2">Daily Revenue Distributed (USDC)</p>
-                <ResponsiveContainer width="100%" height={140}>
+                <p className="text-xs text-muted-foreground mb-2">{t('staking.dailyRevenue')}</p>
+                <ResponsiveContainer width="100%" height="95%">
                   <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="opacity-10" />
@@ -499,11 +504,11 @@ export default function StakingSection() {
                     <Area
                       type="monotone"
                       dataKey="usdc"
-                      stroke="#10b981"
+                      stroke="#7c3aed"
                       strokeWidth={2}
                       fill="url(#revenueGradient)"
                       dot={false}
-                      activeDot={{ r: 4, fill: '#10b981' }}
+                      activeDot={{ r: 4, fill: '#7c3aed' }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -515,14 +520,14 @@ export default function StakingSection() {
         {/* ── Right Column: Info Cards ─────────────────────────── */}
         <div className="space-y-6">
           {/* Protocol Stats */}
-          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-emerald-50/50 to-teal-50/50 dark:from-emerald-900/10 dark:to-teal-900/10">
+          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10">
             <h3 className="mb-4 flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-emerald-500" />
+              <TrendingUp className="w-5 h-5 mr-2 text-purple-500" />
               Protocol Stats
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total ESP Staked</span>
+                <span className="text-muted-foreground">{t('staking.totalStaked')}</span>
                 {staking.loading ? <Skeleton className="h-4 w-20" /> : (
                   <span className="text-primary font-medium">{staking.formatted.totalStaked}</span>
                 )}
@@ -552,7 +557,7 @@ export default function StakingSection() {
                   </Tooltip>
                 </span>
                 {staking.loading ? <Skeleton className="h-4 w-12" /> : (
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">&mdash;</span>
+                  <span className="text-purple-600 dark:text-purple-400 font-medium">&mdash;</span>
                 )}
               </div>
               <div className="flex justify-between text-sm">
@@ -603,14 +608,14 @@ export default function StakingSection() {
             {authenticated ? (
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Your Staked ESP</span>
+                  <span className="text-muted-foreground">{t('staking.yourStakedEsp')}</span>
                   {staking.loading ? <Skeleton className="h-4 w-20" /> : (
                     <span className="text-primary font-medium">{staking.formatted.userStakedAmount}</span>
                   )}
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-1">
-                    Your Share
+                    {t('staking.yourShare')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
@@ -633,7 +638,7 @@ export default function StakingSection() {
                     </Tooltip>
                   </span>
                   {staking.loading ? <Skeleton className="h-4 w-20" /> : (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    <span className="text-purple-600 dark:text-purple-400 font-medium">
                       {staking.formatted.userPendingRewards} USDC
                     </span>
                   )}
@@ -645,9 +650,9 @@ export default function StakingSection() {
                     className="w-full mt-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white"
                   >
                     {txState === 'claiming' ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Claiming...</>
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('staking.claiming')}</>
                     ) : (
-                      <><Gift className="w-4 h-4 mr-2" />Claim Rewards</>
+                      <><Gift className="w-4 h-4 mr-2" />{t('staking.claimRewards')}</>
                     )}
                   </Button>
                 )}
