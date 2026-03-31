@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useIsMobile } from './ui/use-mobile';
-import { Sheet, SheetContent } from './ui/sheet';
-import { MobileSidebar } from './MobileSidebar';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Button } from './ui/button';
-import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check } from 'lucide-react';
+import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check, Globe } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { QRCodeSVG } from 'qrcode.react';
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useWalletTransactions } from "../hooks/useWalletTransactions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from './ui/drawer';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
@@ -49,7 +48,6 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const [error, setError] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
   const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { login, logout, ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
@@ -150,34 +148,19 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
 
 
   return (
-    <header className="bg-background/95 backdrop-blur-md border-b border-border/50 sticky top-0 z-50">
+    <header className="bg-background/95 backdrop-blur-md border-b border-border/50 sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Navigation */}
           <div className="flex items-center space-x-8">
             <div className="flex items-center">
-              {/* On mobile, logo is a button to open sidebar */}
-              {isMobile ? (
-                <button
-                  className="relative focus:outline-none"
-                  onClick={() => setSidebarOpen(true)}
-                  aria-label="Open navigation menu"
-                >
-                  <ImageWithFallback
-                    src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
-                    alt="Crypto Esports Fantasy Logo"
-                    className="h-10 w-10 object-contain shadow-lg"
-                  />
-                </button>
-              ) : (
-                <div className="relative">
-                  <ImageWithFallback
-                    src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
-                    alt="Crypto Esports Fantasy Logo"
-                    className="h-10 w-10 object-contain shadow-lg"
-                  />
-                </div>
-              )}
+              <div className="relative">
+                <ImageWithFallback
+                  src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
+                  alt="Crypto Esports Fantasy Logo"
+                  className="h-10 w-10 object-contain shadow-lg"
+                />
+              </div>
               <div className="ml-3">
                 <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent hidden sm:block">ESP.fun</h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">{t('header.fantasyLeague')}</p>
@@ -206,26 +189,8 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               </nav>
             )}
           </div>
-        {/* Mobile Sidebar Drawer */}
-        {isMobile && (
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetContent
-              side="left"
-              className="p-0 w-64"
-              aria-labelledby="mobile-sidebar-title"
-              aria-describedby="mobile-sidebar-desc"
-            >
-              <MobileSidebar
-                onClose={() => setSidebarOpen(false)}
-                activeTab={activeTab}
-                onTabChange={onTabChange}
-              />
-            </SheetContent>
-          </Sheet>
-        )}
-
           {/* Right Section - Controls */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-4">
             {/* Authentication Error Alert */}
             {authError && (
               <Alert variant="destructive" className="mr-4 max-w-xs">
@@ -235,7 +200,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
 
             {/* Game Selector */}
             <Select value={selectedGame} onValueChange={setSelectedGame}>
-              <SelectTrigger className="w-44 bg-accent/50 border-0 shadow-sm">
+              <SelectTrigger className="w-24 md:w-44 bg-accent/50 border-0 shadow-sm">
                 <SelectValue placeholder={t('header.selectGame')} />
               </SelectTrigger>
               <SelectContent>
@@ -273,7 +238,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                 disabled={!ready}
               >
                 <Wallet className="w-4 h-4 mr-2" />
-                {t('header.connectWallet')}
+                {isMobile ? t('header.connect', 'Connect') : t('header.connectWallet')}
               </Button>
             ) : !globalAuthState && !isAuthenticated ? (
               <Button
@@ -287,12 +252,18 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="bg-accent/50 border-0 shadow-sm">
-                    <User className="w-4 h-4 mr-2" />
-                    {activeWalletAddress
-                      ? `${activeWalletAddress.slice(0, 6)}...${activeWalletAddress.slice(-4)}`
-                      : t('header.wallet')}
-                  </Button>
+                  {isMobile ? (
+                    <Button variant="outline" className="bg-accent/50 border-0 shadow-sm h-9 w-9 p-0">
+                      <User className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button variant="outline" className="bg-accent/50 border-0 shadow-sm">
+                      <User className="w-4 h-4 mr-2" />
+                      {activeWalletAddress
+                        ? `${activeWalletAddress.slice(0, 6)}...${activeWalletAddress.slice(-4)}`
+                        : t('header.wallet')}
+                    </Button>
+                  )}
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem>
@@ -318,6 +289,16 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                       <DropdownMenuSeparator />
                     </>
                   )}
+                  {/* Dark mode & language on mobile (hidden from header bar) */}
+                  {isMobile && (
+                    <>
+                      <DropdownMenuItem onClick={toggleDarkMode}>
+                        {isDarkMode ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                        {isDarkMode ? t('header.switchToLight') : t('header.switchToDark')}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem onClick={logout}>
                     {t('header.disconnectWallet')}
                   </DropdownMenuItem>
@@ -329,140 +310,138 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
       </div>
 
       {/* Send ETH Modal */}
-      <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
-        <DialogContent className="max-w-[300px] w-[90vw]">
-          <DialogHeader className="space-y-2">
-            <DialogTitle>{t('send.title')}</DialogTitle>
-            <DialogDescription>
-              {t('send.description')}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <Card className="p-4 bg-accent/30">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{t('send.recipientAddress')}</label>
-                  <Input
-                    placeholder="0x..."
-                    value={recipientAddress}
-                    onChange={(e) => setRecipientAddress(e.target.value)}
-                    className="font-mono"
-                  />
+      {isMobile ? (
+        <Drawer open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
+          <DrawerContent style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <DrawerHeader>
+              <DrawerTitle>{t('send.title')}</DrawerTitle>
+              <DrawerDescription>{t('send.description')}</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-2">
+              <Card className="p-4 bg-accent/30">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('send.recipientAddress')}</label>
+                    <Input placeholder="0x..." value={recipientAddress} onChange={(e) => setRecipientAddress(e.target.value)} className="font-mono" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('send.amount')}</label>
+                    <Input type="number" placeholder="0.0" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} min="0" step="0.001" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{t('send.amount')}</label>
-                  <Input
-                    type="number"
-                    placeholder="0.0"
-                    value={sendAmount}
-                    onChange={(e) => setSendAmount(e.target.value)}
-                    min="0"
-                    step="0.001"
-                  />
+              </Card>
+              {error && <Alert variant="destructive" className="mt-3"><AlertDescription>{error}</AlertDescription></Alert>}
+            </div>
+            <DrawerFooter>
+              <Button onClick={handleSend} disabled={isLoading || !sendAmount || !recipientAddress} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                {isLoading ? t('send.sending') : t('send.send')}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+              <Button variant="outline" onClick={() => { setIsSendModalOpen(false); setError(null); }}>{t('send.cancel')}</Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
+          <DialogContent className="max-w-[300px] w-[90vw]">
+            <DialogHeader className="space-y-2">
+              <DialogTitle>{t('send.title')}</DialogTitle>
+              <DialogDescription>{t('send.description')}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Card className="p-4 bg-accent/30">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('send.recipientAddress')}</label>
+                    <Input placeholder="0x..." value={recipientAddress} onChange={(e) => setRecipientAddress(e.target.value)} className="font-mono" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('send.amount')}</label>
+                    <Input type="number" placeholder="0.0" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} min="0" step="0.001" />
+                  </div>
                 </div>
-              </div>
-            </Card>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsSendModalOpen(false);
-                setError(null);
-              }}
-            >
-              {t('send.cancel')}
-            </Button>
-            <Button
-              onClick={handleSend}
-              disabled={isLoading || !sendAmount || !recipientAddress}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-            >
-              {isLoading ? t('send.sending') : t('send.send')}
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </Card>
+              {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsSendModalOpen(false); setError(null); }}>{t('send.cancel')}</Button>
+              <Button onClick={handleSend} disabled={isLoading || !sendAmount || !recipientAddress} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                {isLoading ? t('send.sending') : t('send.send')}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Deposit Modal */}
-      <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
-        <DialogContent className="max-w-[300px] w-[90vw]">
-          <DialogHeader className="space-y-2">
-            <DialogTitle>{t('deposit.title')}</DialogTitle>
-            <DialogDescription>
-              {t('deposit.description')}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <Card className="p-4 bg-accent/30">
-              <div className="text-center space-y-4">
-                {activeWalletAddress && (
-                  <div className="bg-background/80 p-4 rounded-lg inline-block mx-auto">
-                    <QRCodeSVG
-                      value={activeWalletAddress}
-                      size={180}
-                      className="mx-auto"
-                      level="H"
-                      includeMargin={true}
-                      style={{ borderRadius: '8px' }}
-                    />
+      {isMobile ? (
+        <Drawer open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
+          <DrawerContent style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <DrawerHeader>
+              <DrawerTitle>{t('deposit.title')}</DrawerTitle>
+              <DrawerDescription>{t('deposit.description')}</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-2">
+              <Card className="p-4 bg-accent/30">
+                <div className="text-center space-y-4">
+                  {activeWalletAddress && (
+                    <div className="bg-background/80 p-4 rounded-lg inline-block mx-auto">
+                      <QRCodeSVG value={activeWalletAddress} size={180} className="mx-auto" level="H" includeMargin={true} style={{ borderRadius: '8px' }} />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">{t('deposit.yourAddress')}</p>
+                    <div className="relative">
+                      <Input readOnly value={activeWalletAddress || ''} className="pr-20 font-mono text-xs bg-background/50" />
+                      <Button size="sm" variant="ghost" onClick={handleCopyAddress} className="absolute right-0 top-0 h-full px-3 hover:bg-accent flex gap-2 items-center">
+                        {hasCopied ? <><Check className="h-4 w-4" /><span>{t('deposit.copied')}</span></> : <><Copy className="h-4 w-4" /><span>{t('deposit.copy')}</span></>}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">{t('deposit.sendTokensHint')}</p>
                   </div>
-                )}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{t('deposit.yourAddress')}</p>
-                  <div className="relative">
-                    <Input
-                      readOnly
-                      value={activeWalletAddress || ''}
-                      className="pr-20 font-mono text-xs bg-background/50"
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleCopyAddress}
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-accent flex gap-2 items-center"
-                    >
-                      {hasCopied ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          <span>{t('deposit.copied')}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4" />
-                          <span>{t('deposit.copy')}</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    {t('deposit.sendTokensHint')}
-                  </p>
                 </div>
-              </div>
-            </Card>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDepositModalOpen(false)}
-            >
-              {t('deposit.close')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </Card>
+            </div>
+            <DrawerFooter>
+              <Button variant="outline" onClick={() => setIsDepositModalOpen(false)}>{t('deposit.close')}</Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
+          <DialogContent className="max-w-[300px] w-[90vw]">
+            <DialogHeader className="space-y-2">
+              <DialogTitle>{t('deposit.title')}</DialogTitle>
+              <DialogDescription>{t('deposit.description')}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Card className="p-4 bg-accent/30">
+                <div className="text-center space-y-4">
+                  {activeWalletAddress && (
+                    <div className="bg-background/80 p-4 rounded-lg inline-block mx-auto">
+                      <QRCodeSVG value={activeWalletAddress} size={180} className="mx-auto" level="H" includeMargin={true} style={{ borderRadius: '8px' }} />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">{t('deposit.yourAddress')}</p>
+                    <div className="relative">
+                      <Input readOnly value={activeWalletAddress || ''} className="pr-20 font-mono text-xs bg-background/50" />
+                      <Button size="sm" variant="ghost" onClick={handleCopyAddress} className="absolute right-0 top-0 h-full px-3 hover:bg-accent flex gap-2 items-center">
+                        {hasCopied ? <><Check className="h-4 w-4" /><span>{t('deposit.copied')}</span></> : <><Copy className="h-4 w-4" /><span>{t('deposit.copy')}</span></>}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">{t('deposit.sendTokensHint')}</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDepositModalOpen(false)}>{t('deposit.close')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </header>
   );
 }

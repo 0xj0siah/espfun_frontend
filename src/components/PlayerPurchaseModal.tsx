@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Drawer, DrawerContent } from './ui/drawer';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';
@@ -1957,7 +1958,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     variant="ghost"
                     size="sm"
                     onClick={() => setSlippage(0.5)}
-                    className={`px-2 py-0.5 md:py-1 h-auto text-xs ${slippage === 0.5 ? 'bg-accent' : ''}`}
+                    className={`px-3 py-1.5 md:py-1 h-auto min-h-[36px] text-xs ${slippage === 0.5 ? 'bg-accent' : ''}`}
                   >
                     0.5%
                   </Button>
@@ -1965,7 +1966,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     variant="ghost"
                     size="sm"
                     onClick={() => setSlippage(1)}
-                    className={`px-2 py-0.5 md:py-1 h-auto text-xs ${slippage === 1 ? 'bg-accent' : ''}`}
+                    className={`px-3 py-1.5 md:py-1 h-auto min-h-[36px] text-xs ${slippage === 1 ? 'bg-accent' : ''}`}
                   >
                     1%
                   </Button>
@@ -1973,7 +1974,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     type="number"
                     value={slippage}
                     onChange={e => setSlippage(Number(e.target.value))}
-                    className="w-12 md:w-16 h-6 md:h-8 text-xs md:text-sm"
+                    className="w-14 md:w-16 h-9 md:h-8 text-xs md:text-sm"
                     min="0.1"
                     max="50"
                     step="0.1"
@@ -2241,17 +2242,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   // ─── MOBILE LAYOUT ────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <Dialog open={isOpen} onOpenChange={() => {}}>
-        <DialogContent
-          className="!max-w-none !w-screen !h-screen !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !rounded-none !p-0 !m-0 !inset-0 !flex !flex-col !gap-0 border-0 shadow-2xl !animate-none origin-center"
-          hideCloseButton
-          style={{
-            opacity: isModalContentVisible ? 1 : 0,
-            scale: isModalContentVisible ? '1' : '0.05',
-            transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          {/* Fixed Header */}
+      <Drawer open={isOpen} onOpenChange={(open) => { if (!open) handleCloseModal(); }}>
+        <DrawerContent className="max-h-[95vh] flex flex-col" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          {/* Header */}
           <div className="bg-gradient-to-r from-accent/30 to-accent/10 border-b p-4 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-3">
@@ -2385,8 +2378,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             )}
             <div className="h-4"></div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
     );
   }
 

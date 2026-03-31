@@ -618,7 +618,26 @@ export default function TeamSection({
 
         <TabsContent value="squad" className="space-y-6">
           {loading ? (
-            <div>Loading owned players...</div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Card key={i} className="relative overflow-hidden p-4 border-0 shadow-lg bg-gradient-to-br from-background via-accent/20 to-accent/40">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <Skeleton className="w-14 h-14 rounded-xl" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-24 mb-2" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-5 w-24" />
+                  </div>
+                </Card>
+              ))}
+            </div>
           ) : filteredOwnedPlayers.length === 0 ? (
             <div className="text-center py-8">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -639,7 +658,7 @@ export default function TeamSection({
                   }}
                   className="cursor-pointer group"
                 >
-                  <Card className={`relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 ${player.unclaimedBalance ? 'ring-2 ring-green-400/60' : ''}`}>
+                  <Card className={`relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 active:scale-[0.98] active:shadow-inner ${player.unclaimedBalance ? 'ring-2 ring-green-400/60' : ''}`}>
                     {/* Unclaimed banner */}
                     {player.unclaimedBalance && (
                       <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold text-center py-1 z-20">
@@ -647,7 +666,7 @@ export default function TeamSection({
                       </div>
                     )}
                     {/* Background gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300" />
 
                     {/* Content container */}
                     <div className={`relative z-10 ${player.unclaimedBalance ? 'mt-4' : ''}`}>
@@ -761,9 +780,25 @@ export default function TeamSection({
 
         <TabsContent value="development" className="space-y-6">
           {developmentLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <span className="ml-2 text-muted-foreground">Loading benched players...</span>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i} className="relative overflow-hidden p-4 border-0 shadow-lg bg-gradient-to-br from-background via-accent/20 to-accent/40">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <Skeleton className="w-14 h-14 rounded-xl" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-24 mb-2" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-5 w-24" />
+                  </div>
+                </Card>
+              ))}
             </div>
           ) : developmentPlayers.totalPlayers === 0 ? (
             <div className="text-center py-8">
@@ -782,9 +817,9 @@ export default function TeamSection({
                   onClick={() => handleDevelopmentPlayerClick(player)}
                   className="cursor-pointer group"
                 >
-                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105">
+                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 active:scale-[0.98] active:shadow-inner">
                     {/* Background gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300" />
                     
                     {/* Content container */}
                     <div className="relative z-10">
