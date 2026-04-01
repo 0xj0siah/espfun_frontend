@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Users, ArrowLeftRight, Radio, Trophy, Package, Coins } from 'lucide-react';
+import { Users, ArrowLeftRight, Radio, Trophy, Package, Coins, Share2 } from 'lucide-react';
 
 interface BottomTabBarProps {
   activeTab: string;
@@ -13,6 +13,7 @@ const tabs = [
   { id: 'Leaderboard', icon: Trophy, i18nKey: 'nav.leaderboard' },
   { id: 'Pack Opening', icon: Package, i18nKey: 'nav.packOpening' },
   { id: 'Staking', icon: Coins, i18nKey: 'nav.staking' },
+  { id: 'Referrals', icon: Share2, i18nKey: 'nav.referrals' },
 ] as const;
 
 export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {

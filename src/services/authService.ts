@@ -25,18 +25,30 @@ export const authenticateWallet = async (
     console.log('🔐 Signature created:', signature);
     console.log('🔐 Signature length:', signature.length);
     
+    // Check for pending referral code (from ?ref= URL param)
+    const pendingReferralCode = localStorage.getItem('pendingReferralCode');
+    if (pendingReferralCode) {
+      console.log('🔐 Including referral code in login:', pendingReferralCode);
+    }
+
     // Login with signature and the original message from backend
-    console.log('🔐 Calling login with:', { 
-      address, 
-      signature: signature.substring(0, 20) + '...', 
+    console.log('🔐 Calling login with:', {
+      address,
+      signature: signature.substring(0, 20) + '...',
       message,
-      messageLength: message.length 
+      messageLength: message.length
     });
-    const authResponse = await apiService.login(address, signature, message);
-    
+    const authResponse = await apiService.login(address, signature, message, pendingReferralCode || undefined);
+
+    // Clear pending referral code after successful login
+    if (pendingReferralCode) {
+      localStorage.removeItem('pendingReferralCode');
+      console.log('🔐 Referral code applied and cleared');
+    }
+
     // Store token
     apiService.setAuthToken(authResponse.token);
-    
+
     console.log('✅ JWT authentication successful');
     return authResponse.token;
   } catch (error) {

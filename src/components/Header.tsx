@@ -18,6 +18,7 @@ import { useAuthentication } from '../hooks/useAuthentication';
 import { useAuthContext } from '../context/AuthContext';
 import { useGameContext } from '../context/GameContext';
 import { LanguageSelector } from './LanguageSelector';
+import { MobileSidebar } from './MobileSidebar';
 
 interface HeaderProps {
   activeTab: string;
@@ -25,7 +26,7 @@ interface HeaderProps {
 }
 
 // Tab IDs remain constant (used as internal state keys); display names come from i18n
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking'] as const;
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking', 'Referrals'] as const;
 const navI18nKeys: Record<string, string> = {
   'Team': 'nav.team',
   'Transfers': 'nav.transfers',
@@ -33,6 +34,7 @@ const navI18nKeys: Record<string, string> = {
   'Leaderboard': 'nav.leaderboard',
   'Pack Opening': 'nav.packOpening',
   'Staking': 'nav.staking',
+  'Referrals': 'nav.referrals',
 };
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
@@ -47,6 +49,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const { login, logout, ready, authenticated, user } = usePrivy();
@@ -154,13 +157,23 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
           {/* Logo and Navigation */}
           <div className="flex items-center space-x-8">
             <div className="flex items-center">
-              <div className="relative">
-                <ImageWithFallback
-                  src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
-                  alt="Crypto Esports Fantasy Logo"
-                  className="h-10 w-10 object-contain shadow-lg"
-                />
-              </div>
+              {isMobile ? (
+                <button onClick={() => setSidebarOpen(true)} className="relative" aria-label="Open navigation">
+                  <ImageWithFallback
+                    src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
+                    alt="Crypto Esports Fantasy Logo"
+                    className="h-10 w-10 object-contain shadow-lg"
+                  />
+                </button>
+              ) : (
+                <div className="relative">
+                  <ImageWithFallback
+                    src={isDarkMode ? "/darkmodenobg.png" : "/lightmodenobg.png"}
+                    alt="Crypto Esports Fantasy Logo"
+                    className="h-10 w-10 object-contain shadow-lg"
+                  />
+                </div>
+              )}
               <div className="ml-3">
                 <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent hidden sm:block">ESP.fun</h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">{t('header.fantasyLeague')}</p>
@@ -441,6 +454,16 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Mobile Sidebar */}
+      {isMobile && (
+        <MobileSidebar
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+        />
       )}
     </header>
   );

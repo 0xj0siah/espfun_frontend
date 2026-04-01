@@ -21,6 +21,13 @@ export const endpoints = {
   leaderboard: '/api/leaderboard',
   liveScores: '/api/live-scores',
   transfers: '/api/transfers',
+  referrals: {
+    generate: '/api/referrals/generate',
+    stats: '/api/referrals/stats',
+    apply: '/api/referrals/apply',
+    leaderboard: '/api/referrals/leaderboard',
+    myCode: '/api/referrals/my-code',
+  },
 };
 
 // Player data interfaces

@@ -257,7 +257,7 @@ class ApiService {
     }
   }
 
-  async login(address: string, signature: string, message: string): Promise<AuthResponse> {
+  async login(address: string, signature: string, message: string, referralCode?: string): Promise<AuthResponse> {
     try {
       console.log('🔐 Sending login request to backend:', {
         url: `${API_BASE_URL}/api/auth/login`,
@@ -266,14 +266,16 @@ class ApiService {
           signature: signature.substring(0, 20) + '...',
           message: message,
           messageLength: message.length,
-          signatureLength: signature.length
+          signatureLength: signature.length,
+          referralCode: referralCode || undefined
         }
       });
 
       const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         walletAddress: address,
         signature,
-        message
+        message,
+        ...(referralCode ? { referralCode } : {})
       });
 
       console.log('🔐 Login response received:', {
@@ -841,6 +843,57 @@ class ApiService {
         }
       }
       throw new Error('Failed to get series state from backend');
+    }
+  }
+
+  // ── Referral System ──
+
+  async generateReferralCode(customCode?: string): Promise<{ code: string }> {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/referrals/generate`,
+        customCode ? { code: customCode } : {},
+        { headers: this.getHeaders() },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Failed to generate referral code:', error);
+      throw new Error('Failed to generate referral code');
+    }
+  }
+
+  async getReferralStats(): Promise<any> {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/referrals/stats`, {
+        headers: this.getHeaders(),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get referral stats:', error);
+      throw new Error('Failed to get referral stats');
+    }
+  }
+
+  async getReferralLeaderboard(limit: number = 10): Promise<any[]> {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/referrals/leaderboard`, {
+        params: { limit },
+      });
+      return response.data.leaderboard || [];
+    } catch (error) {
+      console.error('Failed to get referral leaderboard:', error);
+      return [];
+    }
+  }
+
+  async applyReferralCode(code: string): Promise<{ success: boolean }> {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/referrals/apply`, { code }, {
+        headers: this.getHeaders(),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to apply referral code:', error);
+      throw new Error('Failed to apply referral code');
     }
   }
 }

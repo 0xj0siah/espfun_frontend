@@ -11,7 +11,6 @@ import { useAuthentication } from './hooks/useAuthentication';
 import { AuthProvider } from './context/AuthContext';
 import { GameProvider } from './context/GameContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { BottomTabBar } from './components/BottomTabBar';
 
 // Lazy-loaded sections (deferred until tab is selected)
 const TransfersSection = lazy(() => import('./components/TransfersSection'));
@@ -19,6 +18,7 @@ const LiveScoresSection = lazy(() => import('./components/LiveScoresSection'));
 const LeaderboardSection = lazy(() => import('./components/LeaderboardSection'));
 const PackOpeningSection = lazy(() => import('./components/pack-opening/PackOpeningSection'));
 const StakingSection = lazy(() => import('./components/StakingSection'));
+const ReferralsSection = lazy(() => import('./components/ReferralsSection'));
 
 // Import icons
 import { Github } from 'lucide-react';
@@ -32,6 +32,19 @@ export default function App() {
 
   // Authentication hook for JWT token validation
   const { validateToken, isAuthenticated, hasAuthToken } = useAuthentication();
+
+  // Detect ?ref= URL parameter and store for later use during login
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('pendingReferralCode', ref);
+      // Clean URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('ref');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  }, []);
 
   // Validate JWT token on page load
   useEffect(() => {
@@ -97,6 +110,8 @@ export default function App() {
         return <PackOpeningSection />;
       case 'Staking':
         return <StakingSection />;
+      case 'Referrals':
+        return <ReferralsSection />;
       default:
         return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
     }
@@ -109,16 +124,13 @@ export default function App() {
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-accent/20">
           <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 ${isMobile ? 'pt-4 pb-20' : 'py-8'} isolate`}>
+        <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 ${isMobile ? 'pt-4 pb-4' : 'py-8'} isolate`}>
           <ErrorBoundary>
             <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
               {renderContent()}
             </Suspense>
           </ErrorBoundary>
         </main>
-
-        {/* Bottom Tab Bar (mobile only) */}
-        {isMobile && <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />}
 
         {/* Footer with Social Links (hidden on mobile) */}
         {!isMobile && (
