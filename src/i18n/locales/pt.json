@@ -23,13 +23,13 @@
     "wallet": "Carteira"
   },
   "send": {
-    "title": "Enviar MON",
-    "description": "Enviar MON para qualquer endereço Monad",
-    "recipientAddress": "Endereço Monad do destinatário",
-    "amount": "Quantidade (MON)",
+    "title": "Enviar ETH",
+    "description": "Enviar ETH para qualquer endereço Base",
+    "recipientAddress": "Endereço do destinatário",
+    "amount": "Quantidade (ETH)",
     "cancel": "Cancelar",
     "sending": "Enviando...",
-    "send": "Enviar MON",
+    "send": "Enviar ETH",
     "connectFirst": "Por favor, conecte sua carteira primeiro.",
     "fillAllFields": "Por favor, preencha todos os campos",
     "walletNotAvailable": "Carteira não disponível.",

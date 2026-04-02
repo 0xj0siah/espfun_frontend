@@ -20,8 +20,8 @@ export function usePublicClient(): PublicClient {
           default: { name: 'Explorer', url: NETWORK_CONFIG.blockExplorer },
         },
         nativeCurrency: {
-          name: 'MON',
-          symbol: 'MON',
+          name: 'ETH',
+          symbol: 'ETH',
           decimals: 18,
         },
         testnet: true,

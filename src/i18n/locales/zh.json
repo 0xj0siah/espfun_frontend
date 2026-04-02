@@ -23,13 +23,13 @@
     "wallet": "钱包"
   },
   "send": {
-    "title": "发送 MON",
-    "description": "将 MON 发送到任意 Monad 地址",
-    "recipientAddress": "接收方 Monad 地址",
-    "amount": "数量 (MON)",
+    "title": "发送 ETH",
+    "description": "将 ETH 发送到任意 Base 地址",
+    "recipientAddress": "接收方地址",
+    "amount": "数量 (ETH)",
     "cancel": "取消",
     "sending": "发送中...",
-    "send": "发送 MON",
+    "send": "发送 ETH",
     "connectFirst": "请先连接您的钱包。",
     "fillAllFields": "请填写所有字段",
     "walletNotAvailable": "钱包不可用。",

@@ -12,11 +12,11 @@ const debugClient = createPublicClient({
       public: { http: [NETWORK_CONFIG.rpcUrl] },
     },
     blockExplorers: {
-      default: { name: 'MonadScan', url: NETWORK_CONFIG.blockExplorer },
+      default: { name: 'BaseScan', url: NETWORK_CONFIG.blockExplorer },
     },
     nativeCurrency: {
-      name: 'MON',
-      symbol: 'MON',
+      name: 'ETH',
+      symbol: 'ETH',
       decimals: 18,
     },
     testnet: true,

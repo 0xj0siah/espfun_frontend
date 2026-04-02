@@ -23,13 +23,13 @@
     "wallet": "Wallet"
   },
   "send": {
-    "title": "MON senden",
-    "description": "Sende MON an eine beliebige Monad-Adresse",
-    "recipientAddress": "Empfänger Monad-Adresse",
-    "amount": "Betrag (MON)",
+    "title": "ETH senden",
+    "description": "Sende ETH an eine beliebige Base-Adresse",
+    "recipientAddress": "Empfänger-Adresse",
+    "amount": "Betrag (ETH)",
     "cancel": "Abbrechen",
     "sending": "Wird gesendet...",
-    "send": "MON senden",
+    "send": "ETH senden",
     "connectFirst": "Bitte verbinde zuerst dein Wallet.",
     "fillAllFields": "Bitte fülle alle Felder aus",
     "walletNotAvailable": "Wallet nicht verfügbar.",

@@ -2330,15 +2330,45 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 <AnimatePresence initial={false}>
                   {showStats && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                      className="px-3 pb-3 overflow-hidden"
+                      initial={{ height: 0 }}
+                      animate={{
+                        height: 'auto',
+                        transition: {
+                          height: { duration: 0.3, ease: [0.2, 0, 0, 1] },
+                        },
+                      }}
+                      exit={{
+                        height: 0,
+                        transition: {
+                          height: { duration: 0.3, ease: [0.32, 0, 0.67, 1] },
+                        },
+                      }}
+                      className="overflow-hidden"
                     >
-                      <Separator className="mb-3" />
-                      {renderStatsGrid()}
-                      {renderStatsSourceIndicator()}
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: {
+                            opacity: { duration: 0.2, ease: 'easeOut' },
+                            y: { duration: 0.25, ease: 'easeOut' },
+                          },
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: -30,
+                          transition: {
+                            opacity: { duration: 0.25, ease: 'easeIn' },
+                            y: { duration: 0.3, ease: [0.32, 0, 0.67, 1] },
+                          },
+                        }}
+                        className="px-3 pb-3"
+                      >
+                        <Separator className="mb-3" />
+                        {renderStatsGrid()}
+                        {renderStatsSourceIndicator()}
+                      </motion.div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2362,15 +2392,45 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 <AnimatePresence initial={false}>
                   {showMatches && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                      className="px-3 pb-3 overflow-hidden"
+                      initial={{ height: 0 }}
+                      animate={{
+                        height: 'auto',
+                        transition: {
+                          height: { duration: 0.3, ease: [0.2, 0, 0, 1] },
+                        },
+                      }}
+                      exit={{
+                        height: 0,
+                        transition: {
+                          height: { duration: 0.3, ease: [0.32, 0, 0.67, 1] },
+                        },
+                      }}
+                      className="overflow-hidden"
                     >
-                      <Separator className="mb-3" />
-                      <div className="space-y-2">{renderMatchesList()}</div>
-                      {renderMatchesSourceIndicator()}
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: {
+                            opacity: { duration: 0.2, ease: 'easeOut' },
+                            y: { duration: 0.25, ease: 'easeOut' },
+                          },
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: -30,
+                          transition: {
+                            opacity: { duration: 0.25, ease: 'easeIn' },
+                            y: { duration: 0.3, ease: [0.32, 0, 0.67, 1] },
+                          },
+                        }}
+                        className="px-3 pb-3"
+                      >
+                        <Separator className="mb-3" />
+                        <div className="space-y-2">{renderMatchesList()}</div>
+                        {renderMatchesSourceIndicator()}
+                      </motion.div>
                     </motion.div>
                   )}
                 </AnimatePresence>

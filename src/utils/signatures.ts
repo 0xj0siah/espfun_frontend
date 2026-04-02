@@ -3,13 +3,13 @@ import { NETWORK_CONFIG } from '../contracts';
 export const EIP712_DOMAIN = {
   name: 'FDF Pair',
   version: '1',
-  chainId: NETWORK_CONFIG.chainId, // Monad testnet
+  chainId: NETWORK_CONFIG.chainId, // Base Sepolia
 };
 
 export const PLAYER_EIP712_DOMAIN = {
   name: 'Player',
   version: '1',
-  chainId: NETWORK_CONFIG.chainId, // Monad testnet
+  chainId: NETWORK_CONFIG.chainId, // Base Sepolia
 };
 
 export const BUY_TOKENS_TYPES = {

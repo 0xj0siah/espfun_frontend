@@ -23,13 +23,13 @@
     "wallet": "Billetera"
   },
   "send": {
-    "title": "Enviar MON",
-    "description": "Enviar MON a cualquier dirección Monad",
-    "recipientAddress": "Dirección Monad del destinatario",
-    "amount": "Cantidad (MON)",
+    "title": "Enviar ETH",
+    "description": "Enviar ETH a cualquier dirección Base",
+    "recipientAddress": "Dirección del destinatario",
+    "amount": "Cantidad (ETH)",
     "cancel": "Cancelar",
     "sending": "Enviando...",
-    "send": "Enviar MON",
+    "send": "Enviar ETH",
     "connectFirst": "Por favor, conecta tu billetera primero.",
     "fillAllFields": "Por favor, completa todos los campos",
     "walletNotAvailable": "Billetera no disponible.",

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { Trophy, AlertCircle, Loader2, FlaskConical } from 'lucide-react';
 import { Button } from '../../ui/button';
+import { Skeleton } from '../../ui/skeleton';
 import { RiveFoilIdle } from '../effects/RiveFoilIdle';
 import { PACK_DESIGNS } from '../constants';
 import type { PackSelectionPhaseProps } from '../types';
@@ -83,12 +84,16 @@ export function PackSelectionPhase({
         </div>
       </div>
 
-      {/* Loading */}
+      {/* Loading Skeletons */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center space-y-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-            <p className="text-muted-foreground text-sm">Loading packs...</p>
+        <div className="flex justify-center">
+          <div className="flex flex-wrap justify-center gap-8 md:gap-12">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex flex-col items-center gap-3">
+                <Skeleton className="rounded-lg" style={{ width: 180, height: 260 }} />
+                <Skeleton className="h-4 w-16 rounded" />
+              </div>
+            ))}
           </div>
         </div>
       )}

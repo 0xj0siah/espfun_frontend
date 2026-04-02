@@ -23,13 +23,13 @@
     "wallet": "Кошелёк"
   },
   "send": {
-    "title": "Отправить MON",
-    "description": "Отправьте MON на любой адрес Monad",
-    "recipientAddress": "Адрес получателя Monad",
-    "amount": "Сумма (MON)",
+    "title": "Отправить ETH",
+    "description": "Отправьте ETH на любой адрес Base",
+    "recipientAddress": "Адрес получателя",
+    "amount": "Сумма (ETH)",
     "cancel": "Отмена",
     "sending": "Отправка...",
-    "send": "Отправить MON",
+    "send": "Отправить ETH",
     "connectFirst": "Сначала подключите кошелёк.",
     "fillAllFields": "Заполните все поля",
     "walletNotAvailable": "Кошелёк недоступен.",

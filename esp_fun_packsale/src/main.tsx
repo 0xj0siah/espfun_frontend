@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { monadTestnet } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 import './index.css';
 
 import { PrivyProvider } from '@privy-io/react-auth';
@@ -30,8 +30,8 @@ root.render(
         // Allow users to connect external wallets
         loginMethods: ['wallet', 'email', 'sms'],
         // Configure supported chains
-        defaultChain: monadTestnet,
-        supportedChains: [monadTestnet],
+        defaultChain: baseSepolia,
+        supportedChains: [baseSepolia],
         // Customize appearance
         appearance: {
           theme: 'dark',

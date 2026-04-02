@@ -23,13 +23,13 @@
     "wallet": "지갑"
   },
   "send": {
-    "title": "MON 보내기",
-    "description": "모나드 주소로 MON 보내기",
-    "recipientAddress": "받는 사람 모나드 주소",
-    "amount": "수량 (MON)",
+    "title": "ETH 보내기",
+    "description": "Base 주소로 ETH 보내기",
+    "recipientAddress": "받는 사람 주소",
+    "amount": "수량 (ETH)",
     "cancel": "취소",
     "sending": "전송 중...",
-    "send": "MON 보내기",
+    "send": "ETH 보내기",
     "connectFirst": "먼저 지갑을 연결해주세요.",
     "fillAllFields": "모든 항목을 입력해주세요",
     "walletNotAvailable": "지갑을 사용할 수 없습니다.",

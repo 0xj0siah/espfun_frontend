@@ -23,13 +23,13 @@
     "wallet": "ウォレット"
   },
   "send": {
-    "title": "MON を送信",
-    "description": "任意の Monad アドレスに MON を送信",
-    "recipientAddress": "送信先 Monad アドレス",
-    "amount": "数量 (MON)",
+    "title": "ETH を送信",
+    "description": "任意の Base アドレスに ETH を送信",
+    "recipientAddress": "送信先アドレス",
+    "amount": "数量 (ETH)",
     "cancel": "キャンセル",
     "sending": "送信中...",
-    "send": "MON を送信",
+    "send": "ETH を送信",
     "connectFirst": "先にウォレットを接続してください。",
     "fillAllFields": "すべての項目を入力してください",
     "walletNotAvailable": "ウォレットが利用できません。",
