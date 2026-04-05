@@ -120,8 +120,8 @@ export default memo(function ReferralsSection() {
     setTimeout(() => setHasCopiedLink(false), 2000);
   };
 
-  const truncateAddress = (addr: string) =>
-    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  const truncateAddress = (addr: string | undefined | null) =>
+    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : 'Unknown';
 
   // Not connected state
   if (!authenticated) {

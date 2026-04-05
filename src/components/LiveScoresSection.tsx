@@ -247,8 +247,8 @@ export default function LiveScoresSection() {
               </p>
             ) : (
               liveAndRecentMatches.map((match, index) => (
-                <motion.div 
-                  key={match.id} 
+                <motion.div
+                  key={match.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -257,7 +257,7 @@ export default function LiveScoresSection() {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">{match.game}</Badge>
-                      <Badge 
+                      <Badge
                         variant={match.status === 'live' ? 'default' : 'secondary'}
                         className={match.status === 'live' ? 'bg-red-500 animate-pulse' : ''}
                       >
@@ -277,11 +277,9 @@ export default function LiveScoresSection() {
                         <p className="text-2xl text-primary mt-1 font-bold">{match.team1Score}</p>
                       )}
                     </div>
-                    
                     <div className="text-center px-4">
                       <p className="text-xs text-muted-foreground font-semibold">VS</p>
                     </div>
-                    
                     <div className="text-center flex-1">
                       <p className="text-sm font-medium">{match.team2}</p>
                       {match.team2Score !== undefined && (
@@ -324,7 +322,7 @@ export default function LiveScoresSection() {
               </p>
             ) : (
               upcomingMatches.map((match, index) => (
-                <motion.div 
+                <motion.div
                   key={match.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -343,11 +341,9 @@ export default function LiveScoresSection() {
                     <div className="text-center flex-1">
                       <p className="text-sm">{match.team1}</p>
                     </div>
-                    
                     <div className="text-center px-4">
                       <p className="text-xs text-muted-foreground">VS</p>
                     </div>
-                    
                     <div className="text-center flex-1">
                       <p className="text-sm">{match.team2}</p>
                     </div>

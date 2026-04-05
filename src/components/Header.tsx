@@ -4,7 +4,8 @@ import { useIsMobile } from './ui/use-mobile';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Button } from './ui/button';
-import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check, Globe } from 'lucide-react';
+import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check, Globe, Users, ArrowLeftRight, Radio, Trophy, Package, Coins, Share2, LayoutDashboard } from 'lucide-react';
+import { motion } from 'motion/react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { QRCodeSVG } from 'qrcode.react';
 import { usePrivy, useWallets } from "@privy-io/react-auth";
@@ -26,7 +27,7 @@ interface HeaderProps {
 }
 
 // Tab IDs remain constant (used as internal state keys); display names come from i18n
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking', 'Referrals'] as const;
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking', 'Referrals', 'Dashboard'] as const;
 const navI18nKeys: Record<string, string> = {
   'Team': 'nav.team',
   'Transfers': 'nav.transfers',
@@ -35,6 +36,18 @@ const navI18nKeys: Record<string, string> = {
   'Pack Opening': 'nav.packOpening',
   'Staking': 'nav.staking',
   'Referrals': 'nav.referrals',
+  'Dashboard': 'nav.dashboard',
+};
+
+const navIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  'Team': Users,
+  'Transfers': ArrowLeftRight,
+  'Live Scores': Radio,
+  'Leaderboard': Trophy,
+  'Pack Opening': Package,
+  'Staking': Coins,
+  'Referrals': Share2,
+  'Dashboard': LayoutDashboard,
 };
 
 export default function Header({ activeTab, onTabChange }: HeaderProps) {
@@ -152,7 +165,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
 
   return (
     <header className="bg-background/95 backdrop-blur-md border-b border-border/50 sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Navigation */}
           <div className="flex items-center space-x-8">
@@ -183,22 +196,32 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
             {/* Navigation: hidden on mobile, visible on desktop */}
             {!isMobile && (
               <nav className="flex space-x-1">
-                {navItems.map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => onTabChange(item)}
-                    className={`px-4 py-2 rounded-lg transition-all duration-200 relative overflow-hidden ${
-                      activeTab === item
-                        ? 'text-primary bg-accent shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                    }`}
-                  >
-                    {activeTab === item && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-600/10 rounded-lg"></div>
-                    )}
-                    <span className="relative z-10">{t(navI18nKeys[item])}</span>
-                  </button>
-                ))}
+                {navItems.map((item) => {
+                  const Icon = navIcons[item];
+                  return (
+                    <button
+                      key={item}
+                      onClick={() => onTabChange(item)}
+                      className={`px-3 py-2 lg:px-4 xl:px-5 rounded-lg transition-all duration-200 relative overflow-hidden ${
+                        activeTab === item
+                          ? 'text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                      }`}
+                    >
+                      {activeTab === item && (
+                        <motion.div
+                          layoutId="activeNavTab"
+                          className="absolute inset-0 bg-accent shadow-sm rounded-lg"
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        />
+                      )}
+                      <span className="relative z-10 flex items-center gap-1.5">
+                        {Icon && <Icon className="w-4 h-4 hidden xl:block" />}
+                        {t(navI18nKeys[item])}
+                      </span>
+                    </button>
+                  );
+                })}
               </nav>
             )}
           </div>
@@ -356,7 +379,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
         </Drawer>
       ) : (
         <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
-          <DialogContent className="max-w-[300px] w-[90vw]">
+          <DialogContent className="max-w-sm w-[90vw]">
             <DialogHeader className="space-y-2">
               <DialogTitle>{t('send.title')}</DialogTitle>
               <DialogDescription>{t('send.description')}</DialogDescription>
@@ -423,7 +446,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
         </Drawer>
       ) : (
         <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
-          <DialogContent className="max-w-[300px] w-[90vw]">
+          <DialogContent className="max-w-sm w-[90vw]">
             <DialogHeader className="space-y-2">
               <DialogTitle>{t('deposit.title')}</DialogTitle>
               <DialogDescription>{t('deposit.description')}</DialogDescription>

@@ -6,7 +6,8 @@
     "leaderboard": "Leaderboard",
     "packOpening": "Pack Opening",
     "staking": "Staking",
-    "referrals": "Referrals"
+    "referrals": "Referrals",
+    "dashboard": "Dashboard"
   },
   "referrals": {
     "title": "Referral Program",

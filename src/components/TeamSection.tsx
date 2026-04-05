@@ -77,12 +77,14 @@ interface PrivyWallet extends SmartWallet {
   embeddedWallet: EmbeddedWallet;
 }
 
-export default function TeamSection({ 
-  preloadedPrices = {}, 
-  pricesLoading = false 
-}: { 
+export default function TeamSection({
+  preloadedPrices = {},
+  pricesLoading = false,
+  onAdvancedView,
+}: {
   preloadedPrices?: Record<number, string>;
   pricesLoading?: boolean;
+  onAdvancedView?: (player: any) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('squad');
@@ -658,7 +660,7 @@ export default function TeamSection({
                   }}
                   className="cursor-pointer group"
                 >
-                  <Card className={`relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 active:scale-[0.98] active:shadow-inner ${player.unclaimedBalance ? 'ring-2 ring-green-400/60' : ''}`}>
+                  <Card className={`relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl hover:ring-1 hover:ring-primary/10 transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 active:scale-[0.98] active:shadow-inner ${player.unclaimedBalance ? 'ring-2 ring-green-400/60' : ''}`}>
                     {/* Unclaimed banner */}
                     {player.unclaimedBalance && (
                       <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold text-center py-1 z-20">
@@ -774,6 +776,7 @@ export default function TeamSection({
                 }
               }}
               onPurchase={handlePurchase}
+              onAdvancedView={onAdvancedView}
             />
           )}
         </TabsContent>
@@ -817,7 +820,7 @@ export default function TeamSection({
                   onClick={() => handleDevelopmentPlayerClick(player)}
                   className="cursor-pointer group"
                 >
-                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 active:scale-[0.98] active:shadow-inner">
+                  <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl hover:ring-1 hover:ring-primary/10 transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 active:scale-[0.98] active:shadow-inner">
                     {/* Background gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300" />
                     
@@ -969,7 +972,7 @@ export default function TeamSection({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                     >
-                      <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40">
+                      <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl hover:ring-1 hover:ring-primary/10 transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40">
                         {/* Status indicator */}
                         <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
                           contractStatus === 'expiring' ? 'bg-red-500 animate-pulse' :

@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
 import { motion } from 'motion/react';
-import { Search, Filter, TrendingUp, TrendingDown, ShoppingCart, DollarSign, Users, Star } from 'lucide-react';
+import { Search, Filter, TrendingUp, TrendingDown, ShoppingCart, DollarSign, Users, Star, LayoutGrid, List } from 'lucide-react';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
+import { useIsMobile } from './ui/use-mobile';
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import fakeData from '../fakedata.json';
 import { usePrivy } from '@privy-io/react-auth';
@@ -47,13 +49,15 @@ interface Player {
   teamGridId?: string;
 }
 
-export default function TransfersSection() {
+export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: (player: any) => void } = {}) {
   const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('price');
   const { selectedGame } = useGameContext();
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
@@ -282,6 +286,24 @@ export default function TransfersSection() {
               <SelectItem value="rating">{t('transfers.rating')}</SelectItem>
             </SelectContent>
           </Select>
+          {!isMobile && (
+            <div className="flex rounded-lg border border-border/50 overflow-hidden">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-2 transition-colors ${viewMode === 'table' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
+                aria-label="Table view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -292,60 +314,126 @@ export default function TransfersSection() {
             <Users className="w-5 h-5 mr-2 text-blue-500" />
             Available Players ({filteredPlayers.length})
           </h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredPlayers.map((player, index) => (
-              <motion.div
-                key={player.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => handlePlayerClick(player)}
-                className="cursor-pointer group"
-              >
-                <Card className="p-4 border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/20 group-hover:scale-105">
-                  <div className="flex items-center space-x-3">
-                    <div className="relative">
-                      {/* Team logo background */}
-                      <div 
-                        className="absolute inset-0 rounded-xl opacity-50 z-0"
-                        style={{
-                          backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
-                          backgroundSize: 'contain',
-                          backgroundPosition: 'center',
-                          backgroundRepeat: 'no-repeat'
-                        }}
-                      />
-                      <ImageWithFallback
-                        src={player.image}
-                        alt={player.name}
-                        className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md opacity-85"
-                      />
-                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full z-20">
+          {(!isMobile && viewMode === 'table') ? (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Player</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Points</TableHead>
+                  <TableHead className="text-right">Rating</TableHead>
+                  <TableHead className="text-center">Trend</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPlayers.map((player, index) => (
+                  <motion.tr
+                    key={player.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    data-slot="table-row"
+                    onClick={() => handlePlayerClick(player)}
+                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <ImageWithFallback
+                            src={player.image}
+                            alt={player.name}
+                            className="w-10 h-10 rounded-lg object-contain"
+                          />
+                        </div>
+                        <div>
+                          <p className="font-medium">{player.name}</p>
+                          <p className="text-xs text-muted-foreground">{player.game}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">{player.position}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{player.points}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-600/10 text-xs font-medium">
                         {player.rating}
                       </div>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium">{player.name}</h4>
-                      <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
-                        <div className={`flex items-center space-x-1 text-xs ${
-                          player.trend === 'up' ? 'text-green-500' : 
-                          player.trend === 'down' ? 'text-red-500' : 
-                          'text-muted-foreground'
-                        }`}>
-                          {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : 
-                           player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> : 
-                           <span>→</span>}
-                          <span>{player.points} pts</span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className={`inline-flex items-center gap-1 text-xs ${
+                        player.trend === 'up' ? 'text-green-500' :
+                        player.trend === 'down' ? 'text-red-500' :
+                        'text-muted-foreground'
+                      }`}>
+                        {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> :
+                         player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> :
+                         <span>-</span>}
+                      </div>
+                    </TableCell>
+                  </motion.tr>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {filteredPlayers.map((player, index) => (
+                <motion.div
+                  key={player.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => handlePlayerClick(player)}
+                  className="cursor-pointer group"
+                >
+                  <Card className="p-4 border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/20 group-hover:scale-105">
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <div
+                          className="absolute inset-0 rounded-xl opacity-50 z-0"
+                          style={{
+                            backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        />
+                        <ImageWithFallback
+                          src={player.image}
+                          alt={player.name}
+                          className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md opacity-85"
+                        />
+                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full z-20">
+                          {player.rating}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium">{player.name}</h4>
+                        <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
+                          <div className={`flex items-center space-x-1 text-xs ${
+                            player.trend === 'up' ? 'text-green-500' :
+                            player.trend === 'down' ? 'text-red-500' :
+                            'text-muted-foreground'
+                          }`}>
+                            {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> :
+                             player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> :
+                             <span>→</span>}
+                            <span>{player.points} pts</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
   
@@ -358,6 +446,7 @@ export default function TransfersSection() {
             setSelectedPlayer(null);
           }}
           onPurchase={handlePurchase}
+          onAdvancedView={onAdvancedView}
         />
       )}
     </div>

@@ -19,36 +19,9 @@ import { usePublicClient } from '../hooks/usePublicClient';
 import { parseUnits, encodeFunctionData } from 'viem';
 import { CONTRACT_ADDRESSES, CONTRACTS, NETWORK_CONFIG, isContractDeployed as checkContractDeployed } from '../contracts';
 import { toast } from 'sonner';
+import { useRevenueHistory, useAnalyticsOverview } from '../hooks/useAnalytics';
 
 type TxState = 'idle' | 'approving' | 'staking' | 'unstaking' | 'claiming' | 'distributing' | 'success' | 'error';
-
-/** Deterministic seed from a date string — stable across renders */
-function seedFromDate(dateStr: string): number {
-  let hash = 0;
-  for (let i = 0; i < dateStr.length; i++) {
-    hash = (hash * 31 + dateStr.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-}
-
-/** Generate 14-day placeholder chart data — replace with real API/contract data after deployment */
-function generatePlaceholderRevenueData(): { date: string; usdc: number }[] {
-  const data: { date: string; usdc: number }[] = [];
-  const now = new Date();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const label = `${months[d.getMonth()]} ${d.getDate()}`;
-    const seed = seedFromDate(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
-    // Combine a growth trend with seeded noise for realistic variation
-    const trend = 10 + (13 - i) * 2.5; // gradual uptrend from ~10 to ~42
-    const noise = ((seed % 1000) / 1000) * 20 - 10; // ±10 range
-    const usdc = parseFloat(Math.max(1, trend + noise).toFixed(2));
-    data.push({ date: label, usdc });
-  }
-  return data;
-}
 
 export default function StakingSection() {
   const { t } = useTranslation();
@@ -71,8 +44,18 @@ export default function StakingSection() {
 
   const isContractDeployed = checkContractDeployed('ESPStaking');
 
-  // Placeholder chart data (deterministic, stable across renders)
-  const revenueData = useMemo(() => generatePlaceholderRevenueData(), []);
+  // Real revenue data from backend
+  const { data: revenueTimeline, totalDistributed, loading: revenueLoading } = useRevenueHistory('daily', 30);
+  const { data: analytics } = useAnalyticsOverview();
+
+  // Format revenue timeline for chart
+  const revenueData = useMemo(() => {
+    if (revenueTimeline.length === 0) return [];
+    return revenueTimeline.map((snap: any) => ({
+      date: new Date(snap.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      usdc: snap.totalFees,
+    }));
+  }, [revenueTimeline]);
 
   // Input validation
   const stakeError = useMemo(() => {
@@ -335,7 +318,7 @@ export default function StakingSection() {
                     disabled={isTxPending}
                     min="0"
                     step="any"
-                    className={stakeError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    className={`lg:h-12 lg:text-base ${stakeError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                   />
                   <div className="flex gap-1.5 mt-2">
                     {[25, 50, 75, 100].map(pct => (
@@ -343,7 +326,7 @@ export default function StakingSection() {
                         key={pct}
                         variant="outline"
                         size="sm"
-                        className="flex-1 text-xs h-7"
+                        className="flex-1 text-xs h-7 lg:h-9 lg:text-sm"
                         onClick={() => {
                           const balance = staking.userEspBalance;
                           if (balance <= BigInt(0)) return;
@@ -392,7 +375,7 @@ export default function StakingSection() {
                     disabled={isTxPending}
                     min="0"
                     step="any"
-                    className={unstakeError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    className={`lg:h-12 lg:text-base ${unstakeError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                   />
                   <div className="flex gap-1.5 mt-2">
                     {[25, 50, 75, 100].map(pct => (
@@ -400,7 +383,7 @@ export default function StakingSection() {
                         key={pct}
                         variant="outline"
                         size="sm"
-                        className="flex-1 text-xs h-7"
+                        className="flex-1 text-xs h-7 lg:h-9 lg:text-sm"
                         onClick={() => {
                           const staked = staking.userStakedAmount;
                           if (staked <= BigInt(0)) return;
@@ -466,9 +449,24 @@ export default function StakingSection() {
 
               {/* Daily Revenue Chart — visible on both tabs */}
               <div className="pt-4">
-                <p className="text-xs text-muted-foreground mb-2">{t('staking.dailyRevenue')}</p>
-                <ResponsiveContainer width="100%" height="95%">
-                  <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground">{t('staking.dailyRevenue')}</p>
+                  {analytics?.revenue?.allTime != null && (
+                    <span className="text-xs text-primary font-medium">
+                      Total: ${analytics.revenue.allTime.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                <div className="h-48 lg:h-64 xl:h-72">
+                {revenueLoading ? (
+                  <Skeleton className="w-full h-full rounded-lg" />
+                ) : revenueData.length === 0 ? (
+                  <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                    No revenue data available yet
+                  </div>
+                ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
@@ -512,6 +510,8 @@ export default function StakingSection() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                )}
+                </div>
               </div>
             </Tabs>
           )}
@@ -520,7 +520,7 @@ export default function StakingSection() {
         {/* ── Right Column: Info Cards ─────────────────────────── */}
         <div className="space-y-6">
           {/* Protocol Stats */}
-          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10">
+          <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10">
             <h3 className="mb-4 flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-purple-500" />
               Protocol Stats
@@ -600,7 +600,7 @@ export default function StakingSection() {
           </Card>
 
           {/* Your Position */}
-          <Card className="p-6 border-0 shadow-lg">
+          <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <h3 className="mb-4 flex items-center">
               <Wallet className="w-5 h-5 mr-2 text-blue-500" />
               Your Position
@@ -665,7 +665,7 @@ export default function StakingSection() {
           </Card>
 
           {/* How It Works */}
-          <Card className="p-6 border-0 shadow-lg">
+          <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <h3 className="mb-4 flex items-center">
               <Info className="w-5 h-5 mr-2 text-muted-foreground" />
               How It Works

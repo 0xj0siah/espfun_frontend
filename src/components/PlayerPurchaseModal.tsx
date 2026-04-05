@@ -6,8 +6,9 @@ import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Star, TrendingUp, TrendingDown, Zap, Shield, Target, Users, Trophy, Info, AlertCircle, ArrowUpDown, CheckCircle, XCircle, Clock, X, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 import { Input } from './ui/input';
+import { Slider } from './ui/slider';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -66,13 +67,16 @@ interface PlayerPurchaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPurchase?: (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => Promise<void>;
+  onAdvancedView?: (player: Player) => void;
+  /** 'modal' = normal dialog/drawer, 'panel' = inline panel (no wrapper, auto-shows form) */
+  renderMode?: 'modal' | 'panel';
 }
 
-export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchase }: PlayerPurchaseModalProps) {
+export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchase, onAdvancedView, renderMode = 'modal' }: PlayerPurchaseModalProps) {
   const isMobile = useIsMobile();
   const [showStats, setShowStats] = useState(false);
   const [showMatches, setShowMatches] = useState(false);
-  const [showBuySellMenu, setShowBuySellMenu] = useState(false);
+  const [showBuySellMenu, setShowBuySellMenu] = useState(renderMode === 'panel');
   const [usdcAmount, setUsdcAmount] = useState('');
   const [action, setAction] = useState<'buy' | 'sell'>('buy');
   const [slippage, setSlippage] = useState(0.5); // default 0.5%
@@ -1055,7 +1059,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       setUsdcAmount('');
       setAction('buy');
       setSlippage(0.5);
-      setShowBuySellMenu(false);
+      setShowBuySellMenu(renderMode === 'panel');
       setShowStats(false);
       setShowMatches(false);
       updateAlertState('idle');
@@ -1714,12 +1718,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   const renderTradingForm = () => (
     showBuySellMenu && !isClosingRef.current ? (
-      <Card className={`bg-card/50 backdrop-blur-sm border-accent/20 ${isMobile ? 'mb-3' : 'w-full max-w-md mx-auto'}`}>
+      <Card className={`bg-card/50 backdrop-blur-sm border-accent/20 ${renderMode === 'panel' ? 'w-full' : isMobile ? 'mb-3' : 'w-full max-w-md mx-auto'}`}>
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 30 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="p-4 md:p-6 space-y-4 md:space-y-6"
         >
           {/* Transaction Type Toggle */}
@@ -1939,47 +1943,57 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               </div>
 
               {/* Slippage */}
-              <div className="flex justify-between text-xs md:text-sm">
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">Slippage</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Maximum price movement you're willing to accept</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs md:text-sm">
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Slippage</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Maximum price movement you're willing to accept</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={slippage}
+                      onChange={e => {
+                        const v = Number(e.target.value);
+                        if (v >= 0 && v <= 50) setSlippage(v);
+                      }}
+                      className="w-16 h-7 text-xs text-right px-2"
+                      min="0.1"
+                      max="50"
+                      step="0.1"
+                    />
+                    <span className="text-xs md:text-sm font-medium">%</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 md:gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSlippage(0.5)}
-                    className={`px-3 py-1.5 md:py-1 h-auto min-h-[36px] text-xs ${slippage === 0.5 ? 'bg-accent' : ''}`}
-                  >
-                    0.5%
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSlippage(1)}
-                    className={`px-3 py-1.5 md:py-1 h-auto min-h-[36px] text-xs ${slippage === 1 ? 'bg-accent' : ''}`}
-                  >
-                    1%
-                  </Button>
-                  <Input
-                    type="number"
-                    value={slippage}
-                    onChange={e => setSlippage(Number(e.target.value))}
-                    className="w-14 md:w-16 h-9 md:h-8 text-xs md:text-sm"
-                    min="0.1"
-                    max="50"
-                    step="0.1"
-                  />
-                  <span className="text-xs md:text-sm">%</span>
+                <Slider
+                  value={[Math.min(slippage, 50)]}
+                  onValueChange={([v]) => setSlippage(v)}
+                  min={0.1}
+                  max={50}
+                  step={0.1}
+                  className="w-full [&_[data-slot=slider-track]]:h-2"
+                />
+                <div className="flex items-center gap-1.5">
+                  {[0.5, 1, 2].map((val) => (
+                    <Button
+                      key={val}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSlippage(val)}
+                      className={`px-2.5 py-1 h-auto min-h-[28px] text-xs rounded-full ${slippage === val ? 'bg-accent font-medium' : ''}`}
+                    >
+                      {val}%
+                    </Button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -2284,9 +2298,25 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   </div>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={handleCloseModal} className="h-8 w-8 p-0 rounded-full">
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {onAdvancedView && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => {
+                      handleCloseModal();
+                      onAdvancedView(player);
+                    }}
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    Chart
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleCloseModal} className="h-8 w-8 p-0 rounded-full">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">Current Price</p>
@@ -2443,11 +2473,22 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     );
   }
 
+  // ─── PANEL LAYOUT (inline, no dialog wrapper) ──────────────────────
+  if (renderMode === 'panel') {
+    return (
+      <div className="w-full space-y-4">
+        {renderAuthStatus()}
+        {renderBondingCurveBanner()}
+        {renderTradingForm()}
+      </div>
+    );
+  }
+
   // ─── DESKTOP LAYOUT ───────────────────────────────────────────────
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="max-w-4xl border-0 shadow-2xl !animate-none origin-center"
+        className="max-w-4xl xl:max-w-5xl border-0 shadow-2xl !animate-none origin-center"
         hideCloseButton
         style={{
           opacity: isModalContentVisible ? 1 : 0,
@@ -2455,7 +2496,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
-        <div className="relative">
+        <div className="relative overflow-hidden">
           {/* Close button */}
           <Button
             variant="ghost"
@@ -2468,7 +2509,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           </Button>
 
           {/* Modal Content */}
-          <div className="h-[600px] overflow-hidden">
+          <div className="max-h-[calc(100vh-8rem)] overflow-y-auto">
         
           <DialogHeader className="space-y-4">
             <div className="flex items-start justify-between">
@@ -2487,7 +2528,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   <ImageWithFallback
                     src={player.image}
                     alt={player.name}
-                    className="relative z-10 w-20 h-20 rounded-xl object-contain shadow-lg opacity-85"
+                    className="relative z-10 w-20 h-20 xl:w-24 xl:h-24 rounded-xl object-contain shadow-lg opacity-85"
                   />
                   <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)} flex items-center justify-center text-white text-sm font-bold z-20`}>
                     {player.rating}
@@ -2519,6 +2560,20 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   </div>
                 </div>
               </div>
+              {onAdvancedView && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 shrink-0"
+                  onClick={() => {
+                    onClose();
+                    onAdvancedView(player);
+                  }}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Chart
+                </Button>
+              )}
             </div>
           </DialogHeader>
 
@@ -2531,7 +2586,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           <Card className="p-6 bg-gradient-to-r from-accent/30 to-accent/10 border-0">
             <div className="text-center">
               <h3 className="text-lg font-medium mb-2">Purchase Price</h3>
-              <p className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent mb-4">
+              <p className="text-3xl xl:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent mb-4">
                 {formatPriceDisplay(currentPrice)} USDC
               </p>
             </div>
@@ -2544,7 +2599,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
           {/* Stats and Additional Info (only show when not in buy/sell menu) */}
           {!showBuySellMenu && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 xl:gap-6">
               <Card className="p-4 border-0 shadow-lg">
                 <h3 className="mb-3 flex items-center text-sm">
                   <Trophy className="w-4 h-4 mr-2 text-yellow-500" />

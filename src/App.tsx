@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import Header from './components/Header';
 import { useIsMobile } from './components/ui/use-mobile';
@@ -19,15 +19,19 @@ const LeaderboardSection = lazy(() => import('./components/LeaderboardSection'))
 const PackOpeningSection = lazy(() => import('./components/pack-opening/PackOpeningSection'));
 const StakingSection = lazy(() => import('./components/StakingSection'));
 const ReferralsSection = lazy(() => import('./components/ReferralsSection'));
+const DashboardSection = lazy(() => import('./components/DashboardSection'));
+const AdvancedTradeView = lazy(() => import('./components/AdvancedTradeView'));
 
 // Import icons
 import { Github } from 'lucide-react';
 import { Toaster } from 'sonner';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('Team');
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
+  const [advancedViewPlayer, setAdvancedViewPlayer] = useState<any>(null);
   const isMobile = useIsMobile();
 
   // Authentication hook for JWT token validation
@@ -99,9 +103,9 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'Team':
-        return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
+        return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} onAdvancedView={setAdvancedViewPlayer} />;
       case 'Transfers':
-        return <TransfersSection />;
+        return <TransfersSection onAdvancedView={setAdvancedViewPlayer} />;
       case 'Live Scores':
         return <LiveScoresSection />;
       case 'Leaderboard':
@@ -112,6 +116,8 @@ export default function App() {
         return <StakingSection />;
       case 'Referrals':
         return <ReferralsSection />;
+      case 'Dashboard':
+        return <DashboardSection preloadedPrices={preloadedPrices} activePlayerIds={activePlayerIds} pricesLoading={pricesLoading} />;
       default:
         return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
     }
@@ -122,20 +128,39 @@ export default function App() {
       <AuthProvider>
         <GameProvider>
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-accent/20">
-          <Header activeTab={activeTab} onTabChange={setActiveTab} />
+          <Header activeTab={activeTab} onTabChange={(tab) => { setAdvancedViewPlayer(null); setActiveTab(tab); }} />
 
-        <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 ${isMobile ? 'pt-4 pb-4' : 'py-8'} isolate`}>
+        <main className={`flex-1 max-w-[1440px] 2xl:max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-12 ${isMobile ? 'pt-4 pb-4' : 'py-8 lg:py-10'} isolate`}>
           <ErrorBoundary>
-            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
-              {renderContent()}
-            </Suspense>
+            {advancedViewPlayer ? (
+              <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
+                <AdvancedTradeView
+                  player={advancedViewPlayer}
+                  onBack={() => setAdvancedViewPlayer(null)}
+                />
+              </Suspense>
+            ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
+                  {renderContent()}
+                </Suspense>
+              </motion.div>
+            </AnimatePresence>
+            )}
           </ErrorBoundary>
         </main>
 
         {/* Footer with Social Links (hidden on mobile) */}
         {!isMobile && (
           <footer className="border-t border-border/50 bg-background/95 backdrop-blur-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
               <div className="flex flex-col items-center justify-center space-y-3">
                 <div className="flex items-center space-x-6">
                   <a

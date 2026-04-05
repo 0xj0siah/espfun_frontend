@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Users, ArrowLeftRight, Radio, Trophy, Package, Coins, Share2, Github } from 'lucide-react';
+import { Users, ArrowLeftRight, Radio, Trophy, Package, Coins, Share2, Github, LayoutDashboard } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from './ui/sheet';
 
 interface MobileSidebarProps {
@@ -17,6 +17,7 @@ const tabs = [
   { id: 'Pack Opening', icon: Package, i18nKey: 'nav.packOpening' },
   { id: 'Staking', icon: Coins, i18nKey: 'nav.staking' },
   { id: 'Referrals', icon: Share2, i18nKey: 'nav.referrals' },
+  { id: 'Dashboard', icon: LayoutDashboard, i18nKey: 'nav.dashboard' },
 ] as const;
 
 export function MobileSidebar({ open, onOpenChange, activeTab, onTabChange }: MobileSidebarProps) {

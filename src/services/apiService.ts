@@ -896,6 +896,221 @@ class ApiService {
       throw new Error('Failed to apply referral code');
     }
   }
+
+  // ── Analytics & Dashboard ──
+
+  async getAnalyticsOverview(): Promise<any> {
+    const cacheKey = 'analytics-overview';
+    const endpoint = 'analytics/overview';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/analytics/overview`);
+          });
+          return response.data;
+        },
+        { ttl: 60000 } // Cache for 1 minute
+      );
+    } catch (error) {
+      console.error('Failed to get analytics overview:', error);
+      throw new Error('Failed to get analytics overview');
+    }
+  }
+
+  async getPlayerPriceHistory(playerTokenId: string, days: number = 30): Promise<any> {
+    const cacheKey = `player-price-history:${playerTokenId}:${days}`;
+    const endpoint = `market-cap/players/${playerTokenId}/history`;
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/market-cap/players/${playerTokenId}/history?days=${days}`);
+          });
+          return response.data;
+        },
+        { ttl: 60000 }
+      );
+    } catch (error) {
+      console.error('Failed to get player price history:', error);
+      throw new Error('Failed to get player price history');
+    }
+  }
+
+  async getPlayerOHLC(
+    playerTokenId: string,
+    interval: '5m' | '15m' | '1h' | '4h' | '1d' = '1h',
+    days: number = 7
+  ): Promise<any> {
+    const cacheKey = `player-ohlc:${playerTokenId}:${interval}:${days}`;
+    const endpoint = `market-cap/players/${playerTokenId}/ohlc`;
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(
+              `${API_BASE_URL}/api/market-cap/players/${playerTokenId}/ohlc?interval=${interval}&days=${days}`
+            );
+          });
+          return response.data;
+        },
+        { ttl: 30000 } // 30s cache for live chart data
+      );
+    } catch (error) {
+      console.error('Failed to get player OHLC data:', error);
+      throw new Error('Failed to get player OHLC data');
+    }
+  }
+
+  async getTVLHistory(days: number = 30): Promise<any> {
+    const cacheKey = `tvl-history:${days}`;
+    const endpoint = 'tvl/history';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/tvl/history?days=${days}`);
+          });
+          return response.data;
+        },
+        { ttl: 120000 } // 2 min cache
+      );
+    } catch (error) {
+      console.error('Failed to get TVL history:', error);
+      throw new Error('Failed to get TVL history');
+    }
+  }
+
+  async getTVLLatest(): Promise<any> {
+    const cacheKey = 'tvl-latest';
+    const endpoint = 'tvl/latest';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/tvl/latest`);
+          });
+          return response.data;
+        },
+        { ttl: 60000 }
+      );
+    } catch (error) {
+      console.error('Failed to get latest TVL:', error);
+      throw new Error('Failed to get latest TVL');
+    }
+  }
+
+  async getRevenueHistory(period: 'hourly' | 'daily' = 'daily', days: number = 30): Promise<any> {
+    const cacheKey = `revenue-history:${period}:${days}`;
+    const endpoint = 'analytics/fees/distributed';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/analytics/fees/distributed?period=${period}&days=${days}`);
+          });
+          return response.data;
+        },
+        { ttl: 120000 }
+      );
+    } catch (error) {
+      console.error('Failed to get revenue history:', error);
+      throw new Error('Failed to get revenue history');
+    }
+  }
+
+  async getPortfolio(): Promise<{ totalValue: number; holdings: any[] }> {
+    const cacheKey = `portfolio:${this.token?.substring(0, 10) || 'anonymous'}`;
+    const endpoint = 'portfolio';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/portfolio`, {
+              headers: this.getHeaders(),
+            });
+          });
+          return response.data;
+        },
+        { ttl: 30000 } // 30s cache
+      );
+    } catch (error) {
+      console.error('Failed to get portfolio:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('Authentication required');
+      }
+      throw new Error('Failed to get portfolio');
+    }
+  }
+
+  async getPlayerPriceChanges(): Promise<any> {
+    const cacheKey = 'player-price-changes';
+    const endpoint = 'market-cap/players/changes';
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/market-cap/players/changes`);
+          });
+          return response.data;
+        },
+        { ttl: 60000 }
+      );
+    } catch (error) {
+      console.error('Failed to get player price changes:', error);
+      throw new Error('Failed to get player price changes');
+    }
+  }
+
+  async getRecentTrades(playerTokenId?: string, limit: number = 20): Promise<any> {
+    const params = new URLSearchParams();
+    if (playerTokenId) params.set('playerTokenId', playerTokenId);
+    params.set('limit', String(limit));
+    const qs = params.toString();
+    const cacheKey = `recent-trades:${qs}`;
+    const endpoint = `analytics/trades/recent?${qs}`;
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/analytics/trades/recent?${qs}`);
+          });
+          return response.data;
+        },
+        { ttl: 15000 }
+      );
+    } catch (error) {
+      console.error('Failed to get recent trades:', error);
+      throw new Error('Failed to get recent trades');
+    }
+  }
 }
 
 export const apiService = new ApiService();

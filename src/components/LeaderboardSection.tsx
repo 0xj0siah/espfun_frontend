@@ -2,12 +2,15 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
 import { Trophy, Crown, TrendingUp, DollarSign, Star } from 'lucide-react';
+import { useIsMobile } from './ui/use-mobile';
 
 export default memo(function LeaderboardSection() {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const leaderboard = [
     { rank: 1, address: '0x1a2B...3c4D', points: 2847, teamValue: '1,240 USDC', reward: '5,000 pts' },
     { rank: 2, address: '0x5e6F...7a8B', points: 2698, teamValue: '1,180 USDC', reward: '3,000 pts' },
@@ -29,7 +32,7 @@ export default memo(function LeaderboardSection() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-hidden">
       <div className="flex items-center justify-between">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -53,56 +56,121 @@ export default memo(function LeaderboardSection() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Leaderboard */}
-        <Card className="p-6 lg:col-span-2 border-0 shadow-lg">
+        <Card className="p-6 lg:col-span-2 border-0 shadow-lg overflow-hidden">
           <h3 className="mb-6 flex items-center">
             <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
             {t('leaderboard.globalRankings')}
           </h3>
-          <div className="space-y-3">
-            {leaderboard.map((player, index) => (
-              <motion.div 
-                key={player.rank}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className={`flex items-center justify-between p-4 rounded-xl shadow-sm transition-all duration-300 hover:shadow-md ${
-                  player.isCurrentUser ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-primary/30' : 'bg-accent/30'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                    player.rank <= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                  }`}>
-                    <span className="text-sm">
-                      {player.rank <= 3 ? (
-                        player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'
-                      ) : (
-                        player.rank
-                      )}
-                    </span>
-                  </div>
-                  
-                  <ImageWithFallback
-                    src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.rank}`}
-                    alt={`Player rank ${player.rank}`}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                  
-                  <div>
-                    <h4 className={`text-sm ${player.isCurrentUser ? 'text-primary' : ''}`}>
-                      {player.address}
-                    </h4>
-                    <p className="text-xs text-muted-foreground">{t('leaderboard.teamValue')}: {player.teamValue}</p>
-                  </div>
-                </div>
+          {isMobile ? (
+            <div className="space-y-3">
+              {leaderboard.map((player, index) => (
+                <motion.div
+                  key={player.rank}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`flex items-center justify-between p-4 rounded-xl shadow-sm transition-all duration-300 hover:shadow-md ${
+                    player.isCurrentUser ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-primary/30' : 'bg-accent/30'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                      player.rank <= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    }`}>
+                      <span className="text-sm">
+                        {player.rank <= 3 ? (
+                          player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'
+                        ) : (
+                          player.rank
+                        )}
+                      </span>
+                    </div>
 
-                <div className="text-right">
-                  <p className="text-sm text-primary">{player.points.toLocaleString()} pts</p>
-                  <p className="text-xs text-muted-foreground">{t('leaderboard.reward')}: {player.reward}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                    <ImageWithFallback
+                      src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.rank}`}
+                      alt={`Player rank ${player.rank}`}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+
+                    <div>
+                      <h4 className={`text-sm ${player.isCurrentUser ? 'text-primary' : ''}`}>
+                        {player.address}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">{t('leaderboard.teamValue')}: {player.teamValue}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-sm text-primary">{player.points.toLocaleString()} pts</p>
+                    <p className="text-xs text-muted-foreground">{t('leaderboard.reward')}: {player.reward}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-16">{t('leaderboard.rank', 'Rank')}</TableHead>
+                  <TableHead>{t('leaderboard.player', 'Player')}</TableHead>
+                  <TableHead className="text-right">{t('leaderboard.points', 'Points')}</TableHead>
+                  <TableHead className="text-right">{t('leaderboard.teamValue')}</TableHead>
+                  <TableHead className="text-right">{t('leaderboard.reward')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboard.map((player, index) => (
+                  <motion.tr
+                    key={player.rank}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    data-slot="table-row"
+                    className={`border-b transition-colors ${
+                      player.isCurrentUser
+                        ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30'
+                        : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <TableCell>
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                        player.rank <= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                      }`}>
+                        <span className="text-sm">
+                          {player.rank <= 3 ? (
+                            player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'
+                          ) : (
+                            player.rank
+                          )}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <ImageWithFallback
+                          src={`https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop&crop=face&random=${player.rank}`}
+                          alt={`Player rank ${player.rank}`}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                        <span className={`font-medium ${player.isCurrentUser ? 'text-primary' : ''}`}>
+                          {player.address}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-primary">
+                      {player.points.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {player.teamValue}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {player.reward}
+                    </TableCell>
+                  </motion.tr>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </Card>
 
         {/* Side Panel */}
