@@ -203,6 +203,11 @@ export default memo(function CandlestickChart({
   const [showPivots, setShowPivots] = useState(false);
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
 
+  // Close indicator menu on unmount so the fixed inset-0 overlay doesn't linger
+  useEffect(() => {
+    return () => setShowIndicatorMenu(false);
+  }, []);
+
   const isDark =
     typeof document !== 'undefined' &&
     document.documentElement.classList.contains('dark');

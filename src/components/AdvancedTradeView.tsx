@@ -1,4 +1,4 @@
-import { useState, useCallback, lazy, Suspense, useMemo } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
@@ -57,7 +57,24 @@ function formatUSDC(value: number): string {
 export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = useState('7d');
-  const [mobileTab, setMobileTab] = useState<'trade' | 'history'>('trade');
+
+  // Clean up stale Vaul Drawer body styles (position:fixed, overflow:hidden).
+  // When navigating here from a mobile Drawer, the Drawer may unmount before
+  // Vaul restores body styles. This safety net ensures the page is interactive.
+  useEffect(() => {
+    const body = document.body;
+    if (body.style.position === 'fixed') {
+      const scrollY = -parseInt(body.style.top || '0', 10);
+      const scrollX = -parseInt(body.style.left || '0', 10);
+      body.style.removeProperty('position');
+      body.style.removeProperty('top');
+      body.style.removeProperty('left');
+      body.style.removeProperty('height');
+      body.style.removeProperty('overflow');
+      window.scrollTo(scrollX, scrollY);
+    }
+    body.style.pointerEvents = '';
+  }, []);
   const rangeConfig = TIME_RANGES.find((r) => r.value === timeRange) || TIME_RANGES[2];
 
   // Dynamic chart height — 45vh on mobile, fixed 420px on desktop
@@ -177,51 +194,25 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
 
       {/* Main content */}
       {isMobile ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {/* Chart — hero element, viewport-height based */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
             {renderChart(chartHeight)}
           </motion.div>
 
-          {/* Tab switcher */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="flex gap-1 bg-accent/30 rounded-lg p-1"
-          >
-            {(['trade', 'history'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setMobileTab(tab)}
-                className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
-                  mobileTab === tab
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {tab === 'trade' ? 'Trade' : 'Recent Trades'}
-              </button>
-            ))}
+          {/* Compact purchase panel — always visible */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <PlayerPurchaseModal
+              player={player}
+              isOpen={true}
+              onClose={() => {}}
+              renderMode="panel"
+            />
           </motion.div>
 
-          {/* Tab content */}
-          <motion.div
-            key={mobileTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            {mobileTab === 'trade' ? (
-              <PlayerPurchaseModal
-                player={player}
-                isOpen={true}
-                onClose={() => {}}
-                renderMode="panel"
-              />
-            ) : (
-              <RecentTradesCard trades={trades} loading={tradesLoading} explorerBase={explorerBase} />
-            )}
+          {/* Recent trades */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <RecentTradesCard trades={trades} loading={tradesLoading} explorerBase={explorerBase} />
           </motion.div>
         </div>
       ) : (

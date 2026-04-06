@@ -72,6 +72,25 @@ interface PlayerPurchaseModalProps {
   renderMode?: 'modal' | 'panel';
 }
 
+/** Manually restore body styles that Vaul sets when a Drawer is open.
+ *  Vaul sets position:fixed + overflow:hidden on document.body. If the Drawer
+ *  unmounts before closing (e.g. navigating away), these styles persist and
+ *  block all page interaction. Call this before unmounting. */
+function restoreVaulBodyStyles() {
+  const body = document.body;
+  if (body.style.position === 'fixed') {
+    const scrollY = -parseInt(body.style.top || '0', 10);
+    const scrollX = -parseInt(body.style.left || '0', 10);
+    body.style.removeProperty('position');
+    body.style.removeProperty('top');
+    body.style.removeProperty('left');
+    body.style.removeProperty('height');
+    body.style.removeProperty('overflow');
+    window.scrollTo(scrollX, scrollY);
+  }
+  body.style.pointerEvents = '';
+}
+
 export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchase, onAdvancedView, renderMode = 'modal' }: PlayerPurchaseModalProps) {
   const isMobile = useIsMobile();
   const [showStats, setShowStats] = useState(false);
@@ -2253,6 +2272,18 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     </>
   );
 
+  // ─── PANEL LAYOUT (inline, no dialog wrapper) ──────────────────────
+  // Must come before the mobile check so renderMode="panel" works on all devices.
+  if (renderMode === 'panel') {
+    return (
+      <div className="w-full space-y-4">
+        {renderAuthStatus()}
+        {renderBondingCurveBanner()}
+        {renderTradingForm()}
+      </div>
+    );
+  }
+
   // ─── MOBILE LAYOUT ────────────────────────────────────────────────
   if (isMobile) {
     return (
@@ -2305,7 +2336,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                     size="sm"
                     className="h-8 gap-1 text-xs"
                     onClick={() => {
-                      handleCloseModal();
+                      restoreVaulBodyStyles();
+                      onClose();
                       onAdvancedView(player);
                     }}
                   >
@@ -2470,17 +2502,6 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           </div>
         </DrawerContent>
       </Drawer>
-    );
-  }
-
-  // ─── PANEL LAYOUT (inline, no dialog wrapper) ──────────────────────
-  if (renderMode === 'panel') {
-    return (
-      <div className="w-full space-y-4">
-        {renderAuthStatus()}
-        {renderBondingCurveBanner()}
-        {renderTradingForm()}
-      </div>
     );
   }
 

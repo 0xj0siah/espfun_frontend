@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useIsMobile } from './ui/use-mobile';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Button } from './ui/button';
-import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check, Globe, Users, ArrowLeftRight, Radio, Trophy, Package, Coins, Share2, LayoutDashboard } from 'lucide-react';
+import { Wallet, User, Moon, Sun, Send, ArrowDownToLine, Copy, ArrowRight, Check, Globe, Users, ArrowLeftRight, Radio, Trophy, Package, Coins, Share2, LayoutDashboard, TrendingUp, Gift, Link } from 'lucide-react';
 import { motion } from 'motion/react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { QRCodeSVG } from 'qrcode.react';
@@ -20,6 +20,8 @@ import { useAuthContext } from '../context/AuthContext';
 import { useGameContext } from '../context/GameContext';
 import { LanguageSelector } from './LanguageSelector';
 import { MobileSidebar } from './MobileSidebar';
+import { apiService } from '../services/apiService';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   activeTab: string;
@@ -27,7 +29,7 @@ interface HeaderProps {
 }
 
 // Tab IDs remain constant (used as internal state keys); display names come from i18n
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking', 'Referrals', 'Dashboard'] as const;
+const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking', 'Dashboard'] as const;
 const navI18nKeys: Record<string, string> = {
   'Team': 'nav.team',
   'Transfers': 'nav.transfers',
@@ -35,7 +37,6 @@ const navI18nKeys: Record<string, string> = {
   'Leaderboard': 'nav.leaderboard',
   'Pack Opening': 'nav.packOpening',
   'Staking': 'nav.staking',
-  'Referrals': 'nav.referrals',
   'Dashboard': 'nav.dashboard',
 };
 
@@ -46,7 +47,6 @@ const navIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   'Leaderboard': Trophy,
   'Pack Opening': Package,
   'Staking': Coins,
-  'Referrals': Share2,
   'Dashboard': LayoutDashboard,
 };
 
@@ -63,6 +63,14 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const [error, setError] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [customCode, setCustomCode] = useState('');
+  const [referralStats, setReferralStats] = useState<{ totalReferred: number; totalPointsEarned: number }>({ totalReferred: 0, totalPointsEarned: 0 });
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [referralSaving, setReferralSaving] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const isMobile = useIsMobile();
 
   const { login, logout, ready, authenticated, user } = usePrivy();
@@ -162,6 +170,76 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
     }
   };
 
+  // Referral modal logic
+  const loadReferralData = useCallback(async () => {
+    setReferralLoading(true);
+    try {
+      const [codeRes, statsRes] = await Promise.all([
+        apiService.generateReferralCode().catch(() => null),
+        apiService.getReferralStats().catch(() => null),
+      ]);
+      if (codeRes?.code) setReferralCode(codeRes.code);
+      if (statsRes) {
+        setReferralStats({
+          totalReferred: statsRes.totalReferred ?? 0,
+          totalPointsEarned: statsRes.totalPointsEarned ?? 0,
+        });
+      }
+    } catch {
+      // silently fail — modal will show setup state
+    } finally {
+      setReferralLoading(false);
+    }
+  }, []);
+
+  const handleOpenReferralModal = useCallback(() => {
+    setIsReferralModalOpen(true);
+    loadReferralData();
+  }, [loadReferralData]);
+
+  const handleSaveReferralCode = useCallback(async () => {
+    const code = customCode.trim().toUpperCase();
+    if (code.length < 3 || code.length > 16) {
+      toast.error('Code must be 3-16 characters');
+      return;
+    }
+    if (!/^[A-Z0-9_-]+$/.test(code)) {
+      toast.error('Only letters, numbers, hyphens and underscores');
+      return;
+    }
+    setReferralSaving(true);
+    try {
+      const res = await apiService.generateReferralCode(code);
+      if (res?.code) {
+        setReferralCode(res.code);
+        setCustomCode('');
+        toast.success('Referral code saved!');
+      }
+    } catch {
+      toast.error('Failed to save code. It may already be taken.');
+    } finally {
+      setReferralSaving(false);
+    }
+  }, [customCode]);
+
+  const handleCopyReferralCode = useCallback(() => {
+    if (referralCode) {
+      navigator.clipboard.writeText(referralCode);
+      setCodeCopied(true);
+      toast.success('Code copied!');
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  }, [referralCode]);
+
+  const referralLink = referralCode ? `https://esp.fun?ref=${referralCode}` : '';
+  const handleCopyReferralLink = useCallback(() => {
+    if (referralLink) {
+      navigator.clipboard.writeText(referralLink);
+      setLinkCopied(true);
+      toast.success('Link copied!');
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  }, [referralLink]);
 
   return (
     <header className="bg-background/95 backdrop-blur-md border-b border-border/50 sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
@@ -325,6 +403,11 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                       <DropdownMenuSeparator />
                     </>
                   )}
+                  <DropdownMenuItem onClick={handleOpenReferralModal}>
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Referrals
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   {/* Dark mode & language on mobile (hidden from header bar) */}
                   {isMobile && (
                     <>
@@ -479,6 +562,65 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
         </Dialog>
       )}
 
+      {/* Referral Modal */}
+      {isMobile ? (
+        <Drawer open={isReferralModalOpen} onOpenChange={setIsReferralModalOpen}>
+          <DrawerContent style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <DrawerHeader>
+              <DrawerTitle>Referrals</DrawerTitle>
+              <DrawerDescription>Invite friends and earn rewards</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-2">
+              <ReferralModalContent
+                referralCode={referralCode}
+                customCode={customCode}
+                setCustomCode={setCustomCode}
+                referralStats={referralStats}
+                referralLoading={referralLoading}
+                referralSaving={referralSaving}
+                codeCopied={codeCopied}
+                linkCopied={linkCopied}
+                referralLink={referralLink}
+                onSave={handleSaveReferralCode}
+                onCopyCode={handleCopyReferralCode}
+                onCopyLink={handleCopyReferralLink}
+              />
+            </div>
+            <DrawerFooter>
+              <Button variant="outline" onClick={() => setIsReferralModalOpen(false)}>Close</Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={isReferralModalOpen} onOpenChange={setIsReferralModalOpen}>
+          <DialogContent className="max-w-md w-[90vw]">
+            <DialogHeader className="space-y-2">
+              <DialogTitle>Referrals</DialogTitle>
+              <DialogDescription>Invite friends and earn rewards</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <ReferralModalContent
+                referralCode={referralCode}
+                customCode={customCode}
+                setCustomCode={setCustomCode}
+                referralStats={referralStats}
+                referralLoading={referralLoading}
+                referralSaving={referralSaving}
+                codeCopied={codeCopied}
+                linkCopied={linkCopied}
+                referralLink={referralLink}
+                onSave={handleSaveReferralCode}
+                onCopyCode={handleCopyReferralCode}
+                onCopyLink={handleCopyReferralLink}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsReferralModalOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Mobile Sidebar */}
       {isMobile && (
         <MobileSidebar
@@ -489,5 +631,155 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
         />
       )}
     </header>
+  );
+}
+
+function ReferralModalContent({
+  referralCode,
+  customCode,
+  setCustomCode,
+  referralStats,
+  referralLoading,
+  referralSaving,
+  codeCopied,
+  linkCopied,
+  referralLink,
+  onSave,
+  onCopyCode,
+  onCopyLink,
+}: {
+  referralCode: string | null;
+  customCode: string;
+  setCustomCode: (v: string) => void;
+  referralStats: { totalReferred: number; totalPointsEarned: number };
+  referralLoading: boolean;
+  referralSaving: boolean;
+  codeCopied: boolean;
+  linkCopied: boolean;
+  referralLink: string;
+  onSave: () => void;
+  onCopyCode: () => void;
+  onCopyLink: () => void;
+}) {
+  if (referralLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-12 bg-accent/30 rounded-lg animate-pulse" />
+        <div className="h-12 bg-accent/30 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-20 bg-accent/30 rounded-xl animate-pulse" />
+          <div className="h-20 bg-accent/30 rounded-xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  // No code set up — show "How it works" + code input
+  if (!referralCode) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-4 bg-accent/30">
+          <h4 className="text-sm font-medium mb-3">How it works</h4>
+          <div className="space-y-3">
+            {[
+              { icon: <Share2 className="w-4 h-4 text-white" />, title: 'Create your code', desc: 'Choose a custom referral code' },
+              { icon: <Link className="w-4 h-4 text-white" />, title: 'Share your link', desc: 'Friends sign up with your link' },
+              { icon: <Gift className="w-4 h-4 text-white" />, title: 'Earn rewards', desc: 'Get points for each referral' },
+            ].map((step, i) => (
+              <div key={i} className="flex items-center gap-3 bg-accent/30 p-3 rounded-lg">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2.5 rounded-xl shrink-0">
+                  {step.icon}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{step.title}</p>
+                  <p className="text-xs text-muted-foreground">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-accent/30">
+          <label className="text-sm font-medium mb-2 block">Choose your referral code</label>
+          <div className="flex gap-2">
+            <Input
+              placeholder="e.g. ESPFUN"
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
+              className="font-mono uppercase tracking-wider bg-background/80"
+              maxLength={16}
+            />
+            <Button
+              onClick={onSave}
+              disabled={referralSaving || customCode.trim().length < 3}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 shrink-0"
+            >
+              {referralSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">3-16 characters. Letters, numbers, hyphens, underscores.</p>
+        </Card>
+      </div>
+    );
+  }
+
+  // Code exists — show code, link, and stats
+  return (
+    <div className="space-y-3">
+      <Card className="p-4 bg-accent/30">
+        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Your Code</label>
+        <div className="relative">
+          <Input
+            readOnly
+            value={referralCode}
+            className="pr-16 font-mono uppercase tracking-wider bg-background/80"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onCopyCode}
+            className="absolute right-0 top-0 h-full px-3 hover:bg-accent"
+          >
+            {codeCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="p-4 bg-accent/30">
+        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Referral Link</label>
+        <div className="relative">
+          <Input
+            readOnly
+            value={referralLink}
+            className="pr-16 font-mono text-xs bg-background/80"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onCopyLink}
+            className="absolute right-0 top-0 h-full px-3 hover:bg-accent"
+          >
+            {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </Button>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-3 bg-accent/30 text-center">
+          <div className="bg-blue-500/10 p-3 rounded-xl w-fit mx-auto mb-2">
+            <Users className="w-5 h-5 text-blue-500" />
+          </div>
+          <p className="text-xl font-bold">{referralStats.totalReferred}</p>
+          <p className="text-xs text-muted-foreground">Friends Referred</p>
+        </Card>
+        <Card className="p-3 bg-accent/30 text-center">
+          <div className="bg-purple-500/10 p-3 rounded-xl w-fit mx-auto mb-2">
+            <TrendingUp className="w-5 h-5 text-purple-500" />
+          </div>
+          <p className="text-xl font-bold">{referralStats.totalPointsEarned.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground">Points Earned</p>
+        </Card>
+      </div>
+    </div>
   );
 }

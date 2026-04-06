@@ -18,7 +18,6 @@ const LiveScoresSection = lazy(() => import('./components/LiveScoresSection'));
 const LeaderboardSection = lazy(() => import('./components/LeaderboardSection'));
 const PackOpeningSection = lazy(() => import('./components/pack-opening/PackOpeningSection'));
 const StakingSection = lazy(() => import('./components/StakingSection'));
-const ReferralsSection = lazy(() => import('./components/ReferralsSection'));
 const DashboardSection = lazy(() => import('./components/DashboardSection'));
 const AdvancedTradeView = lazy(() => import('./components/AdvancedTradeView'));
 
@@ -114,8 +113,6 @@ export default function App() {
         return <PackOpeningSection />;
       case 'Staking':
         return <StakingSection />;
-      case 'Referrals':
-        return <ReferralsSection />;
       case 'Dashboard':
         return <DashboardSection preloadedPrices={preloadedPrices} activePlayerIds={activePlayerIds} pricesLoading={pricesLoading} />;
       default:
