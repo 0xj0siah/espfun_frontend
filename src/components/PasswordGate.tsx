@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 const PASSWORD_STORAGE_KEY = 'espfun_access_granted';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export function PasswordGate({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -12,11 +13,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
   const [isChecking, setIsChecking] = useState(true);
-
-  const validPasswords = [
-    import.meta.env.VITE_ACCESS_PASSWORD,
-    import.meta.env.VITE_ACCESS_PASSWORD_2,
-  ].filter(Boolean);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Check if user has already authenticated in this session
@@ -27,16 +24,32 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
     setIsChecking(false);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
 
-    if (validPasswords.includes(password)) {
-      sessionStorage.setItem(PASSWORD_STORAGE_KEY, 'true');
-      setIsAuthenticated(true);
-      setError('');
-    } else {
-      setError(t('auth.incorrectPassword'));
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+
+      if (data.valid) {
+        sessionStorage.setItem(PASSWORD_STORAGE_KEY, 'true');
+        setIsAuthenticated(true);
+      } else {
+        setError(t('auth.incorrectPassword'));
+        setPassword('');
+      }
+    } catch {
+      setError('Unable to verify password. Please try again.');
       setPassword('');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -76,17 +89,19 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
               placeholder={t('auth.password')}
               className="w-full h-9"
               autoFocus
+              disabled={isSubmitting}
             />
             {error && (
               <p className="text-destructive text-xs mt-1.5">{error}</p>
             )}
           </div>
 
-          <Button 
+          <Button
             type="submit"
             className="w-full h-9 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            disabled={isSubmitting}
           >
-            {t('auth.access')}
+            {isSubmitting ? '...' : t('auth.access')}
           </Button>
         </form>
 

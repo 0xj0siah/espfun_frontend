@@ -40,7 +40,7 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    if (ref) {
+    if (ref && /^[a-zA-Z0-9_-]{1,32}$/.test(ref)) {
       localStorage.setItem('pendingReferralCode', ref);
       // Clean URL without reload
       const url = new URL(window.location.href);
@@ -52,21 +52,12 @@ export default function App() {
   // Validate JWT token on page load
   useEffect(() => {
     const validateExistingToken = async () => {
-      // Only validate if we have a token in localStorage
       if (hasAuthToken) {
-        console.log('🔐 Validating existing JWT token on page load...');
         try {
-          const isValid = await validateToken();
-          if (isValid) {
-            console.log('✅ JWT token is still valid');
-          } else {
-            console.log('❌ JWT token has expired or is invalid');
-          }
+          await validateToken();
         } catch (error) {
-          console.error('❌ Error validating JWT token:', error);
+          // Token validation failed silently
         }
-      } else {
-        console.log('ℹ️ No existing JWT token found');
       }
     };
 
@@ -80,10 +71,8 @@ export default function App() {
     const fetchActivePlayers = async () => {
       try {
         const activeIds = await getActivePlayerIds();
-        console.log('✅ App: Active player IDs from contract:', activeIds.map(id => Number(id)));
         setActivePlayerIds(activeIds.map(id => Number(id)));
       } catch (error) {
-        console.error('❌ App: Error fetching active player IDs:', error);
         // Fallback to all players if contract fails
         setActivePlayerIds(fakeData.teamPlayers.map(player => player.id));
       }
@@ -93,11 +82,6 @@ export default function App() {
 
   // Only preload prices for active players
   const { prices: preloadedPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
-
-  // Debug logging
-  console.log('🚀 App: activePlayerIds:', activePlayerIds);
-  console.log('🚀 App: preloadedPrices keys:', Object.keys(preloadedPrices));
-  console.log('🚀 App: pricesLoading:', pricesLoading);
 
   const renderContent = () => {
     switch (activeTab) {

@@ -57,12 +57,6 @@ export function useWalletTransactions() {
       // For external wallets, show UI by default (user needs to confirm in their wallet)
       const showWalletUIs = options?.showUI ?? !isEmbedded;
 
-      console.log(`🔐 Sending transaction via ${isEmbedded ? 'embedded' : 'external'} wallet`, {
-        wallet: activeWallet.address,
-        showUI: showWalletUIs,
-        transaction
-      });
-
       try {
         const result = await sendTransaction(
           {

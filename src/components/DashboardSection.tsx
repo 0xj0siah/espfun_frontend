@@ -123,6 +123,8 @@ export default memo(function DashboardSection({ preloadedPrices, activePlayerIds
     return data;
   })();
 
+  const tvlAllZero = tvlChartData.length > 0 && tvlChartData.every(d => d.tvl === 0);
+
   const formatUSDC = (value: number) => {
     if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
     if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
@@ -241,9 +243,9 @@ export default memo(function DashboardSection({ preloadedPrices, activePlayerIds
             <div className="h-48 lg:h-64 flex items-center justify-center text-sm text-red-400">
               Failed to load TVL data — check backend connection
             </div>
-          ) : tvlChartData.length === 0 ? (
+          ) : tvlChartData.length === 0 || tvlAllZero ? (
             <div className="h-48 lg:h-64 flex items-center justify-center text-sm text-muted-foreground">
-              No TVL data yet — it will appear on the next page load
+              No TVL activity recorded yet
             </div>
           ) : (
             <div className="h-48 lg:h-64 xl:h-72">

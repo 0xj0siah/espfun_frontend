@@ -257,11 +257,10 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           functionName: 'currencyToken',
           args: [],
         });
-        console.log('✅ Currency token address from currencyToken():', address);
         setCurrencyTokenAddress(address as string);
         return address as string;
       } catch (currencyTokenError) {
-        console.warn('currencyToken() failed, trying getCurrencyInfo():', currencyTokenError);
+        // Fallback to getCurrencyInfo
         
         // Fallback to getCurrencyInfo
         const address = await readContractCached({
@@ -270,15 +269,12 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           functionName: 'getCurrencyInfo',
           args: [],
         });
-        console.log('✅ Currency token address from getCurrencyInfo():', address);
         setCurrencyTokenAddress(address as string);
         return address as string;
       }
     } catch (error) {
-      console.error('Error getting currency token address:', error);
-      // Fallback to hardcoded TUSDC address from contracts
+      // Fallback to TUSDC address from contracts config
       const tusdcContract = getContractData('TUSDC');
-      console.log('🔄 Using hardcoded TUSDC address as fallback:', tusdcContract.address);
       setCurrencyTokenAddress(tusdcContract.address);
       return tusdcContract.address;
     }
@@ -379,14 +375,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   // Check user's USDC balance using TUSDC contract directly
   const checkUserUsdcBalance = async (): Promise<void> => {
     if (!user?.wallet?.address) {
-      console.log('⚠️ No wallet address available for TUSDC balance check');
       return;
     }
-    
+
     try {
-      console.log('🔍 Checking TUSDC balance for:', user.wallet.address);
       const tusdcContract = getContractData('TUSDC');
-      console.log('📜 Using TUSDC contract at:', tusdcContract.address);
       
       const balance = await readContractCached({
         address: tusdcContract.address as `0x${string}`,
@@ -396,11 +389,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       });
       
       const formattedBalance = formatUnits(balance as bigint, 6);
-      console.log('💰 Raw TUSDC balance:', balance.toString());
-      console.log('💰 Formatted TUSDC balance:', formattedBalance);
       setUserUsdcBalance(formattedBalance);
     } catch (error) {
-      console.error('❌ Error checking TUSDC balance:', error);
       setUserUsdcBalance('0');
     }
   };
@@ -565,7 +555,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     try {
       // Check if we have authentication for backend API
-      const hasAuthToken = localStorage.getItem('authToken');
+      const hasAuthToken = apiService.isAuthenticated();
       if (!hasAuthToken) {
         throw new Error('No authentication token found - backend signatures require authentication');
       }
@@ -834,7 +824,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
     try {
       // Check if we have authentication for backend API
-      const hasAuthToken = localStorage.getItem('authToken');
+      const hasAuthToken = apiService.isAuthenticated();
       if (!hasAuthToken) {
         throw new Error('No authentication token found - backend signatures require authentication');
       }
@@ -1737,13 +1727,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
 
   const renderTradingForm = () => (
     showBuySellMenu && !isClosingRef.current ? (
-      <Card className={`bg-card/50 backdrop-blur-sm border-accent/20 ${renderMode === 'panel' ? 'w-full' : isMobile ? 'mb-3' : 'w-full max-w-md mx-auto'}`}>
+      <Card className={`bg-card/50 backdrop-blur-sm border-accent/20 ${renderMode === 'panel' ? 'w-full overflow-hidden' : isMobile ? 'mb-3' : 'w-full max-w-md mx-auto'}`}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="p-4 md:p-6 space-y-4 md:space-y-6"
+          className="p-4 md:p-6 space-y-4 md:space-y-6 min-w-0 max-w-full"
         >
           {/* Transaction Type Toggle */}
           <div className="flex justify-center space-x-2 mb-2 md:mb-4">
@@ -2276,7 +2266,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   // Must come before the mobile check so renderMode="panel" works on all devices.
   if (renderMode === 'panel') {
     return (
-      <div className="w-full space-y-4">
+      <div className="w-full max-w-full overflow-hidden space-y-4">
         {renderAuthStatus()}
         {renderBondingCurveBanner()}
         {renderTradingForm()}

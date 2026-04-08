@@ -184,8 +184,9 @@
   }
 }
 
-html {
+html, body {
   font-size: var(--font-size);
+  overflow-x: hidden;
 }
 
 /* Remove spinner arrows from number inputs */

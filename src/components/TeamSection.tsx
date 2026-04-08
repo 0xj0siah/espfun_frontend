@@ -24,6 +24,7 @@ import { readContractCached, contractCache } from '../utils/contractCache';
 import { usePoolInfo } from '../hooks/usePoolInfo';
 import { useGridCache } from '../hooks/useGridCache';
 import { useGameContext } from '../context/GameContext';
+import { apiService } from '../services/apiService';
 
 interface PlayerStats {
   kills: number;
@@ -96,6 +97,7 @@ export default function TeamSection({
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [selectedContractPlayer, setSelectedContractPlayer] = useState<Player | null>(null);
   const [isPromotionMenuOpen, setIsPromotionMenuOpen] = useState(false);
+  const [priceChanges, setPriceChanges] = useState<Record<string, number | null>>({});
   const [selectedPromotionPlayer, setSelectedPromotionPlayer] = useState<any | null>(null);
   const [developmentPlayers, setDevelopmentPlayers] = useState<{
     playerIds: bigint[];
@@ -110,6 +112,19 @@ export default function TeamSection({
   const { user, authenticated } = usePrivy();
   const { preloadPlayersData } = useGridCache();
   const { selectedGame } = useGameContext();
+
+  // Fetch real 24h price changes
+  useEffect(() => {
+    apiService.getPlayerPriceChanges()
+      .then((data: any) => {
+        const map: Record<string, number | null> = {};
+        for (const p of data.players || []) {
+          map[p.playerTokenId] = p.change24h;
+        }
+        setPriceChanges(map);
+      })
+      .catch(() => {});
+  }, []);
 
   // Add pool data hook for accurate pricing
   const { poolData, fetchPoolInfo } = usePoolInfo();
@@ -169,12 +184,12 @@ export default function TeamSection({
           const usdcReserve = Number(poolInfo.currencyReserve) / 1e6; // USDC has 6 decimals
           const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18; // Tokens have 18 decimals
           pricePerShare = usdcReserve / tokenReserve;
-          console.log(`🔄 Using real pool price for player ${playerId}: ${pricePerShare.toFixed(8)} USDC per token`);
+          // Real pool price calculated from reserves
         } else {
           // Fallback to pricing hook data
           const fallbackPrice = playerPrices[playerId] || '0.000 USDC';
           pricePerShare = parseFloat(fallbackPrice.replace(/[^\d.-]/g, '')) || 0;
-          console.log(`⚠️ Using fallback price for player ${playerId}: ${pricePerShare} USDC per token`);
+          // Fallback to pricing hook data
         }
         
         const totalValue = shares * pricePerShare;
@@ -438,17 +453,13 @@ export default function TeamSection({
   useEffect(() => {
     const loadOwnedPlayers = async () => {
       if (!authenticated || !user?.wallet?.address) {
-        console.log('User not authenticated or no wallet address for owned players');
         setOwnedPlayers([]);
         return;
       }
-
-      console.log('Loading owned players for address:', user.wallet.address);
       setLoading(true);
       try {
         await fetchOwnedPlayers(user.wallet.address);
       } catch (error) {
-        console.error('Error loading owned players:', error);
         setOwnedPlayers([]);
       } finally {
         setLoading(false);
@@ -462,15 +473,11 @@ export default function TeamSection({
   useEffect(() => {
     const fetchDevelopmentPlayers = async () => {
       if (!authenticated || !user?.wallet?.address) {
-        console.log('User not authenticated or no wallet address:', { authenticated, walletAddress: user?.wallet?.address });
         return;
       }
-
-      console.log('Fetching development players for address:', user.wallet.address);
       setDevelopmentLoading(true);
       try {
         const data = await getDevelopmentPlayersData(user.wallet.address);
-        console.log('Development players data received:', data);
         setDevelopmentPlayers(data);
       } catch (error) {
         console.error('Error fetching development players:', error);
@@ -732,11 +739,20 @@ export default function TeamSection({
                           >
                             {player.price}
                           </Badge>
-                          {/* Performance indicator */}
-                          <div className="flex items-center space-x-1">
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                            <span className="text-xs text-green-600 font-medium">+5.2%</span>
-                          </div>
+                          {/* 24h price change */}
+                          {(() => {
+                            const change = priceChanges[String(player.id)];
+                            if (change == null) return null;
+                            const isPositive = change >= 0;
+                            return (
+                              <div className="flex items-center space-x-1">
+                                <div className={`w-2 h-2 ${isPositive ? 'bg-green-500' : 'bg-red-500'} rounded-full`} />
+                                <span className={`text-xs font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPositive ? '+' : ''}{change.toFixed(1)}%
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Total value with enhanced styling */}

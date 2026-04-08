@@ -134,7 +134,7 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
   const explorerBase = 'https://sepolia.basescan.org/tx/';
 
   return (
-    <div className={isMobile ? 'space-y-2' : 'space-y-4'}>
+    <div className={isMobile ? 'space-y-2 overflow-hidden w-full max-w-full' : 'space-y-4'}>
       {/* Header — slim single-line on mobile, full on desktop */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -194,14 +194,14 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
 
       {/* Main content */}
       {isMobile ? (
-        <div className="space-y-3">
+        <div key="mobile-layout" className="space-y-3 max-w-full overflow-hidden">
           {/* Chart — hero element, viewport-height based */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="w-full max-w-full overflow-hidden">
             {renderChart(chartHeight)}
           </motion.div>
 
           {/* Compact purchase panel — always visible */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, x: 0 }} transition={{ delay: 0.1 }} className="w-full min-w-0 overflow-hidden">
             <PlayerPurchaseModal
               player={player}
               isOpen={true}
@@ -217,7 +217,7 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
         </div>
       ) : (
         // Desktop: chart + recent trades left, trading panel right
-        <div className="flex gap-6">
+        <div key="desktop-layout" className="flex gap-6">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

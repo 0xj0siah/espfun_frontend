@@ -19,6 +19,7 @@ import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
 import { useGridCache } from '../hooks/useGridCache';
 import { useGameContext } from '../context/GameContext';
+import { apiService } from '../services/apiService';
 
 interface Player {
   id: number;
@@ -63,6 +64,20 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
   const { preloadPlayersData } = useGridCache();
+  const [priceChanges, setPriceChanges] = useState<Record<string, number | null>>({});
+
+  // Fetch real 24h price changes
+  useEffect(() => {
+    apiService.getPlayerPriceChanges()
+      .then((data: any) => {
+        const map: Record<string, number | null> = {};
+        for (const p of data.players || []) {
+          map[p.playerTokenId] = p.change24h;
+        }
+        setPriceChanges(map);
+      })
+      .catch(() => {});
+  }, []);
 
   // Only fetch prices for active players
   const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
@@ -321,9 +336,8 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
                   <TableHead>Player</TableHead>
                   <TableHead>Position</TableHead>
                   <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
                   <TableHead className="text-right">Rating</TableHead>
-                  <TableHead className="text-center">Trend</TableHead>
+                  <TableHead className="text-center">24h</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -358,22 +372,22 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
                     <TableCell className="text-right">
                       <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium">{player.points}</TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-600/10 text-xs font-medium">
                         {player.rating}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className={`inline-flex items-center gap-1 text-xs ${
-                        player.trend === 'up' ? 'text-green-500' :
-                        player.trend === 'down' ? 'text-red-500' :
-                        'text-muted-foreground'
-                      }`}>
-                        {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> :
-                         player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> :
-                         <span>-</span>}
-                      </div>
+                      {(() => {
+                        const change = priceChanges[String(player.id)];
+                        if (change == null) return <span className="text-xs text-muted-foreground">—</span>;
+                        const isPositive = change >= 0;
+                        return (
+                          <span className={`text-xs font-medium ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                            {isPositive ? '+' : ''}{change.toFixed(1)}%
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                   </motion.tr>
                 ))}
@@ -416,16 +430,19 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
                         <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
                         <div className="flex items-center justify-between mt-2">
                           <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
-                          <div className={`flex items-center space-x-1 text-xs ${
-                            player.trend === 'up' ? 'text-green-500' :
-                            player.trend === 'down' ? 'text-red-500' :
-                            'text-muted-foreground'
-                          }`}>
-                            {player.trend === 'up' ? <TrendingUp className="w-3 h-3" /> :
-                             player.trend === 'down' ? <TrendingDown className="w-3 h-3" /> :
-                             <span>→</span>}
-                            <span>{player.points} pts</span>
-                          </div>
+                          {(() => {
+                            const change = priceChanges[String(player.id)];
+                            if (change == null) return null;
+                            const isPositive = change >= 0;
+                            return (
+                              <div className="flex items-center space-x-1">
+                                <div className={`w-2 h-2 ${isPositive ? 'bg-green-500' : 'bg-red-500'} rounded-full`} />
+                                <span className={`text-xs font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPositive ? '+' : ''}{change.toFixed(1)}%
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

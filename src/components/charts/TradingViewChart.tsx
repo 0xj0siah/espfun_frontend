@@ -88,7 +88,17 @@ export default memo(function TradingViewChart({
       return;
     }
 
-    const container = containerRef.current;
+    // Delay widget creation by one frame so the container has settled its
+    // layout dimensions.  On mobile the initial render can produce a
+    // momentarily unconstrained width that TradingView reads via autosize,
+    // pushing sibling elements to the right.
+    let disposed = false;
+    const frameId = requestAnimationFrame(() => {
+      if (disposed || !containerRef.current) return;
+      initWidget(containerRef.current);
+    });
+
+    function initWidget(container: HTMLDivElement) {
     const datafeed = createDatafeed();
 
     const widgetOptions: ChartingLibraryWidgetOptions = {
@@ -150,8 +160,11 @@ export default memo(function TradingViewChart({
         'volume.volume.color.1': 'rgba(34,197,94,0.3)',
       });
     });
+    } // end initWidget
 
     return () => {
+      disposed = true;
+      cancelAnimationFrame(frameId);
       if (widgetRef.current) {
         widgetRef.current.remove();
         widgetRef.current = null;
@@ -179,7 +192,7 @@ export default memo(function TradingViewChart({
   }
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-border/30 bg-card/30">
+    <div className="relative rounded-xl overflow-hidden border border-border/30 bg-card/30 w-full max-w-full">
       {!ready && (
         <div className="absolute inset-0 z-10">
           <Skeleton className="w-full h-full rounded-xl" />
@@ -188,7 +201,7 @@ export default memo(function TradingViewChart({
       <div
         ref={containerRef}
         style={{ height }}
-        className="w-full"
+        className="w-full max-w-full overflow-hidden"
       />
     </div>
   );

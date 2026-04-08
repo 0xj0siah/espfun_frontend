@@ -346,7 +346,7 @@ export function usePlayerTrade({
       let transactionId: string | null = null;
 
       try {
-        const hasAuthToken = localStorage.getItem('authToken');
+        const hasAuthToken = apiService.isAuthenticated();
         if (!hasAuthToken) throw new Error('No authentication token found');
 
         const signatureRequest = {
@@ -479,7 +479,7 @@ export function usePlayerTrade({
       let transactionId: string | null = null;
 
       try {
-        const hasAuthToken = localStorage.getItem('authToken');
+        const hasAuthToken = apiService.isAuthenticated();
         if (!hasAuthToken) throw new Error('No authentication token found');
 
         const signatureRequest: SellTokensRequest = {
