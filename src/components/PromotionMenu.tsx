@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Scissors, Play, Star, X, Sparkles, AlertCircle, Loader2, Wallet, Zap, Info, CheckCircle, XCircle, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
+import { Scissors, Play, Star, X, Sparkles, AlertCircle, Loader2, Wallet, Zap, Info, CheckCircle, XCircle, Trophy } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -69,8 +69,6 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   const [txStatus, setTxStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [txMessage, setTxMessage] = useState('');
   const [isModalContentVisible, setIsModalContentVisible] = useState(true);
-  const [showStats, setShowStats] = useState(false);
-  const [showMatches, setShowMatches] = useState(false);
   const [selectedPercentage, setSelectedPercentage] = useState<number | null>(null);
 
   const {
@@ -605,127 +603,80 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     )}
                   </AnimatePresence>
 
-                  {/* Player Statistics */}
-                  {player.stats && (
-                    <Card className="overflow-hidden border-accent/20">
-                      <button
-                        onClick={() => { setShowStats(!showStats); if (!showStats) setShowMatches(false); }}
-                        className="w-full p-3 flex items-center justify-between text-left"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-yellow-500" />
-                          <span className="text-sm font-medium">Player Statistics</span>
-                        </div>
-                        {showStats ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                      </button>
-                      <AnimatePresence initial={false}>
-                        {showStats && (
-                          <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: 'auto', transition: { height: { duration: 0.3, ease: [0.2, 0, 0, 1] } } }}
-                            exit={{ height: 0, transition: { height: { duration: 0.3, ease: [0.32, 0, 0.67, 1] } } }}
-                            className="overflow-hidden"
-                          >
-                            <motion.div
-                              initial={{ opacity: 0, y: -8 }}
-                              animate={{ opacity: 1, y: 0, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
-                              exit={{ opacity: 0, y: -8, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
-                              className="px-3 pb-3"
-                            >
-                              <Separator className="mb-3" />
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="text-center p-2 bg-accent/50 rounded-lg">
-                                  <p className="text-base font-bold text-primary">{player.stats.kills.toFixed(1)}</p>
-                                  <p className="text-xs text-muted-foreground">Avg Kills</p>
-                                </div>
-                                <div className="text-center p-2 bg-accent/50 rounded-lg">
-                                  <p className="text-base font-bold text-primary">{player.stats.deaths.toFixed(1)}</p>
-                                  <p className="text-xs text-muted-foreground">Avg Deaths</p>
-                                </div>
-                                <div className="text-center p-2 bg-accent/50 rounded-lg">
-                                  <p className="text-base font-bold text-primary">{player.stats.assists.toFixed(1)}</p>
-                                  <p className="text-xs text-muted-foreground">Avg Assists</p>
-                                </div>
-                                <div className="text-center p-2 bg-accent/50 rounded-lg">
-                                  <p className="text-base font-bold text-primary">{player.stats.winRate}%</p>
-                                  <p className="text-xs text-muted-foreground">Win Rate</p>
-                                </div>
+                  {/* Player Statistics & Recent Matches — always-visible 2-column grid */}
+                  {(player.stats || (player.recentMatches && player.recentMatches.length > 0)) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      {player.stats && (
+                        <Card className="p-3 border-accent/20">
+                          <h3 className="mb-3 flex items-center text-sm font-medium">
+                            <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
+                            Player Statistics
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="text-center p-2 bg-accent/50 rounded-lg">
+                              <p className="text-base font-bold text-primary">{player.stats.kills.toFixed(1)}</p>
+                              <p className="text-xs text-muted-foreground">Avg Kills</p>
+                            </div>
+                            <div className="text-center p-2 bg-accent/50 rounded-lg">
+                              <p className="text-base font-bold text-primary">{player.stats.deaths.toFixed(1)}</p>
+                              <p className="text-xs text-muted-foreground">Avg Deaths</p>
+                            </div>
+                            <div className="text-center p-2 bg-accent/50 rounded-lg">
+                              <p className="text-base font-bold text-primary">{player.stats.assists.toFixed(1)}</p>
+                              <p className="text-xs text-muted-foreground">Avg Assists</p>
+                            </div>
+                            <div className="text-center p-2 bg-accent/50 rounded-lg">
+                              <p className="text-base font-bold text-primary">{player.stats.winRate}%</p>
+                              <p className="text-xs text-muted-foreground">Win Rate</p>
+                            </div>
+                          </div>
+                          {player.rating !== undefined && (
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs font-medium">Performance Rating</p>
+                                <p className="text-xs text-muted-foreground">{player.rating}/100</p>
                               </div>
-                              {player.rating !== undefined && (
-                                <div className="mt-3">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <p className="text-xs font-medium">Performance Rating</p>
-                                    <p className="text-xs text-muted-foreground">{player.rating}/100</p>
-                                  </div>
-                                  <div className="w-full bg-accent rounded-full h-1.5">
-                                    <motion.div
-                                      initial={{ width: 0 }}
-                                      animate={{ width: `${player.rating}%` }}
-                                      transition={{ duration: 0.8, ease: 'easeOut' }}
-                                      className={`h-1.5 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)}`}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </motion.div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </Card>
-                  )}
+                              <div className="w-full bg-accent rounded-full h-1.5">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${player.rating}%` }}
+                                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                                  className={`h-1.5 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)}`}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                      )}
 
-                  {/* Recent Matches */}
-                  {player.recentMatches && player.recentMatches.length > 0 && (
-                    <Card className="overflow-hidden border-accent/20">
-                      <button
-                        onClick={() => { setShowMatches(!showMatches); if (!showMatches) setShowStats(false); }}
-                        className="w-full p-3 flex items-center justify-between text-left"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Star className="w-4 h-4 text-blue-500" />
-                          <span className="text-sm font-medium">Recent Matches</span>
-                        </div>
-                        {showMatches ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                      </button>
-                      <AnimatePresence initial={false}>
-                        {showMatches && (
-                          <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: 'auto', transition: { height: { duration: 0.3, ease: [0.2, 0, 0, 1] } } }}
-                            exit={{ height: 0, transition: { height: { duration: 0.3, ease: [0.32, 0, 0.67, 1] } } }}
-                            className="overflow-hidden"
-                          >
-                            <motion.div
-                              initial={{ opacity: 0, y: -8 }}
-                              animate={{ opacity: 1, y: 0, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
-                              exit={{ opacity: 0, y: -8, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
-                              className="px-3 pb-3"
-                            >
-                              <Separator className="mb-3" />
-                              <div className="space-y-2">
-                                {player.recentMatches.map((match, index) => (
-                                  <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
-                                    <div className="flex items-center space-x-2 flex-1 min-w-0">
-                                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${match.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-medium truncate">vs {match.opponent}</p>
-                                        <p className="text-[10px] text-muted-foreground">{match.score}</p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right ml-2">
-                                      <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
-                                        {match.result.toUpperCase()}
-                                      </Badge>
-                                      <p className="text-[10px] text-muted-foreground mt-0.5">{match.performance} pts</p>
-                                    </div>
+                      {player.recentMatches && player.recentMatches.length > 0 && (
+                        <Card className="p-3 border-accent/20">
+                          <h3 className="mb-3 flex items-center text-sm font-medium">
+                            <Star className="w-4 h-4 mr-2 text-blue-500" />
+                            Recent Matches
+                          </h3>
+                          <div className="space-y-2">
+                            {player.recentMatches.map((match, index) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
+                                <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${match.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-medium truncate">vs {match.opponent}</p>
+                                    <p className="text-[10px] text-muted-foreground">{match.score}</p>
                                   </div>
-                                ))}
+                                </div>
+                                <div className="text-right ml-2">
+                                  <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                                    {match.result.toUpperCase()}
+                                  </Badge>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">{match.performance} pts</p>
+                                </div>
                               </div>
-                            </motion.div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </Card>
+                            ))}
+                          </div>
+                        </Card>
+                      )}
+                    </div>
                   )}
 
                   {/* Submit Button */}
