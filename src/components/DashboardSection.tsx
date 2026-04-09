@@ -248,7 +248,7 @@ export default memo(function DashboardSection({ preloadedPrices, activePlayerIds
               No TVL activity recorded yet
             </div>
           ) : (
-            <div className="h-48 lg:h-64 xl:h-72">
+            <div style={{ height: '16rem' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={tvlChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>
