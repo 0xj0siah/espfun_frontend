@@ -1883,9 +1883,9 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                   </span>
                 </div>
               ) : poolData && poolData.size > 0 && poolData.get(player.id) && (
-                <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
-                  <span>Pool Reserves </span>
-                  <span className={`text-right ${isMobile ? 'max-w-[60%] truncate' : ''}`}>
+                <div className="flex justify-between gap-1 text-[10px] md:text-xs text-muted-foreground">
+                  <span className="flex-shrink-0">Pool Reserves</span>
+                  <span className={`text-right min-w-0 truncate ${isMobile ? 'max-w-[60%]' : ''}`}>
                     {(() => {
                       const pool = poolData.get(player.id);
                       if (!pool) return 'No data';
