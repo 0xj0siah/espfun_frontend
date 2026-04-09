@@ -257,23 +257,29 @@ function RecentTradesCard({
   explorerBase: string;
 }) {
   return (
-    <Card className="p-4 border-0 shadow-sm">
-      <h3 className="text-sm font-medium mb-3 text-muted-foreground">Recent Trades</h3>
+    <Card className="overflow-hidden border-0 shadow-sm">
+      {/* Card header */}
+      <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Recent Trades</h3>
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          {!loading && trades.length > 0 ? `${trades.length} trades` : ''}
+        </span>
+      </div>
 
       {loading ? (
-        <div className="space-y-2">
+        <div className="p-4 space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-9 w-full rounded-md" />
+            <Skeleton key={i} className="h-8 w-full rounded" />
           ))}
         </div>
       ) : trades.length === 0 ? (
-        <div className="text-sm text-muted-foreground text-center py-6">
+        <div className="text-sm text-muted-foreground text-center py-10">
           No trades recorded yet. Be the first to trade!
         </div>
       ) : (
-        <div className="space-y-1">
-          {/* Header */}
-          <div className="grid grid-cols-[60px_1fr_1fr_80px_28px] gap-2 text-[11px] font-medium text-muted-foreground px-2 pb-1 border-b border-border/40">
+        <div>
+          {/* Column header */}
+          <div className="grid grid-cols-[52px_minmax(0,1fr)_88px_68px_20px] gap-x-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 bg-muted/40 px-4 py-2">
             <span>Type</span>
             <span>Trader</span>
             <span className="text-right">Amount</span>
@@ -286,44 +292,56 @@ function RecentTradesCard({
             return (
               <motion.div
                 key={`${trade.txHash}-${i}`}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.03 }}
-                className="grid grid-cols-[60px_1fr_1fr_80px_28px] gap-2 items-center text-xs px-2 py-1.5 rounded-md hover:bg-accent/40 transition-colors"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.025, duration: 0.15 }}
+                className={`grid grid-cols-[52px_minmax(0,1fr)_88px_68px_20px] gap-x-3 items-center px-4 py-2.5 border-b border-border/20 last:border-b-0 hover:bg-accent/50 transition-colors ${
+                  i % 2 === 1 ? 'bg-muted/20' : ''
+                }`}
               >
-                <Badge
-                  variant="secondary"
-                  className={`text-[10px] px-1.5 py-0 h-5 justify-center ${
+                {/* Type badge */}
+                <span
+                  className={`inline-flex items-center justify-center text-[10px] font-bold px-1.5 py-0.5 rounded-sm w-fit ${
                     isBuy
-                      ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                      : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                      ? 'bg-green-500/15 text-green-500'
+                      : 'bg-red-500/15 text-red-500'
                   }`}
                 >
                   {isBuy ? 'BUY' : 'SELL'}
-                </Badge>
+                </span>
 
-                <span className="font-mono text-muted-foreground truncate">
+                {/* Trader address */}
+                <span className="font-mono text-[11px] text-muted-foreground truncate">
                   {shortenAddress(trade.trader)}
                 </span>
 
-                <span className="text-right font-medium tabular-nums">
+                {/* Amount — colored by trade direction */}
+                <span
+                  className={`text-right text-xs font-semibold tabular-nums ${
+                    isBuy ? 'text-green-500' : 'text-red-500'
+                  }`}
+                >
                   {formatUSDC(trade.amount)}
                 </span>
 
-                <span className="text-right text-muted-foreground tabular-nums">
+                {/* Time */}
+                <span className="text-right text-[11px] text-muted-foreground tabular-nums">
                   {formatTimeAgo(trade.time)}
                 </span>
 
-                {trade.txHash && (
+                {/* Explorer link */}
+                {trade.txHash ? (
                   <a
                     href={`${explorerBase}${trade.txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex items-center justify-center text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                     title="View on explorer"
                   >
                     <ExternalLink className="w-3 h-3" />
                   </a>
+                ) : (
+                  <span />
                 )}
               </motion.div>
             );

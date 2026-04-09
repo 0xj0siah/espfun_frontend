@@ -123,7 +123,7 @@ export default memo(function DashboardSection({ preloadedPrices, activePlayerIds
     return data;
   })();
 
-  const tvlAllZero = tvlChartData.length > 0 && tvlChartData.every(d => d.tvl === 0);
+  // Note: we intentionally render the chart even when all values are 0 (flat line = valid state).
 
   const formatUSDC = (value: number) => {
     if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
@@ -243,7 +243,7 @@ export default memo(function DashboardSection({ preloadedPrices, activePlayerIds
             <div className="h-48 lg:h-64 flex items-center justify-center text-sm text-red-400">
               Failed to load TVL data — check backend connection
             </div>
-          ) : tvlChartData.length === 0 || tvlAllZero ? (
+          ) : tvlChartData.length === 0 ? (
             <div className="h-48 lg:h-64 flex items-center justify-center text-sm text-muted-foreground">
               No TVL activity recorded yet
             </div>
