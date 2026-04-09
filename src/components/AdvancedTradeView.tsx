@@ -247,6 +247,14 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
   );
 }
 
+// Inline style for the trade table columns — avoids Tailwind JIT purging arbitrary grid values.
+// Columns: Type(52px) | Trader(flex) | Amount(88px) | Time(68px) | Link(20px)
+const TRADE_GRID: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '52px 1fr 88px 68px 20px',
+  gap: '0 12px',
+};
+
 function RecentTradesCard({
   trades,
   loading,
@@ -279,7 +287,10 @@ function RecentTradesCard({
       ) : (
         <div>
           {/* Column header */}
-          <div className="grid grid-cols-[52px_minmax(0,1fr)_88px_68px_20px] gap-x-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 bg-muted/40 px-4 py-2">
+          <div
+            style={TRADE_GRID}
+            className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 bg-muted/40 px-4 py-2"
+          >
             <span>Type</span>
             <span>Trader</span>
             <span className="text-right">Amount</span>
@@ -295,7 +306,8 @@ function RecentTradesCard({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: i * 0.025, duration: 0.15 }}
-                className={`grid grid-cols-[52px_minmax(0,1fr)_88px_68px_20px] gap-x-3 items-center px-4 py-2.5 border-b border-border/20 last:border-b-0 hover:bg-accent/50 transition-colors ${
+                style={TRADE_GRID}
+                className={`items-center px-4 py-2.5 border-b border-border/20 last:border-b-0 hover:bg-accent/50 transition-colors ${
                   i % 2 === 1 ? 'bg-muted/20' : ''
                 }`}
               >
