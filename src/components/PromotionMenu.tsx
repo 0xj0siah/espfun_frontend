@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Scissors, Play, Star, X, Sparkles, AlertCircle, Loader2, Wallet, Zap, Info, CheckCircle, XCircle } from 'lucide-react';
+import { Scissors, Play, Star, X, Sparkles, AlertCircle, Loader2, Wallet, Zap, Info, CheckCircle, XCircle, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,6 +16,20 @@ import { parseUnits } from 'viem';
 import { apiService } from '../services/apiService';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { debounce } from '../utils/retryUtils';
+
+interface PlayerStats {
+  kills: number;
+  deaths: number;
+  assists: number;
+  winRate: number;
+}
+
+interface MatchResult {
+  opponent: string;
+  result: 'win' | 'loss';
+  score: string;
+  performance: number;
+}
 
 interface Player {
   id: string;
@@ -29,6 +43,11 @@ interface Player {
   canPromote?: boolean;
   canCut?: boolean;
   lockedShares?: string;
+  rating?: number;
+  stats?: PlayerStats;
+  recentMatches?: MatchResult[];
+  gridID?: string;
+  teamGridId?: string;
 }
 
 interface PromotionMenuProps {
@@ -50,6 +69,9 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   const [txStatus, setTxStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [txMessage, setTxMessage] = useState('');
   const [isModalContentVisible, setIsModalContentVisible] = useState(true);
+  const [showStats, setShowStats] = useState(false);
+  const [showMatches, setShowMatches] = useState(false);
+  const [selectedPercentage, setSelectedPercentage] = useState<number | null>(null);
 
   const {
     isAuthenticated,
@@ -92,6 +114,9 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
       setTxStatus('idle');
       setTxMessage('');
       setAction('activate');
+      setSelectedPercentage(null);
+      setShowStats(false);
+      setShowMatches(false);
     }
   }, [isOpen, player?.id, debouncedLoadCosts, isAuthenticated, walletConnected, isAuthenticating, authenticate]);
 
@@ -127,6 +152,13 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
     []
   );
 
+  const getRatingColor = (rating: number) => {
+    if (rating >= 90) return 'from-green-500 to-emerald-600';
+    if (rating >= 80) return 'from-blue-500 to-cyan-600';
+    if (rating >= 70) return 'from-yellow-500 to-orange-500';
+    return 'from-red-500 to-pink-600';
+  };
+
   if (!player) return null;
 
   const totalShares = parseInt(player.lockedShares || '0');
@@ -139,6 +171,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
 
   const handleSharesChange = (value: string) => {
     setShares(value);
+    setSelectedPercentage(null);
     const count = parseInt(value);
     if (count > 0 && player) {
       debouncedCalculateCost(player.id, count, action);
@@ -150,6 +183,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
   const handlePercentageSelect = (percentage: number) => {
     const count = Math.floor((totalShares * percentage) / 100);
     setShares(count.toString());
+    setSelectedPercentage(percentage);
     if (count > 0 && player) {
       debouncedCalculateCost(player.id, count, action);
     }
@@ -202,6 +236,9 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
       setTxStatus('idle');
       setTxMessage('');
       setRealTimeCost(null);
+      setSelectedPercentage(null);
+      setShowStats(false);
+      setShowMatches(false);
       onClose();
     }, 300);
   };
@@ -289,7 +326,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   </div>
                 </DialogHeader>
 
-                {/* Auth Alerts */}
+                {/* Auth Alerts — mutually exclusive states */}
                 {!walletConnected && (
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -307,7 +344,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   </motion.div>
                 )}
 
-                {walletConnected && !isAuthenticated && (
+                {walletConnected && !isAuthenticated && isAuthenticating && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -315,24 +352,56 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4"
                   >
                     <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300">
-                      {isAuthenticating ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4" />
-                      )}
-                      <span className="text-sm font-medium">
-                        {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
-                      </span>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm font-medium">Authenticating...</span>
                     </div>
                     <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                      {isAuthenticating
-                        ? 'Please wait while we authenticate your wallet...'
-                        : 'Authenticating automatically...'
-                      }
+                      Please wait while we authenticate your wallet...
                     </p>
-                    {authError && (
-                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">{authError}</p>
-                    )}
+                  </motion.div>
+                )}
+
+                {walletConnected && !isAuthenticated && !isAuthenticating && authError && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mt-4"
+                  >
+                    <div className="flex items-center gap-2 text-red-800 dark:text-red-300">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Authentication Failed</span>
+                    </div>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">{authError}</p>
+                    <button
+                      onClick={authenticate}
+                      className="mt-2 text-xs font-medium text-red-700 dark:text-red-300 underline hover:no-underline"
+                    >
+                      Try Again
+                    </button>
+                  </motion.div>
+                )}
+
+                {walletConnected && !isAuthenticated && !isAuthenticating && !authError && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4"
+                  >
+                    <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Authentication Required</span>
+                    </div>
+                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                      Please authenticate to manage player shares.
+                    </p>
+                    <button
+                      onClick={authenticate}
+                      className="mt-2 text-xs font-medium text-blue-700 dark:text-blue-300 underline hover:no-underline"
+                    >
+                      Authenticate
+                    </button>
                   </motion.div>
                 )}
 
@@ -356,7 +425,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-foreground">
-                          {userPoints ? userPoints.skillPoints.toLocaleString() : '—'}
+                          {userPoints ? userPoints.skillPoints.toLocaleString() : <span className="text-base text-muted-foreground">N/A</span>}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">Skill Points</p>
                       </div>
@@ -364,31 +433,42 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                   </Card>
 
                   {/* Action Toggle */}
-                  <div className="flex justify-center space-x-2">
-                    <Button
-                      variant={action === 'activate' ? "default" : "outline"}
-                      onClick={() => {
-                        setAction('activate');
-                        setShares('');
-                        setRealTimeCost(null);
-                      }}
-                      className={`flex-1 ${action === 'activate' ? 'bg-gradient-to-r from-green-600 to-emerald-600' : ''}`}
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      Activate
-                    </Button>
-                    <Button
-                      variant={action === 'cut' ? "default" : "outline"}
-                      onClick={() => {
-                        setAction('cut');
-                        setShares('');
-                        setRealTimeCost(null);
-                      }}
-                      className={`flex-1 ${action === 'cut' ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''}`}
-                    >
-                      <Scissors className="w-4 h-4 mr-2" />
-                      Cut
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="flex justify-center space-x-2">
+                      <Button
+                        variant={action === 'activate' ? "default" : "outline"}
+                        onClick={() => {
+                          setAction('activate');
+                          setShares('');
+                          setRealTimeCost(null);
+                          setSelectedPercentage(null);
+                        }}
+                        className={`flex-1 ${action === 'activate' ? 'bg-gradient-to-r from-green-600 to-emerald-600 border-0' : ''}`}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Activate
+                      </Button>
+                      <Button
+                        variant={action === 'cut' ? "default" : "outline"}
+                        onClick={() => {
+                          setAction('cut');
+                          setShares('');
+                          setRealTimeCost(null);
+                          setSelectedPercentage(null);
+                        }}
+                        className={`flex-1 ${
+                          action === 'cut'
+                            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white border-0'
+                            : 'text-red-600 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20'
+                        }`}
+                      >
+                        <Scissors className="w-4 h-4 mr-2" />
+                        Cut
+                      </Button>
+                    </div>
+                    {action === 'cut' && (
+                      <p className="text-xs text-red-500/70 text-center">Permanently removes player shares from your roster</p>
+                    )}
                   </div>
 
                   {/* Input Section */}
@@ -441,7 +521,11 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                             size="sm"
                             onClick={() => handlePercentageSelect(pct)}
                             disabled={loading}
-                            className="flex-1 text-xs hover:bg-accent/40"
+                            className={`flex-1 text-xs border transition-all ${
+                              selectedPercentage === pct
+                                ? 'bg-accent border-foreground/30 text-foreground font-semibold shadow-sm'
+                                : 'border-border/60 bg-background hover:bg-accent/50 hover:border-foreground/20'
+                            }`}
                           >
                             {pct}%
                           </Button>
@@ -521,6 +605,129 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     )}
                   </AnimatePresence>
 
+                  {/* Player Statistics */}
+                  {player.stats && (
+                    <Card className="overflow-hidden border-accent/20">
+                      <button
+                        onClick={() => { setShowStats(!showStats); if (!showStats) setShowMatches(false); }}
+                        className="w-full p-3 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Trophy className="w-4 h-4 text-yellow-500" />
+                          <span className="text-sm font-medium">Player Statistics</span>
+                        </div>
+                        {showStats ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {showStats && (
+                          <motion.div
+                            initial={{ height: 0 }}
+                            animate={{ height: 'auto', transition: { height: { duration: 0.3, ease: [0.2, 0, 0, 1] } } }}
+                            exit={{ height: 0, transition: { height: { duration: 0.3, ease: [0.32, 0, 0.67, 1] } } }}
+                            className="overflow-hidden"
+                          >
+                            <motion.div
+                              initial={{ opacity: 0, y: -8 }}
+                              animate={{ opacity: 1, y: 0, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
+                              exit={{ opacity: 0, y: -8, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
+                              className="px-3 pb-3"
+                            >
+                              <Separator className="mb-3" />
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="text-center p-2 bg-accent/50 rounded-lg">
+                                  <p className="text-base font-bold text-primary">{player.stats.kills.toFixed(1)}</p>
+                                  <p className="text-xs text-muted-foreground">Avg Kills</p>
+                                </div>
+                                <div className="text-center p-2 bg-accent/50 rounded-lg">
+                                  <p className="text-base font-bold text-primary">{player.stats.deaths.toFixed(1)}</p>
+                                  <p className="text-xs text-muted-foreground">Avg Deaths</p>
+                                </div>
+                                <div className="text-center p-2 bg-accent/50 rounded-lg">
+                                  <p className="text-base font-bold text-primary">{player.stats.assists.toFixed(1)}</p>
+                                  <p className="text-xs text-muted-foreground">Avg Assists</p>
+                                </div>
+                                <div className="text-center p-2 bg-accent/50 rounded-lg">
+                                  <p className="text-base font-bold text-primary">{player.stats.winRate}%</p>
+                                  <p className="text-xs text-muted-foreground">Win Rate</p>
+                                </div>
+                              </div>
+                              {player.rating !== undefined && (
+                                <div className="mt-3">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <p className="text-xs font-medium">Performance Rating</p>
+                                    <p className="text-xs text-muted-foreground">{player.rating}/100</p>
+                                  </div>
+                                  <div className="w-full bg-accent rounded-full h-1.5">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${player.rating}%` }}
+                                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                                      className={`h-1.5 rounded-full bg-gradient-to-r ${getRatingColor(player.rating)}`}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </Card>
+                  )}
+
+                  {/* Recent Matches */}
+                  {player.recentMatches && player.recentMatches.length > 0 && (
+                    <Card className="overflow-hidden border-accent/20">
+                      <button
+                        onClick={() => { setShowMatches(!showMatches); if (!showMatches) setShowStats(false); }}
+                        className="w-full p-3 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Star className="w-4 h-4 text-blue-500" />
+                          <span className="text-sm font-medium">Recent Matches</span>
+                        </div>
+                        {showMatches ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {showMatches && (
+                          <motion.div
+                            initial={{ height: 0 }}
+                            animate={{ height: 'auto', transition: { height: { duration: 0.3, ease: [0.2, 0, 0, 1] } } }}
+                            exit={{ height: 0, transition: { height: { duration: 0.3, ease: [0.32, 0, 0.67, 1] } } }}
+                            className="overflow-hidden"
+                          >
+                            <motion.div
+                              initial={{ opacity: 0, y: -8 }}
+                              animate={{ opacity: 1, y: 0, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
+                              exit={{ opacity: 0, y: -8, transition: { opacity: { duration: 0.2 }, y: { duration: 0.25 } } }}
+                              className="px-3 pb-3"
+                            >
+                              <Separator className="mb-3" />
+                              <div className="space-y-2">
+                                {player.recentMatches.map((match, index) => (
+                                  <div key={index} className="flex items-center justify-between p-2 bg-accent/30 rounded-lg">
+                                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${match.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-medium truncate">vs {match.opponent}</p>
+                                        <p className="text-[10px] text-muted-foreground">{match.score}</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right ml-2">
+                                      <Badge variant={match.result === 'win' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                                        {match.result.toUpperCase()}
+                                      </Badge>
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">{match.performance} pts</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </Card>
+                  )}
+
                   {/* Submit Button */}
                   <Button
                     onClick={handleSubmit}
@@ -536,7 +743,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                     className={`w-full h-12 text-lg border-0 relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] ${
                       action === 'activate'
                         ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                        : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white'
                     }`}
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
