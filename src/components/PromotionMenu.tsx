@@ -113,8 +113,6 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
       setTxMessage('');
       setAction('activate');
       setSelectedPercentage(null);
-      setShowStats(false);
-      setShowMatches(false);
     }
   }, [isOpen, player?.id, debouncedLoadCosts, isAuthenticated, walletConnected, isAuthenticating, authenticate]);
 
@@ -235,8 +233,6 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
       setTxMessage('');
       setRealTimeCost(null);
       setSelectedPercentage(null);
-      setShowStats(false);
-      setShowMatches(false);
       onClose();
     }, 300);
   };
