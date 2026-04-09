@@ -11,7 +11,7 @@ import { Skeleton } from './ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
-import { Users, TrendingUp, Zap, Star, Trophy, Target, FileText, Clock } from 'lucide-react';
+import { Users, TrendingUp, Zap, Star, Trophy, Target, FileText, Clock, AlertTriangle } from 'lucide-react';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
 import ContractExtensionModal from './ContractExtensionModal';
 import { PromotionMenu } from './PromotionMenu';
@@ -37,6 +37,13 @@ const formatUSDC = (value: number): string => {
     return `$${value.toFixed(leadingZeros + 2)} USDC`;
   }
   return '$0.00 USDC';
+};
+
+const formatNumber = (value: number): string => {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString();
 };
 
 interface PlayerStats {
@@ -423,7 +430,12 @@ export default function TeamSection({
       change: 0,
       canPromote: true, // All development players can be promoted
       canCut: true, // Allow cutting development players too
-      lockedShares: player.lockedShares // Pass through the formatted locked shares
+      lockedShares: player.lockedShares, // Pass through the formatted locked shares
+      rating: player.rating,
+      stats: player.stats,
+      recentMatches: player.recentMatches,
+      gridID: player.gridID,
+      teamGridId: player.teamGridId,
     };
     
     setSelectedPromotionPlayer(promotionPlayer);
@@ -868,9 +880,9 @@ export default function TeamSection({
                               alt={player.name}
                               className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md ring-2 ring-white/20 group-hover:ring-purple-200 transition-all duration-300 opacity-85"
                             />
-                            {/* Benched badge overlay */}
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center z-20">
-                              <TrendingUp className="w-3 h-3 text-white" />
+                            {/* Rating badge */}
+                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center z-20 shadow-md">
+                              <span className="text-white text-[10px] font-bold leading-none">{player.rating}</span>
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1028,11 +1040,11 @@ export default function TeamSection({
                             <p className="text-xs text-muted-foreground truncate">
                               {player.game} • {player.position}
                             </p>
-                            <Badge 
-                              variant="secondary" 
+                            <Badge
+                              variant="secondary"
                               className="mt-1 text-xs"
                             >
-                              {formatShares(player.ownedShares || BigInt(0))} {t('team.shares')}
+                              {formatNumber(parseInt(formatShares(player.ownedShares || BigInt(0))))} {t('team.shares')}
                             </Badge>
                           </div>
                         </div>
@@ -1058,34 +1070,39 @@ export default function TeamSection({
                           </div>
 
                           {/* Progress Bar */}
-                          <div className="space-y-1">
+                          <div className="space-y-1.5">
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground">Contract Status</span>
-                              <span className={`font-medium ${
+                              <span className={`font-bold flex items-center gap-1 ${
                                 contractStatus === 'expiring' ? 'text-red-600 dark:text-red-400' :
                                 contractStatus === 'active' ? 'text-yellow-600 dark:text-yellow-400' :
                                 'text-green-600 dark:text-green-400'
                               }`}>
-                                {contractStatus === 'expiring' ? 'Expiring Soon' :
-                                 contractStatus === 'active' ? 'Active' :
-                                 'Healthy'}
+                                {contractStatus === 'expiring' ? (
+                                  <><AlertTriangle className="w-3 h-3" /> Expiring Soon</>
+                                ) : contractStatus === 'active' ? 'Active' : 'Healthy'}
                               </span>
                             </div>
-                            <Progress
-                              value={Math.min((gamesRemaining / 10) * 100, 100)}
-                              className={`h-2 ${
-                                contractStatus === 'expiring' ? '[&>[data-slot=progress-indicator]]:bg-red-500' :
-                                contractStatus === 'active' ? '[&>[data-slot=progress-indicator]]:bg-yellow-500' :
-                                '[&>[data-slot=progress-indicator]]:bg-green-500'
-                              }`}
-                            />
+                            <div className="flex items-center gap-2">
+                              <Progress
+                                value={Math.min((gamesRemaining / 10) * 100, 100)}
+                                className={`h-2.5 flex-1 ${
+                                  contractStatus === 'expiring' ? '[&>[data-slot=progress-indicator]]:bg-red-500' :
+                                  contractStatus === 'active' ? '[&>[data-slot=progress-indicator]]:bg-yellow-500' :
+                                  '[&>[data-slot=progress-indicator]]:bg-green-500'
+                                }`}
+                              />
+                              <span className="text-xs font-medium tabular-nums w-7 text-right text-muted-foreground">
+                                {Math.round((gamesRemaining / 10) * 100)}%
+                              </span>
+                            </div>
                           </div>
 
                           {/* Extend Button */}
-                          <Button 
-                            className={`w-full mt-2 ${
-                              contractStatus === 'expiring' 
-                                ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700' 
+                          <Button
+                            className={`w-full mt-2 text-white font-medium ${
+                              contractStatus === 'expiring'
+                                ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700'
                                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
                             }`}
                             size="sm"
