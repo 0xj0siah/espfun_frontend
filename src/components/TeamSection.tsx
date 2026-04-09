@@ -26,6 +26,19 @@ import { useGridCache } from '../hooks/useGridCache';
 import { useGameContext } from '../context/GameContext';
 import { apiService } from '../services/apiService';
 
+const formatUSDC = (value: number): string => {
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B USDC`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M USDC`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K USDC`;
+  if (value >= 1) return `$${value.toFixed(2)} USDC`;
+  if (value >= 0.01) return `$${value.toFixed(4)} USDC`;
+  if (value > 0) {
+    const leadingZeros = Math.max(0, Math.floor(-Math.log10(value)));
+    return `$${value.toFixed(leadingZeros + 2)} USDC`;
+  }
+  return '$0.00 USDC';
+};
+
 interface PlayerStats {
   kills: number;
   deaths: number;
@@ -193,13 +206,7 @@ export default function TeamSection({
         }
         
         const totalValue = shares * pricePerShare;
-        if (totalValue >= 1) return `${totalValue.toFixed(2)} USDC`;
-        if (totalValue >= 0.01) return `${totalValue.toFixed(4)} USDC`;
-        if (totalValue > 0) {
-          const leadingZeros = Math.max(0, Math.floor(-Math.log10(totalValue)));
-          return `${totalValue.toFixed(leadingZeros + 2)} USDC`;
-        }
-        return '0.00 USDC';
+        return formatUSDC(totalValue);
       } catch (error) {
         console.error('Error calculating total value:', error);
         return '0.000 USDC';
@@ -600,10 +607,10 @@ export default function TeamSection({
           </div>
         </motion.div>
         <Badge variant="secondary" className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0">
-          Total Value: {filteredOwnedPlayers.reduce((total, player) => {
+          Total Value: {formatUSDC(filteredOwnedPlayers.reduce((total, player) => {
             const value = parseFloat(player.totalValue?.replace(/[^\d.-]/g, '') || '0');
             return total + value;
-          }, 0).toFixed(3)} USDC
+          }, 0))}
         </Badge>
       </div>
 

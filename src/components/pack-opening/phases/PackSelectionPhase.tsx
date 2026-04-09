@@ -19,6 +19,7 @@ export function PackSelectionPhase({
   onToggleTestMode,
   onSelectPack,
   onTestOpen,
+  onRetryAuth,
   riveFoilIdleBuffer,
 }: PackSelectionPhaseProps) {
   return (
@@ -57,15 +58,35 @@ export function PackSelectionPhase({
         )}
 
         {walletConnected && !isAuthenticated && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 max-w-sm mx-auto">
-            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 text-sm">
-              {isAuthenticating ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-              <span className="font-medium">
-                {isAuthenticating ? 'Authenticating...' : 'Authentication Required'}
-              </span>
+          isAuthenticating ? (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 max-w-sm mx-auto">
+              <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span className="font-medium">Authenticating...</span>
+              </div>
             </div>
-            {authError && <p className="text-xs text-red-600 mt-1">{authError}</p>}
-          </div>
+          ) : authError ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 max-w-sm mx-auto">
+              <div className="flex items-center gap-2 text-red-800 dark:text-red-200 text-sm">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span className="font-medium">Authentication Failed</span>
+              </div>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{authError}</p>
+              {onRetryAuth && (
+                <Button size="sm" variant="outline" className="mt-2 h-7 text-xs border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40" onClick={onRetryAuth}>
+                  Try Again
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 max-w-sm mx-auto">
+              <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 text-sm">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span className="font-medium">Authentication Required</span>
+              </div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Connect your wallet to purchase packs.</p>
+            </div>
+          )
         )}
 
         {/* Test mode toggle */}

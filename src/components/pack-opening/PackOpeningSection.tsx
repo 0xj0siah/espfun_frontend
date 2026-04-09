@@ -206,6 +206,7 @@ export default function PackOpeningSection() {
           onToggleTestMode={() => setTestMode(prev => !prev)}
           onSelectPack={handleSelectPack}
           onTestOpen={handleTestOpen}
+          onRetryAuth={authenticate}
           riveFoilIdleBuffer={riveAssets.foilIdleBuffer}
         />
       )}

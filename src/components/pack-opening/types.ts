@@ -50,6 +50,7 @@ export interface PackSelectionPhaseProps {
   onToggleTestMode: () => void;
   onSelectPack: (pack: PackInfo) => void;
   onTestOpen: () => void;
+  onRetryAuth?: () => void;
   riveFoilIdleBuffer?: ArrayBuffer | null;
 }
 

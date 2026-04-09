@@ -200,13 +200,29 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const { sendTransactionWithWallet, isEmbeddedWallet } = useWalletTransactions();
   
   // Authentication states from useAuthentication hook
-  const { 
-    isAuthenticated, 
-    isAuthenticating, 
-    authenticate, 
+  const {
+    isAuthenticated,
+    isAuthenticating,
+    authenticate,
     error: authError,
-    walletConnected 
+    walletConnected,
+    hasAttemptedAuth,
   } = useAuthentication();
+
+  // Auth timeout: if wallet is connected but auth hasn't resolved in 8s, show a manual button
+  const [authTimedOut, setAuthTimedOut] = useState(false);
+  useEffect(() => {
+    if (!walletConnected || isAuthenticated) {
+      setAuthTimedOut(false);
+      return;
+    }
+    if (isAuthenticating) {
+      setAuthTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setAuthTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [walletConnected, isAuthenticated, isAuthenticating]);
 
   // Memoized public client for contract interactions
   const publicClient = usePublicClient();
@@ -1487,10 +1503,20 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
             {isAuthenticating
               ? 'Please wait while we authenticate your wallet...'
-              : 'Authenticating automatically...'}
+              : 'Please authenticate to trade.'}
           </p>
           {authError && (
             <p className="text-xs text-red-600 dark:text-red-400 mt-1">{authError}</p>
+          )}
+          {!isAuthenticating && (authTimedOut || hasAttemptedAuth) && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={authenticate}
+              className="mt-2 h-7 text-xs border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+            >
+              Authenticate
+            </Button>
           )}
         </motion.div>
       )}
