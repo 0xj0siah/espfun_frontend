@@ -12,6 +12,7 @@ import { Search, Filter, TrendingUp, TrendingDown, ShoppingCart, DollarSign, Use
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
 import { useIsMobile } from './ui/use-mobile';
 import { usePlayerPrices } from '../hooks/usePlayerPricing';
+import { usePoolInfo } from '../hooks/usePoolInfo';
 import fakeData from '../fakedata.json';
 import { usePrivy } from '@privy-io/react-auth';
 import { formatUnits } from 'viem';
@@ -50,6 +51,15 @@ interface Player {
   teamGridId?: string;
 }
 
+function formatPoolLiquidity(usdc: bigint): string {
+  const value = Number(usdc) / 1e6;
+  if (value <= 0) return '—';
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M USDC`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K USDC`;
+  if (value >= 1) return `${value.toFixed(2)} USDC`;
+  return `${value.toFixed(4)} USDC`;
+}
+
 export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: (player: any) => void } = {}) {
   const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
@@ -65,6 +75,7 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
   const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
   const { preloadPlayersData } = useGridCache();
   const [priceChanges, setPriceChanges] = useState<Record<string, number | null>>({});
+  const { poolData, fetchPoolInfo } = usePoolInfo();
 
   // Fetch real 24h price changes
   useEffect(() => {
@@ -109,6 +120,13 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
     };
     fetchActivePlayers();
   }, []); // Only run once on mount
+
+  // Fetch pool info for market cap display when active player IDs are known
+  useEffect(() => {
+    if (activePlayerIds.length > 0) {
+      fetchPoolInfo(activePlayerIds);
+    }
+  }, [activePlayerIds.join(',')]);
 
   // Create players with pricing when activePlayerIds or playerPrices change
   const playersWithPricing = useMemo(() => {
@@ -404,31 +422,39 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
                   onClick={() => handlePlayerClick(player)}
                   className="cursor-pointer group"
                 >
-                  <Card className="p-4 border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/20 group-hover:scale-105">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <div
-                          className="absolute inset-0 rounded-xl opacity-50 z-0"
-                          style={{
-                            backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
-                            backgroundSize: 'contain',
-                            backgroundPosition: 'center',
-                            backgroundRepeat: 'no-repeat'
-                          }}
-                        />
-                        <ImageWithFallback
-                          src={player.image}
-                          alt={player.name}
-                          className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md opacity-85"
-                        />
-                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full z-20">
-                          {player.rating}
+                  <Card className="relative overflow-hidden p-4 border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background to-accent/20 group-hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative z-10">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="relative">
+                          <div
+                            className="absolute inset-0 rounded-xl opacity-50 z-0"
+                            style={{
+                              backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                              backgroundSize: 'contain',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat'
+                            }}
+                          />
+                          <ImageWithFallback
+                            src={player.image}
+                            alt={player.name}
+                            className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md opacity-85"
+                          />
+                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center z-20 shadow-md">
+                            <span className="text-white text-[10px] font-bold leading-none">{player.rating}</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold truncate">{player.name}</h4>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full inline-block" />
+                            {player.game} • {player.position}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium">{player.name}</h4>
-                        <p className="text-xs text-muted-foreground">{player.game} • {player.position}</p>
-                        <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                        <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs font-medium">{player.price}</Badge>
                           {(() => {
                             const change = priceChanges[String(player.id)];
@@ -444,6 +470,16 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
                             );
                           })()}
                         </div>
+                        {(() => {
+                          const poolInfo = poolData.get(player.id);
+                          if (!poolInfo || poolInfo.currencyReserve === 0n) return null;
+                          return (
+                            <div className="text-right">
+                              <div className="text-xs font-semibold text-green-600 dark:text-green-400">{formatPoolLiquidity(poolInfo.currencyReserve)}</div>
+                              <div className="text-[10px] text-muted-foreground/60">liquidity</div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </Card>
