@@ -95,6 +95,8 @@ class ContractCacheManager {
         return 30000; // 30s for launch state
       case 'getUserBalance':
         return 10000; // 10s for user balances
+      case 'allowance':
+        return 0; // No caching for allowance — must always read fresh on-chain data
       case 'usedNonces':
       case 'getCurrentNonce':
         return 0; // No caching for nonce functions to ensure fresh data
