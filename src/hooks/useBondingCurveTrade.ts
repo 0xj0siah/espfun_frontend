@@ -191,6 +191,7 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         // stale-nonce reverts on back-to-back transactions (Privy may cache the old value).
         const buyNonce = await publicClient.getTransactionCount({
           address: activeWalletAddress as `0x${string}`,
+          blockTag: 'pending',
         });
 
         const result = await withTimeout(
@@ -272,6 +273,7 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         // Fetch the latest nonce from the network right before submitting.
         const sellNonce = await publicClient.getTransactionCount({
           address: activeWalletAddress as `0x${string}`,
+          blockTag: 'pending',
         });
 
         const result = await withTimeout(
