@@ -1390,7 +1390,13 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
       // Enhanced error handling (as per setup.md best practices)
       let errorMessage = 'Unknown error occurred';
       if (error instanceof Error) {
-        if (error.message.includes('InvalidSignature')) {
+        if (error.message.includes('would revert on-chain') || error.message.includes('Gas estimation failed')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('timed out')) {
+          errorMessage = 'Transaction timed out — please try again';
+        } else if (error.message.includes('EstimateGas') || error.message.includes('Execution reverted')) {
+          errorMessage = 'Transaction would fail on-chain. Try adjusting your amount or refreshing the page.';
+        } else if (error.message.includes('InvalidSignature')) {
           errorMessage = 'Invalid signature - ensure txSigner wallet is used';
         } else if (error.message.includes('InvalidNonce')) {
           errorMessage = 'Invalid nonce - transaction may be out of order';

@@ -31,6 +31,16 @@ interface BondingCurveTradeResult {
   reset: () => void;
 }
 
+/** Wraps a promise with a timeout; rejects with a timed-out error if it doesn't settle. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Transaction timed out after ${ms / 1000}s`)), ms)
+    ),
+  ]);
+}
+
 /**
  * Hook for executing trades on the BondingCurve contract.
  *
@@ -158,10 +168,17 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
           args: [BigInt(playerId), tokenAmountBigInt, maxSpendBigInt, deadline],
         });
 
-        const result = await sendTransactionWithWallet({
-          to: bondingCurveContract.address,
-          data,
-        });
+        // Pre-flight simulation to catch reverts before sending to Privy
+        try {
+          await publicClient.call({ to: bondingCurveContract.address as `0x${string}`, data: data as `0x${string}` });
+        } catch {
+          throw new Error('Transaction would revert on-chain. The bonding curve state may have changed — try adjusting your amount or refreshing the page.');
+        }
+
+        const result = await withTimeout(
+          sendTransactionWithWallet({ to: bondingCurveContract.address, data }),
+          60_000
+        );
 
         setTransactionHash(result.hash);
         updateStatus('pending', 'Waiting for confirmation...', result.hash);
@@ -213,10 +230,17 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
           ],
         });
 
-        const result = await sendTransactionWithWallet({
-          to: bondingCurveContract.address,
-          data,
-        });
+        // Pre-flight simulation to catch reverts before sending to Privy
+        try {
+          await publicClient.call({ to: bondingCurveContract.address as `0x${string}`, data: data as `0x${string}` });
+        } catch {
+          throw new Error('Transaction would revert on-chain. The bonding curve state may have changed — try adjusting your amount or refreshing the page.');
+        }
+
+        const result = await withTimeout(
+          sendTransactionWithWallet({ to: bondingCurveContract.address, data }),
+          60_000
+        );
 
         setTransactionHash(result.hash);
         updateStatus('pending', 'Waiting for confirmation...', result.hash);
