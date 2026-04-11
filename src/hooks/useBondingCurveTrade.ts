@@ -6,6 +6,17 @@ import { useWalletTransactions } from './useWalletTransactions';
 import { usePublicClient } from './usePublicClient';
 import type { TransactionStatus } from '../types/trading';
 
+/** Wrap a promise with a timeout so the UI never hangs indefinitely. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 interface BondingCurveTradeResult {
   /** Buy tokens on the bonding curve */
   buy: (params: {
@@ -158,10 +169,29 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
           args: [BigInt(playerId), tokenAmountBigInt, maxSpendBigInt, deadline],
         });
 
-        const result = await sendTransactionWithWallet({
-          to: bondingCurveContract.address,
-          data,
-        });
+        // Pre-flight: simulate the call to catch reverts before sending to Privy.
+        // Privy's internal gas estimation can fail as an unhandled rejection,
+        // leaving the UI stuck in "Processing..." state with no error shown.
+        try {
+          await publicClient.call({
+            to: bondingCurveContract.address as `0x${string}`,
+            data: data as `0x${string}`,
+          });
+        } catch (gasErr: any) {
+          const reason = gasErr?.message?.includes('reverted') || gasErr?.message?.includes('revert')
+            ? 'Transaction would revert on-chain. The bonding curve state may have changed — try adjusting your amount or refreshing the page.'
+            : `Pre-flight check failed: ${gasErr?.shortMessage || gasErr?.message || 'unknown reason'}`;
+          throw new Error(reason);
+        }
+
+        const result = await withTimeout(
+          sendTransactionWithWallet({
+            to: bondingCurveContract.address,
+            data,
+          }),
+          60_000,
+          'Buy transaction',
+        );
 
         setTransactionHash(result.hash);
         updateStatus('pending', 'Waiting for confirmation...', result.hash);
@@ -213,10 +243,27 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
           ],
         });
 
-        const result = await sendTransactionWithWallet({
-          to: bondingCurveContract.address,
-          data,
-        });
+        // Pre-flight: simulate the call to catch reverts before sending to Privy.
+        try {
+          await publicClient.call({
+            to: bondingCurveContract.address as `0x${string}`,
+            data: data as `0x${string}`,
+          });
+        } catch (gasErr: any) {
+          const reason = gasErr?.message?.includes('reverted') || gasErr?.message?.includes('revert')
+            ? 'Transaction would revert on-chain. The bonding curve state may have changed — try adjusting your amount or refreshing the page.'
+            : `Pre-flight check failed: ${gasErr?.shortMessage || gasErr?.message || 'unknown reason'}`;
+          throw new Error(reason);
+        }
+
+        const result = await withTimeout(
+          sendTransactionWithWallet({
+            to: bondingCurveContract.address,
+            data,
+          }),
+          60_000,
+          'Sell transaction',
+        );
 
         setTransactionHash(result.hash);
         updateStatus('pending', 'Waiting for confirmation...', result.hash);
