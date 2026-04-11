@@ -173,9 +173,11 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
             data: data as `0x${string}`,
           });
         } catch (gasErr: any) {
+          const fullError = gasErr?.shortMessage || gasErr?.message || 'unknown reason';
+          console.error('Pre-flight revert details:', gasErr);
           const reason = gasErr?.message?.includes('reverted') || gasErr?.message?.includes('revert')
-            ? 'Transaction would revert on-chain. The bonding curve state may have changed — try adjusting your amount or refreshing the page.'
-            : `Pre-flight check failed: ${gasErr?.shortMessage || gasErr?.message || 'unknown reason'}`;
+            ? `Transaction would revert on-chain: ${fullError}`
+            : `Pre-flight check failed: ${fullError}`;
           throw new Error(reason);
         }
 
