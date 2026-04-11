@@ -103,7 +103,7 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         abi: tusdcAbi as any,
         functionName: 'allowance',
         args: [
-          (await getWalletAddress()) as `0x${string}`,
+          activeWalletAddress as `0x${string}`,
           bondingCurveContract.address as `0x${string}`,
         ],
       });
@@ -118,7 +118,7 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
     const data = encodeFunctionData({
       abi: getContractData('TUSDC').abi as any,
       functionName: 'approve',
-      args: [bondingCurveContract.address as `0x${string}`, amount],
+      args: [bondingCurveContract.address as `0x${string}`, 2n ** 256n - 1n],
     });
 
     updateStatus('pending', 'Approving USDC spending...');
@@ -128,14 +128,6 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
     });
 
     await publicClient.waitForTransactionReceipt({ hash: result.hash as `0x${string}` });
-  };
-
-  /** Helper to get wallet address from the wallet transactions hook */
-  const getWalletAddress = async (): Promise<string> => {
-    // We access the wallet through sendTransactionWithWallet's internal state
-    // This is a workaround — in a real scenario, the caller passes the address
-    const tusdcContract = getContractData('TUSDC');
-    return tusdcContract.address; // placeholder, actual wallet comes from Privy context
   };
 
   const buy = useCallback(
