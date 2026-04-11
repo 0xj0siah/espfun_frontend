@@ -54,7 +54,7 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
   const [transactionHash, setTransactionHash] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { sendTransactionWithWallet } = useWalletTransactions();
+  const { sendTransactionWithWallet, activeWalletAddress } = useWalletTransactions();
   const publicClient = usePublicClient();
 
   const updateStatus = (
@@ -184,10 +184,18 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
           throw new Error(reason);
         }
 
+        // Fetch the latest nonce from the network right before submitting to avoid
+        // stale-nonce reverts on back-to-back transactions (Privy may cache the old value).
+        if (!activeWalletAddress) throw new Error('No wallet connected');
+        const buyNonce = await publicClient.getTransactionCount({
+          address: activeWalletAddress as `0x${string}`,
+        });
+
         const result = await withTimeout(
           sendTransactionWithWallet({
             to: bondingCurveContract.address,
             data,
+            nonce: buyNonce,
           }),
           60_000,
           'Buy transaction',
@@ -209,7 +217,7 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         setIsLoading(false);
       }
     },
-    [sendTransactionWithWallet, publicClient]
+    [sendTransactionWithWallet, publicClient, activeWalletAddress]
   );
 
   const sell = useCallback(
@@ -256,10 +264,17 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
           throw new Error(reason);
         }
 
+        // Fetch the latest nonce from the network right before submitting.
+        if (!activeWalletAddress) throw new Error('No wallet connected');
+        const sellNonce = await publicClient.getTransactionCount({
+          address: activeWalletAddress as `0x${string}`,
+        });
+
         const result = await withTimeout(
           sendTransactionWithWallet({
             to: bondingCurveContract.address,
             data,
+            nonce: sellNonce,
           }),
           60_000,
           'Sell transaction',
@@ -281,7 +296,7 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         setIsLoading(false);
       }
     },
-    [sendTransactionWithWallet, publicClient]
+    [sendTransactionWithWallet, publicClient, activeWalletAddress]
   );
 
   const claim = useCallback(

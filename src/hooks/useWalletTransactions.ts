@@ -40,6 +40,7 @@ export function useWalletTransactions() {
         data?: string;
         value?: bigint | string;
         gasLimit?: bigint;
+        nonce?: number;
       },
       options?: {
         showUI?: boolean; // Override default UI behavior
@@ -62,11 +63,12 @@ export function useWalletTransactions() {
           {
             to: transaction.to as `0x${string}`,
             data: transaction.data as `0x${string}` | undefined,
-            value: typeof transaction.value === 'bigint' 
-              ? transaction.value 
-              : transaction.value 
-                ? BigInt(transaction.value) 
+            value: typeof transaction.value === 'bigint'
+              ? transaction.value
+              : transaction.value
+                ? BigInt(transaction.value)
                 : undefined,
+            ...(transaction.nonce !== undefined && { nonce: transaction.nonce }),
           },
           {
             address: activeWallet.address as `0x${string}`,
