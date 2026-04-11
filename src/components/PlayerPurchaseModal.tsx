@@ -1236,6 +1236,17 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const priceImpact = realPriceImpactData ? realPriceImpactData.priceImpact.toFixed(2) : '0.00';
   const isPriceImpactHigh = parseFloat(priceImpact) > 5;
 
+  // Insufficient balance: buy compares USDC amount vs USDC balance; sell compares token amount vs token balance
+  const isInsufficientBalance = (() => {
+    const amount = parseFloat(usdcAmount);
+    if (!usdcAmount || isNaN(amount) || amount <= 0) return false;
+    if (action === 'buy') {
+      return amount > parseFloat(userUsdcBalance || '0');
+    } else {
+      return amount > parseFloat(playerTokenBalanceFormatted || '0');
+    }
+  })();
+
   const { loadPlayerData, error: gridError } = useGridCache();
 
   // Fetch all Grid.gg data when modal opens
@@ -1765,14 +1776,14 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
           <div className="flex justify-center space-x-2 mb-2 md:mb-4">
             <Button
               variant={action === 'buy' ? "default" : "outline"}
-              onClick={() => setAction('buy')}
+              onClick={() => { if (action !== 'buy') { setAction('buy'); setUsdcAmount(''); updateAlertState('idle'); } }}
               className={`flex-1 ${action === 'buy' ? 'bg-gradient-to-r from-green-600 to-emerald-600' : ''}`}
             >
               Buy
             </Button>
             <Button
               variant={action === 'sell' ? "default" : "outline"}
-              onClick={() => setAction('sell')}
+              onClick={() => { if (action !== 'sell') { setAction('sell'); setUsdcAmount(''); updateAlertState('idle'); } }}
               className={`flex-1 ${action === 'sell' ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''}`}
             >
               Sell
@@ -1812,7 +1823,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 min="0"
                 value={usdcAmount}
                 onChange={e => setUsdcAmount(e.target.value)}
-                className="w-full text-xl md:text-2xl font-bold pr-20 md:pr-24 bg-background/50 border-accent/20 focus:border-accent/40 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className={`w-full text-xl md:text-2xl font-bold pr-20 md:pr-24 bg-background/50 border-accent/20 focus:border-accent/40 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isInsufficientBalance ? 'border-red-500 focus:border-red-500' : ''}`}
                 placeholder="0.00"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
@@ -1821,6 +1832,11 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
                 </span>
               </div>
             </div>
+            {isInsufficientBalance && (
+              <p className="text-xs text-red-500 mt-1">
+                Insufficient balance
+              </p>
+            )}
           </div>
 
           {/* Swap Arrow */}
@@ -1830,7 +1846,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setAction(action === 'buy' ? 'sell' : 'buy')}
+                onClick={() => { setAction(action === 'buy' ? 'sell' : 'buy'); setUsdcAmount(''); updateAlertState('idle'); }}
                 className="h-7 w-7 md:h-8 md:w-8 rounded-full hover:bg-accent/40"
               >
                 <ArrowUpDown className="h-3 w-3 md:h-4 md:w-4" />
@@ -2065,6 +2081,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               onClick={handleConfirm}
               disabled={
                 !usdcAmount || parseFloat(usdcAmount) <= 0 || isLoading ||
+                isInsufficientBalance ||
                 tradingPhase === TradingPhase.Cancelled ||
                 (tradingPhase === TradingPhase.Graduated && userCurveBalance > 0n)
               }
