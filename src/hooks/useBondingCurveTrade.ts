@@ -172,8 +172,11 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         // Pre-flight: simulate the call to catch reverts before sending to Privy.
         // Privy's internal gas estimation can fail as an unhandled rejection,
         // leaving the UI stuck in "Processing..." state with no error shown.
+        if (!activeWalletAddress) throw new Error('No wallet connected');
+
         try {
           await publicClient.call({
+            account: activeWalletAddress as `0x${string}`,
             to: bondingCurveContract.address as `0x${string}`,
             data: data as `0x${string}`,
           });
@@ -186,7 +189,6 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
 
         // Fetch the latest nonce from the network right before submitting to avoid
         // stale-nonce reverts on back-to-back transactions (Privy may cache the old value).
-        if (!activeWalletAddress) throw new Error('No wallet connected');
         const buyNonce = await publicClient.getTransactionCount({
           address: activeWalletAddress as `0x${string}`,
         });
@@ -252,8 +254,11 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         });
 
         // Pre-flight: simulate the call to catch reverts before sending to Privy.
+        if (!activeWalletAddress) throw new Error('No wallet connected');
+
         try {
           await publicClient.call({
+            account: activeWalletAddress as `0x${string}`,
             to: bondingCurveContract.address as `0x${string}`,
             data: data as `0x${string}`,
           });
@@ -265,7 +270,6 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         }
 
         // Fetch the latest nonce from the network right before submitting.
-        if (!activeWalletAddress) throw new Error('No wallet connected');
         const sellNonce = await publicClient.getTransactionCount({
           address: activeWalletAddress as `0x${string}`,
         });
