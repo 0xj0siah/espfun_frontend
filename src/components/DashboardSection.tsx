@@ -12,15 +12,10 @@ import { usePrivy } from '@privy-io/react-auth';
 import { formatUnits } from 'viem';
 import { getContractData } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
-import fakeData from '../fakedata.json';
+import { usePriceContext } from '../context/PriceContext';
 
-interface DashboardSectionProps {
-  preloadedPrices: Record<number, string>;
-  activePlayerIds: number[];
-  pricesLoading: boolean;
-}
-
-export default memo(function DashboardSection({ preloadedPrices, activePlayerIds, pricesLoading }: DashboardSectionProps) {
+export default memo(function DashboardSection() {
+  const { prices: preloadedPrices, rawPrices, activePlayerIds, pricesLoading } = usePriceContext();
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const { user, authenticated } = usePrivy();
@@ -65,8 +60,7 @@ export default memo(function DashboardSection({ preloadedPrices, activePlayerIds
               const bal = result as bigint;
               if (bal > 0n) {
                 const formatted = parseFloat(formatUnits(bal, 18));
-                const priceStr = preloadedPrices[playerId] || '';
-                const priceNum = parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
+                const priceNum = rawPrices[playerId] || 0;
                 total += formatted * priceNum;
                 count++;
               }
@@ -85,7 +79,7 @@ export default memo(function DashboardSection({ preloadedPrices, activePlayerIds
     };
 
     fetchHoldings();
-  }, [walletAddress, authenticated, activePlayerIds.join(','), JSON.stringify(preloadedPrices)]);
+  }, [walletAddress, authenticated, activePlayerIds.join(','), rawPrices]);
 
   // Volume / trades from backend analytics
   const [stats, setStats] = useState<any>(null);

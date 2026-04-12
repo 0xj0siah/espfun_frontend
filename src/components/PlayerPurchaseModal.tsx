@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Drawer, DrawerContent } from './ui/drawer';
 import { Button } from './ui/button';
@@ -32,6 +32,7 @@ import { usePublicClient } from '../hooks/usePublicClient';
 import { TradingPhase, FeeType, feeTypeLabel, feeTypeBadgeColor, EMPTY_QUOTE } from '../types/trading';
 import { Progress } from './ui/progress';
 import { useIsMobile } from './ui/use-mobile';
+import { usePriceContext } from '../context/PriceContext';
 
 interface Player {
   id: number;
@@ -93,6 +94,7 @@ function restoreVaulBodyStyles() {
 
 export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchase, onAdvancedView, renderMode = 'modal' }: PlayerPurchaseModalProps) {
   const isMobile = useIsMobile();
+  const { refreshPrices, rawPrices: contextPrices } = usePriceContext();
   const [showStats, setShowStats] = useState(false);
   const [showMatches, setShowMatches] = useState(false);
   const [showBuySellMenu, setShowBuySellMenu] = useState(renderMode === 'panel');
@@ -119,6 +121,18 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   const [teamSeriesIds, setTeamSeriesIds] = useState<string[]>([]);
   const [seriesData, setSeriesData] = useState<SeriesState[]>([]);
   const [seriesLoading, setSeriesLoading] = useState(false);
+
+  // Lock card width in panel mode to prevent jitter when transaction details hide/show
+  const cardRef = useRef<HTMLDivElement>(null);
+  const cardMaxWidth = useRef(0);
+  useLayoutEffect(() => {
+    if (renderMode !== 'panel' || !cardRef.current) return;
+    const w = cardRef.current.offsetWidth;
+    if (w > cardMaxWidth.current) {
+      cardMaxWidth.current = w;
+    }
+    cardRef.current.style.minWidth = `${cardMaxWidth.current}px`;
+  });
 
   // Helper function to safely update alert state and prevent overlap
   const updateAlertState = (status: 'idle' | 'pending' | 'success' | 'error', message: string = '', hash: string = '') => {
@@ -762,6 +776,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     
     // Set success status with detailed info
     updateAlertState('success', `✅ Successfully bought player tokens!`, hash);
+    refreshPrices().catch(() => {});
+    fetchPoolInfo([playerTokenId]).catch(() => {});
 
     // Update TUSDC balance after successful transaction
     await updateBalanceAfterTransaction();
@@ -1037,6 +1053,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     
     // Set success status with detailed info
     updateAlertState('success', `✅ Successfully sold player tokens!`, hash);
+    refreshPrices().catch(() => {});
+    if (player) fetchPoolInfo([player.id]).catch(() => {});
 
     // Update TUSDC balance after successful transaction
     await updateBalanceAfterTransaction();
@@ -1160,18 +1178,20 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     }
   };
   
-  // Get real price from pool data if available, otherwise fallback to player.price
+  // Get real price: PriceContext (updates every 5s) > pool data > player.price fallback
   const getRealPrice = () => {
+    // Prefer PriceContext — it updates every 5s from the backend
+    const ctxPrice = contextPrices[player.id];
+    if (ctxPrice && ctxPrice > 0) {
+      return ctxPrice;
+    }
+    // Fallback to pool data (fetched once on modal open)
     const poolInfo = poolData.get(player.id);
     if (poolInfo && poolInfo.currencyReserve > 0n && poolInfo.playerTokenReserve > 0n) {
-      // Calculate real price from pool reserves: USDC reserve / token reserve
-      const usdcReserve = Number(poolInfo.currencyReserve) / 1e6; // USDC has 6 decimals
-      const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18; // Tokens have 18 decimals
-      const realPrice = usdcReserve / tokenReserve;
-      console.log(`🔄 Using real pool price: ${realPrice.toFixed(8)} USDC per token (was ${playerPrice})`);
-      return realPrice;
+      const usdcReserve = Number(poolInfo.currencyReserve) / 1e6;
+      const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18;
+      return usdcReserve / tokenReserve;
     }
-    console.log(`⚠️ No pool data, using fallback price: ${playerPrice} USDC per token`);
     return playerPrice;
   };
   
@@ -1347,6 +1367,8 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         refreshTokenBalance();
         await updateBalanceAfterTransaction();
         updateAlertState('success', `Successfully ${action === 'buy' ? 'bought' : 'sold'} tokens!`, bondingCurveTrade.transactionHash);
+        refreshPrices().catch(() => {});
+        if (player) fetchPoolInfo([player.id]).catch(() => {});
 
       } else {
         // ═══ FDFPAIR TRADING (existing flow with signatures) ═══
@@ -2313,7 +2335,16 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
   // Must come before the mobile check so renderMode="panel" works on all devices.
   if (renderMode === 'panel') {
     return (
-      <div className="w-full max-w-full overflow-hidden space-y-4">
+      <div ref={cardRef} className="w-full max-w-full overflow-hidden space-y-4">
+        {/* Current price — desktop chart view only */}
+        {!isMobile && (
+          <div className="text-center py-2">
+            <p className="text-xs text-muted-foreground mb-1">Current Price</p>
+            <p className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              {formatPriceDisplay(currentPrice)} USDC
+            </p>
+          </div>
+        )}
         {renderAuthStatus()}
         {renderBondingCurveBanner()}
         {renderTradingForm()}

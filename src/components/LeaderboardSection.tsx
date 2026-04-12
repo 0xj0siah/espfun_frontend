@@ -7,6 +7,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion } from 'motion/react';
 import { Trophy, Crown, TrendingUp, DollarSign, Star } from 'lucide-react';
 import { useIsMobile } from './ui/use-mobile';
+import { formatPoints } from '../utils/formatPoints';
 
 export default memo(function LeaderboardSection() {
   const { t } = useTranslation();
@@ -101,7 +102,7 @@ export default memo(function LeaderboardSection() {
                   </div>
 
                   <div className="text-right">
-                    <p className="text-sm text-primary">{player.points.toLocaleString()} pts</p>
+                    <p className="text-sm text-primary">{formatPoints(player.points)} pts</p>
                     <p className="text-xs text-muted-foreground">{t('leaderboard.reward')}: {player.reward}</p>
                   </div>
                 </motion.div>
@@ -158,7 +159,7 @@ export default memo(function LeaderboardSection() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium text-primary">
-                      {player.points.toLocaleString()}
+                      {formatPoints(player.points)}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {player.teamValue}

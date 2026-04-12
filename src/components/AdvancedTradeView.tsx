@@ -8,6 +8,8 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Skeleton } from './ui/skeleton';
 import { usePlayerOHLC, useRecentTrades } from '../hooks/useAnalytics';
 import { useIsMobile } from './ui/use-mobile';
+import { usePriceContext } from '../context/PriceContext';
+import { pushLivePrice } from '../lib/tradingview/datafeed';
 import PlayerPurchaseModal from './PlayerPurchaseModal';
 
 const CandlestickChart = lazy(() => import('./charts/CandlestickChart'));
@@ -91,6 +93,9 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
     rangeConfig.days
   );
 
+  const { rawPrices } = usePriceContext();
+  const livePrice = rawPrices[player.id] ?? undefined;
+
   const { trades, loading: tradesLoading } = useRecentTrades(player.id.toString(), 15);
 
   const handleTimeRangeChange = useCallback((range: string) => {
@@ -111,6 +116,7 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
               onTimeRangeChange={handleTimeRangeChange}
               playerName={player.name}
               isMobile={isMobile}
+              livePrice={livePrice}
             />
           </Suspense>
         );
@@ -128,8 +134,15 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
         </Suspense>
       );
     },
-    [useFallback, candles, chartLoading, timeRange, handleTimeRangeChange, player, isMobile]
+    [useFallback, candles, chartLoading, timeRange, handleTimeRangeChange, player, isMobile, livePrice]
   );
+
+  // Push live price to TradingView datafeed when not using fallback chart
+  useEffect(() => {
+    if (!useFallback && livePrice != null && livePrice > 0) {
+      pushLivePrice(player.id.toString(), livePrice);
+    }
+  }, [useFallback, livePrice, player.id]);
 
   const explorerBase = 'https://sepolia.basescan.org/tx/';
 

@@ -21,6 +21,7 @@ import { useGameContext } from '../context/GameContext';
 import { LanguageSelector } from './LanguageSelector';
 import { MobileSidebar } from './MobileSidebar';
 import { apiService } from '../services/apiService';
+import { formatPoints } from '../utils/formatPoints';
 import { toast } from 'sonner';
 
 interface HeaderProps {
@@ -776,7 +777,7 @@ function ReferralModalContent({
           <div className="bg-purple-500/10 p-3 rounded-xl w-fit mx-auto mb-2">
             <TrendingUp className="w-5 h-5 text-purple-500" />
           </div>
-          <p className="text-xl font-bold">{referralStats.totalPointsEarned.toLocaleString()}</p>
+          <p className="text-xl font-bold">{formatPoints(referralStats.totalPointsEarned)}</p>
           <p className="text-xs text-muted-foreground">Points Earned</p>
         </Card>
       </div>

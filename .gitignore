@@ -105,3 +105,6 @@ temp/
 
 # Stress test results
 stress-test-results/
+
+# Claude Code
+.claude/

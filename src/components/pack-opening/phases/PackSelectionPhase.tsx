@@ -4,6 +4,7 @@ import { Button } from '../../ui/button';
 import { Skeleton } from '../../ui/skeleton';
 import { RiveFoilIdle } from '../effects/RiveFoilIdle';
 import { PACK_DESIGNS } from '../constants';
+import { formatPoints } from '../../../utils/formatPoints';
 import type { PackSelectionPhaseProps } from '../types';
 
 export function PackSelectionPhase({
@@ -42,7 +43,7 @@ export function PackSelectionPhase({
           >
             <Trophy className="w-4 h-4" />
             <span className="font-bold">
-              {userPoints.tournamentPoints.toLocaleString()} Points
+              {formatPoints(userPoints.tournamentPoints)} Points
             </span>
           </motion.div>
         )}

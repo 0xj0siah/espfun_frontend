@@ -4,12 +4,10 @@ import Header from './components/Header';
 import { useIsMobile } from './components/ui/use-mobile';
 import TeamSection from './components/TeamSection';
 import { PasswordGate } from './components/PasswordGate';
-import { usePlayerPrices } from './hooks/usePlayerPricing';
-import fakeData from './fakedata.json';
-import { getActivePlayerIds } from './utils/contractInteractions';
 import { useAuthentication } from './hooks/useAuthentication';
 import { AuthProvider } from './context/AuthContext';
 import { GameProvider } from './context/GameContext';
+import { PriceProvider } from './context/PriceContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Lazy-loaded sections (deferred until tab is selected)
@@ -29,7 +27,6 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function App() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('Team');
-  const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
   const [advancedViewPlayer, setAdvancedViewPlayer] = useState<any>(null);
   const isMobile = useIsMobile();
 
@@ -66,27 +63,10 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [validateToken, hasAuthToken]);
 
-  // Fetch active player IDs on mount
-  useEffect(() => {
-    const fetchActivePlayers = async () => {
-      try {
-        const activeIds = await getActivePlayerIds();
-        setActivePlayerIds(activeIds.map(id => Number(id)));
-      } catch (error) {
-        // Fallback to all players if contract fails
-        setActivePlayerIds(fakeData.teamPlayers.map(player => player.id));
-      }
-    };
-    fetchActivePlayers();
-  }, []);
-
-  // Only preload prices for active players
-  const { prices: preloadedPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
-
   const renderContent = () => {
     switch (activeTab) {
       case 'Team':
-        return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} onAdvancedView={setAdvancedViewPlayer} />;
+        return <TeamSection onAdvancedView={setAdvancedViewPlayer} />;
       case 'Transfers':
         return <TransfersSection onAdvancedView={setAdvancedViewPlayer} />;
       case 'Live Scores':
@@ -98,9 +78,9 @@ export default function App() {
       case 'Staking':
         return <StakingSection />;
       case 'Dashboard':
-        return <DashboardSection preloadedPrices={preloadedPrices} activePlayerIds={activePlayerIds} pricesLoading={pricesLoading} />;
+        return <DashboardSection />;
       default:
-        return <TeamSection preloadedPrices={preloadedPrices} pricesLoading={pricesLoading} />;
+        return <TeamSection />;
     }
   };
 
@@ -108,6 +88,7 @@ export default function App() {
     <PasswordGate>
       <AuthProvider>
         <GameProvider>
+        <PriceProvider>
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-accent/20">
           <Header activeTab={activeTab} onTabChange={(tab) => { setAdvancedViewPlayer(null); setActiveTab(tab); }} />
 
@@ -169,6 +150,7 @@ export default function App() {
         </div>
       </div>
       <Toaster richColors position={isMobile ? "top-center" : "bottom-right"} />
+      </PriceProvider>
       </GameProvider>
       </AuthProvider>
     </PasswordGate>

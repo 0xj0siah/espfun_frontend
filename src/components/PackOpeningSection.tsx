@@ -11,6 +11,7 @@ import { useAuthentication } from '../hooks/useAuthentication';
 import { toast } from 'sonner';
 import fakeData from '../fakedata.json';
 import { formatEther } from 'viem';
+import { formatPoints } from '../utils/formatPoints';
 
 interface Player {
   id: number;
@@ -361,7 +362,7 @@ export default function PackOpeningSection() {
           >
             <Trophy className="w-5 h-5" />
             <span className="font-bold">
-              Tournament Points: {userPoints.tournamentPoints.toLocaleString()}
+              Tournament Points: {formatPoints(userPoints.tournamentPoints)}
             </span>
           </motion.div>
         )}

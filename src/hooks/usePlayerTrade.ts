@@ -84,6 +84,7 @@ export interface HandleConfirmDeps {
   refreshPhase: () => void;
   refreshTokenBalance: () => void;
   checkUserUsdcBalance: () => Promise<void>;
+  refreshPrices: () => Promise<void>;
   userCurveBalance: bigint;
   onPurchase?: (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => Promise<void>;
 }
@@ -665,6 +666,9 @@ export function usePlayerTrade({
             await sellTokens(player.id, usdcAmount, minCurrency);
           }
         }
+
+        // Refresh global prices immediately after trade
+        deps.refreshPrices().catch(() => {});
 
         // Call optional callback
         if (deps.onPurchase) {

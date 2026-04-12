@@ -16,15 +16,13 @@ import PlayerPurchaseModal from './PlayerPurchaseModal';
 import ContractExtensionModal from './ContractExtensionModal';
 import { PromotionMenu } from './PromotionMenu';
 import { toast } from "sonner";
-import { usePlayerPrices } from '../hooks/usePlayerPricing';
 import fakeData from '../fakedata.json';
 import { getDevelopmentPlayersData, testDevelopmentPlayersContract, getActivePlayerIds, getPlayerBalance, getMultiplePlayerBalances } from '../utils/contractInteractions';
 import { getContractData } from '../contracts';
 import { readContractCached, contractCache } from '../utils/contractCache';
-import { usePoolInfo } from '../hooks/usePoolInfo';
 import { useGridCache } from '../hooks/useGridCache';
 import { useGameContext } from '../context/GameContext';
-import { apiService } from '../services/apiService';
+import { usePriceContext } from '../context/PriceContext';
 
 const formatUSDC = (value: number): string => {
   if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B USDC`;
@@ -99,14 +97,10 @@ interface PrivyWallet extends SmartWallet {
 }
 
 export default function TeamSection({
-  preloadedPrices = {},
-  pricesLoading = false,
   onAdvancedView,
 }: {
-  preloadedPrices?: Record<number, string>;
-  pricesLoading?: boolean;
   onAdvancedView?: (player: any) => void;
-}) {
+} = {}) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('squad');
   const [teamPlayers, setTeamPlayers] = useState<Player[]>([]);
@@ -117,7 +111,6 @@ export default function TeamSection({
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [selectedContractPlayer, setSelectedContractPlayer] = useState<Player | null>(null);
   const [isPromotionMenuOpen, setIsPromotionMenuOpen] = useState(false);
-  const [priceChanges, setPriceChanges] = useState<Record<string, number | null>>({});
   const [selectedPromotionPlayer, setSelectedPromotionPlayer] = useState<any | null>(null);
   const [developmentPlayers, setDevelopmentPlayers] = useState<{
     playerIds: bigint[];
@@ -132,22 +125,7 @@ export default function TeamSection({
   const { user, authenticated } = usePrivy();
   const { preloadPlayersData } = useGridCache();
   const { selectedGame } = useGameContext();
-
-  // Fetch real 24h price changes
-  useEffect(() => {
-    apiService.getPlayerPriceChanges()
-      .then((data: any) => {
-        const map: Record<string, number | null> = {};
-        for (const p of data.players || []) {
-          map[p.playerTokenId] = p.change24h;
-        }
-        setPriceChanges(map);
-      })
-      .catch(() => {});
-  }, []);
-
-  // Add pool data hook for accurate pricing
-  const { poolData, fetchPoolInfo } = usePoolInfo();
+  const { prices: contextPrices, rawPrices, priceChanges, pricesLoading } = usePriceContext();
 
   // Helper function to format shares from wei to readable number
   const formatShares = (wei: bigint): string => {
@@ -162,56 +140,15 @@ export default function TeamSection({
     }
   };
 
-  // Use preloaded prices from App component
-  const playerPrices = preloadedPrices;
-
-  // Derive effective prices: pool reserves take precedence over getPrices hook
-  const effectivePrices = useMemo(() => {
-    const combined: Record<number, string> = { ...playerPrices };
-
-    poolData.forEach((pool, playerId) => {
-      if (pool.currencyReserve > 0n && pool.playerTokenReserve > 0n) {
-        const usdcReserve = Number(pool.currencyReserve) / 1e6;
-        const tokenReserve = Number(pool.playerTokenReserve) / 1e18;
-        const price = usdcReserve / tokenReserve;
-        // Keep full precision so total value calculations aren't truncated
-        if (price >= 1) {
-          combined[playerId] = `${price.toFixed(2)} USDC`;
-        } else if (price >= 0.01) {
-          combined[playerId] = `${price.toFixed(4)} USDC`;
-        } else if (price > 0) {
-          const leadingZeros = Math.max(0, Math.floor(-Math.log10(price)));
-          combined[playerId] = `${price.toFixed(leadingZeros + 2)} USDC`;
-        }
-      }
-    });
-
-    return combined;
-  }, [playerPrices, poolData]);
+  // Prices come from PriceContext (backend-polled, 5s refresh)
+  const playerPrices = contextPrices;
 
   // Memoize calculateTotalValue to prevent unnecessary recalculations
   const calculateTotalValue = useMemo(() => {
     return (ownedShares: bigint, playerId: number): string => {
       try {
         const shares = parseFloat(formatEther(ownedShares));
-        
-        // Try to get real price from pool data first
-        const poolInfo = poolData.get(playerId);
-        let pricePerShare = 0;
-        
-        if (poolInfo && poolInfo.currencyReserve > 0n && poolInfo.playerTokenReserve > 0n) {
-          // Calculate real price from pool reserves: USDC reserve / token reserve
-          const usdcReserve = Number(poolInfo.currencyReserve) / 1e6; // USDC has 6 decimals
-          const tokenReserve = Number(poolInfo.playerTokenReserve) / 1e18; // Tokens have 18 decimals
-          pricePerShare = usdcReserve / tokenReserve;
-          // Real pool price calculated from reserves
-        } else {
-          // Fallback to pricing hook data
-          const fallbackPrice = playerPrices[playerId] || '0.000 USDC';
-          pricePerShare = parseFloat(fallbackPrice.replace(/[^\d.-]/g, '')) || 0;
-          // Fallback to pricing hook data
-        }
-        
+        const pricePerShare = rawPrices[playerId] || 0;
         const totalValue = shares * pricePerShare;
         return formatUSDC(totalValue);
       } catch (error) {
@@ -219,7 +156,7 @@ export default function TeamSection({
         return '0.000 USDC';
       }
     };
-  }, [poolData, playerPrices]);
+  }, [rawPrices]);
 
   // Fetch owned players and their balances using batched balanceOfBatch call
   // Also checks BondingCurve for graduated launches with unclaimed tokens
@@ -331,7 +268,7 @@ export default function TeamSection({
         return {
           ...basePlayerData,
           id: playerIdNum,
-          price: effectivePrices[playerIdNum] || (pricesLoading ? 'Loading...' : '0.00 USDC'),
+          price: playerPrices[playerIdNum] || (pricesLoading ? 'Loading...' : '0.00 USDC'),
           points: 0,
           ownedShares: balance,
           unclaimedBalance: unclaimedBalance > 0n ? unclaimedBalance : undefined,
@@ -351,12 +288,6 @@ export default function TeamSection({
       });
 
       setOwnedPlayers(ownedPlayersList);
-
-      // Fetch pool data for accurate pricing
-      const playerIdsForPool = ownedPlayerData.map(({ playerId }) => Number(playerId));
-      if (playerIdsForPool.length > 0) {
-        await fetchPoolInfo(playerIdsForPool);
-      }
 
       // Preload Grid.gg data for owned players (with delay to avoid connection issues)
       setTimeout(() => {
@@ -402,7 +333,7 @@ export default function TeamSection({
         xp: 50,
         potential: 75, // Higher potential for development players
         // Update with contract data - no fallback to fake data
-        price: effectivePrices[playerIdNum] || (pricesLoading ? 'Loading...' : '0.00 USDC'),
+        price: playerPrices[playerIdNum] || (pricesLoading ? 'Loading...' : '0.00 USDC'),
         // Add development-specific info with formatted shares
         lockedShares: formatShares(lockedBalance),
         // Calculate total value using the same logic as active players
@@ -415,7 +346,7 @@ export default function TeamSection({
         }))
       };
     });
-  }, [developmentPlayers.playerIds, developmentPlayers.lockedBalances, effectivePrices, poolData]);
+  }, [developmentPlayers.playerIds, developmentPlayers.lockedBalances, playerPrices]);
 
   const handleDevelopmentPlayerClick = (player: any) => {
     // Convert the development player to promotion menu format
@@ -445,7 +376,7 @@ export default function TeamSection({
   useEffect(() => {
     // Use fake data and merge with effective prices (pool reserves + hook data)
     const playersWithPricing: Player[] = fakeData.teamPlayers.filter(player => player.game === selectedGame).map(player => {
-      const price = effectivePrices[player.id];
+      const price = playerPrices[player.id];
       const finalPrice = price || (pricesLoading ? 'Loading...' : '0.00 USDC');
 
       return {
@@ -466,7 +397,7 @@ export default function TeamSection({
 
     setTeamPlayers(playersWithPricing);
     setLoading(false);
-  }, [effectivePrices, pricesLoading, selectedGame]);
+  }, [playerPrices, pricesLoading, selectedGame]);
 
   // Fetch owned players when component mounts or wallet changes
   useEffect(() => {
@@ -514,12 +445,12 @@ export default function TeamSection({
     return ownedPlayers.filter(player => player.game === selectedGame);
   }, [ownedPlayers, selectedGame]);
 
-  // Update owned players prices when effectivePrices changes (without re-fetching balances)
+  // Update owned players prices when playerPrices changes (without re-fetching balances)
   useEffect(() => {
-    if (ownedPlayers.length > 0 && Object.keys(effectivePrices).length > 0) {
+    if (ownedPlayers.length > 0 && Object.keys(playerPrices).length > 0) {
       setOwnedPlayers(prevPlayers =>
         prevPlayers.map(player => {
-          const updatedPrice = effectivePrices[player.id];
+          const updatedPrice = playerPrices[player.id];
           if (updatedPrice && updatedPrice !== player.price) {
             return {
               ...player,
@@ -531,7 +462,7 @@ export default function TeamSection({
         })
       );
     }
-  }, [effectivePrices, calculateTotalValue]);
+  }, [playerPrices, calculateTotalValue]);
 
   const handlePurchase = async (player: Player, usdcAmount: string, action: 'buy' | 'sell', slippage: number) => {
     if (!authenticated || !user?.wallet?.address) {

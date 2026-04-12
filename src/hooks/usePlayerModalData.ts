@@ -11,6 +11,7 @@ import { usePlayerTokenBalance } from './usePlayerTokenBalance';
 import { useBondingCurveTrade } from './useBondingCurveTrade';
 import { usePublicClient } from './usePublicClient';
 import { usePrivy } from '@privy-io/react-auth';
+import { usePriceContext } from '../context/PriceContext';
 import type { GridDetailedPlayerStats, SeriesState, MatchResult } from '../utils/api';
 import { TradingPhase, type TradeQuote, type LaunchInfo, type LaunchProgress } from '../types/trading';
 
@@ -92,6 +93,9 @@ export interface UsePlayerModalDataReturn {
   userUsdcBalance: string;
   checkUserUsdcBalance: () => Promise<void>;
 
+  // Price refresh (post-trade)
+  refreshPrices: () => Promise<void>;
+
   // Grid.gg stats
   gridStats: GridDetailedPlayerStats | null;
   gridStatsLoading: boolean;
@@ -135,6 +139,9 @@ export function usePlayerModalData({
 
   // ── Public client ──
   const publicClient = usePublicClient();
+
+  // ── Price refresh (post-trade) ──
+  const { refreshPrices } = usePriceContext();
 
   // ── Pool info ──
   const {
@@ -338,6 +345,9 @@ export function usePlayerModalData({
     // USDC
     userUsdcBalance,
     checkUserUsdcBalance,
+
+    // Price refresh
+    refreshPrices,
 
     // Grid
     gridStats,

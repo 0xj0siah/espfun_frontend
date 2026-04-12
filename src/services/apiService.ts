@@ -1032,6 +1032,37 @@ class ApiService {
       throw new Error('Failed to get recent trades');
     }
   }
+  /**
+   * GET /api/market-cap/players/live
+   * Returns live player prices from the chain (Redis-cached 5s on backend).
+   * Pass bustCache=true to force a fresh chain read.
+   */
+  async getLivePrices(bustCache = false): Promise<{
+    prices: Array<{ playerTokenId: number; price: number }>;
+    count: number;
+    timestamp: number;
+  }> {
+    const bust = bustCache ? '?bust=1' : '';
+    const cacheKey = `live-prices${bust}`;
+    const endpoint = `market-cap/players/live${bust}`;
+
+    try {
+      return await requestCache.executeRequest(
+        cacheKey,
+        endpoint,
+        async () => {
+          const response = await retryWithBackoff(async () => {
+            return axios.get(`${API_BASE_URL}/api/market-cap/players/live${bust}`);
+          });
+          return response.data;
+        },
+        { ttl: bustCache ? 0 : 4000 } // 4s client cache (slightly less than 5s server cache)
+      );
+    } catch (error) {
+      console.error('Failed to get live prices:', error);
+      throw new Error('Failed to get live prices');
+    }
+  }
 }
 
 export const apiService = new ApiService();

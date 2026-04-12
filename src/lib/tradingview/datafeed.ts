@@ -59,6 +59,7 @@ interface Subscription {
   resolution: string;
   onTick: SubscribeBarsCallback;
   lastBarTime: number;
+  lastBar: Bar | null;
   timer: ReturnType<typeof setInterval>;
 }
 
@@ -97,6 +98,7 @@ function startPolling(
 
       if (bar.time >= sub.lastBarTime) {
         sub.lastBarTime = bar.time;
+        sub.lastBar = bar;
         onTick(bar);
       }
     } catch {
@@ -109,6 +111,7 @@ function startPolling(
     resolution,
     onTick,
     lastBarTime,
+    lastBar: null,
     timer,
   });
 }
@@ -119,6 +122,30 @@ function stopPolling(listenerGuid: string) {
     clearInterval(sub.timer);
     subscriptions.delete(listenerGuid);
   }
+}
+
+/**
+ * Push a live price into any active TradingView subscription for the given token.
+ * Called from AdvancedTradeView when PriceContext updates.
+ */
+export function pushLivePrice(tokenId: string, price: number): void {
+  subscriptions.forEach((sub) => {
+    const subTokenId = sub.symbolInfo.ticker ?? sub.symbolInfo.name;
+    if (subTokenId !== tokenId) return;
+    if (!sub.lastBar) return;
+
+    const updatedBar: Bar = {
+      time: sub.lastBar.time,
+      open: sub.lastBar.open,
+      high: Math.max(sub.lastBar.high, price),
+      low: Math.min(sub.lastBar.low, price),
+      close: price,
+      volume: sub.lastBar.volume,
+    };
+
+    sub.lastBar = updatedBar;
+    sub.onTick(updatedBar);
+  });
 }
 
 // ---------------------------------------------------------------------------

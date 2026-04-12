@@ -11,8 +11,6 @@ import { motion } from 'motion/react';
 import { Search, Filter, TrendingUp, TrendingDown, ShoppingCart, DollarSign, Users, Star, LayoutGrid, List } from 'lucide-react';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
 import { useIsMobile } from './ui/use-mobile';
-import { usePlayerPrices } from '../hooks/usePlayerPricing';
-import { usePoolInfo } from '../hooks/usePoolInfo';
 import fakeData from '../fakedata.json';
 import { usePrivy } from '@privy-io/react-auth';
 import { formatUnits } from 'viem';
@@ -20,7 +18,7 @@ import { getContractData, NETWORK_CONFIG } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
 import { useGridCache } from '../hooks/useGridCache';
 import { useGameContext } from '../context/GameContext';
-import { apiService } from '../services/apiService';
+import { usePriceContext } from '../context/PriceContext';
 
 interface Player {
   id: number;
@@ -51,15 +49,6 @@ interface Player {
   teamGridId?: string;
 }
 
-function formatPoolLiquidity(usdc: bigint): string {
-  const value = Number(usdc) / 1e6;
-  if (value <= 0) return '—';
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M USDC`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K USDC`;
-  if (value >= 1) return `${value.toFixed(2)} USDC`;
-  return `${value.toFixed(4)} USDC`;
-}
-
 export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: (player: any) => void } = {}) {
   const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
@@ -72,61 +61,9 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [userUsdcBalance, setUserUsdcBalance] = useState<string>('0');
-  const [activePlayerIds, setActivePlayerIds] = useState<number[]>([]);
   const { preloadPlayersData } = useGridCache();
-  const [priceChanges, setPriceChanges] = useState<Record<string, number | null>>({});
-  const { poolData, fetchPoolInfo } = usePoolInfo();
-
-  // Fetch real 24h price changes
-  useEffect(() => {
-    apiService.getPlayerPriceChanges()
-      .then((data: any) => {
-        const map: Record<string, number | null> = {};
-        for (const p of data.players || []) {
-          map[p.playerTokenId] = p.change24h;
-        }
-        setPriceChanges(map);
-      })
-      .catch(() => {});
-  }, []);
-
-  // Only fetch prices for active players
-  const { prices: playerPrices, loading: pricesLoading } = usePlayerPrices(activePlayerIds);
+  const { prices: playerPrices, priceChanges, activePlayerIds, pricesLoading } = usePriceContext();
   const { user, ready, authenticated } = usePrivy();
-
-  useEffect(() => {
-    const fetchActivePlayers = async () => {
-      try {
-        const playerContract = getContractData('Player');
-        
-        // Get active player IDs from contract
-        const activePlayerIds = await readContractCached({
-          address: playerContract.address as `0x${string}`,
-          abi: playerContract.abi as any,
-          functionName: 'getActivePlayerIds',
-          args: [],
-        }) as bigint[];
-        
-        console.log('✅ Active player IDs from contract:', activePlayerIds.map(id => Number(id)));
-        
-        // Set active player IDs for pricing hook
-        const activeIds = activePlayerIds.map(id => Number(id));
-        setActivePlayerIds(activeIds);
-      } catch (error) {
-        console.error('❌ Error fetching active player IDs:', error);
-        // If contract call fails, set empty array
-        setActivePlayerIds([]);
-      }
-    };
-    fetchActivePlayers();
-  }, []); // Only run once on mount
-
-  // Fetch pool info for market cap display when active player IDs are known
-  useEffect(() => {
-    if (activePlayerIds.length > 0) {
-      fetchPoolInfo(activePlayerIds);
-    }
-  }, [activePlayerIds.join(',')]);
 
   // Create players with pricing when activePlayerIds or playerPrices change
   const playersWithPricing = useMemo(() => {
@@ -470,16 +407,6 @@ export default function TransfersSection({ onAdvancedView }: { onAdvancedView?: 
                             );
                           })()}
                         </div>
-                        {(() => {
-                          const poolInfo = poolData.get(player.id);
-                          if (!poolInfo || poolInfo.currencyReserve === 0n) return null;
-                          return (
-                            <div className="text-right">
-                              <div className="text-xs font-semibold text-green-600 dark:text-green-400">{formatPoolLiquidity(poolInfo.currencyReserve)}</div>
-                              <div className="text-[10px] text-muted-foreground/60">liquidity</div>
-                            </div>
-                          );
-                        })()}
                       </div>
                     </div>
                   </Card>

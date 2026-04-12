@@ -31,6 +31,7 @@ interface CandlestickChartProps {
   onTimeRangeChange: (range: string) => void;
   playerName?: string;
   isMobile?: boolean;
+  livePrice?: number;
 }
 
 const TIME_RANGES = [
@@ -191,10 +192,16 @@ export default memo(function CandlestickChart({
   onTimeRangeChange,
   playerName,
   isMobile = false,
+  livePrice,
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const legendRef = useRef<HTMLDivElement>(null);
+  const mainSeriesRef = useRef<ISeriesApi<any> | null>(null);
+  const lastCandleRef = useRef<{
+    time: Time; open: number; high: number; low: number; close: number;
+  } | null>(null);
+  const priceLineRef = useRef<any>(null);
 
   const [chartMode, setChartMode] = useState<ChartMode>('candles');
   const [showMA7, setShowMA7] = useState(false);
@@ -412,7 +419,7 @@ export default memo(function CandlestickChart({
       const last = candles[candles.length - 1] as any;
       const first = candles[0] as any;
       const isOverallUp = last.close >= first.open;
-      mainSeries.createPriceLine({
+      priceLineRef.current = mainSeries.createPriceLine({
         price: last.close,
         color: isOverallUp ? C.up : C.down,
         lineWidth: 1,
@@ -422,6 +429,17 @@ export default memo(function CandlestickChart({
       });
 
       chart.timeScale().fitContent();
+
+      // Store refs for live price updates
+      mainSeriesRef.current = mainSeries;
+      const lastCandle = candles[candles.length - 1] as any;
+      lastCandleRef.current = {
+        time: lastCandle.time,
+        open: lastCandle.open,
+        high: lastCandle.high,
+        low: lastCandle.low,
+        close: lastCandle.close,
+      };
     }
 
     // ---- Watermark ----
@@ -566,8 +584,54 @@ export default memo(function CandlestickChart({
       observer.disconnect();
       chart.remove();
       chartRef.current = null;
+      mainSeriesRef.current = null;
+      lastCandleRef.current = null;
+      priceLineRef.current = null;
     };
   }, [candles, height, isDark, playerName, chartMode, showMA7, showMA25, showVolume, showPivots, isMobile]);
+
+  // ---- Live price update (does NOT recreate chart) --------------------------
+  useEffect(() => {
+    if (
+      livePrice == null ||
+      livePrice <= 0 ||
+      !mainSeriesRef.current ||
+      !lastCandleRef.current
+    ) {
+      return;
+    }
+
+    const last = lastCandleRef.current;
+
+    if (chartMode === 'candles') {
+      const updated = {
+        time: last.time,
+        open: last.open,
+        high: Math.max(last.high, livePrice),
+        low: Math.min(last.low, livePrice),
+        close: livePrice,
+      };
+      mainSeriesRef.current.update(updated);
+      lastCandleRef.current = updated;
+    } else {
+      // line or area mode — update single value
+      mainSeriesRef.current.update({
+        time: last.time,
+        value: livePrice,
+      } as any);
+      lastCandleRef.current = {
+        ...last,
+        high: Math.max(last.high, livePrice),
+        low: Math.min(last.low, livePrice),
+        close: livePrice,
+      };
+    }
+
+    // Move the static price line to match
+    if (priceLineRef.current) {
+      priceLineRef.current.applyOptions({ price: livePrice });
+    }
+  }, [livePrice, chartMode]);
 
   // ---- Loading skeleton ----
   if (loading) {

@@ -8,6 +8,7 @@ import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { formatPoints } from '../utils/formatPoints';
 import { Scissors, Play, Star, X, Sparkles, AlertCircle, Loader2, Wallet, Zap, Info, CheckCircle, XCircle, Trophy } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
@@ -419,7 +420,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-foreground">
-                          {userPoints ? userPoints.skillPoints.toLocaleString() : <span className="text-base text-muted-foreground">N/A</span>}
+                          {userPoints ? formatPoints(userPoints.skillPoints) : <span className="text-base text-muted-foreground">N/A</span>}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">Skill Points</p>
                       </div>
@@ -543,7 +544,7 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                           {loadingCosts ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin inline" />
                           ) : costPerShare !== null ? (
-                            <>{costPerShare.toLocaleString()} {action === 'activate' ? 'SP' : 'TP'}</>
+                            <>{formatPoints(costPerShare)} {action === 'activate' ? 'SP' : 'TP'}</>
                           ) : '—'}
                         </span>
                       </div>
@@ -556,14 +557,14 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
                           {loadingRealTimeCost ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin inline" />
                           ) : (
-                            <>{estimatedTotal.toLocaleString()} {pointsLabel}</>
+                            <>{formatPoints(estimatedTotal)} {pointsLabel}</>
                           )}
                         </span>
                       </div>
                       {action === 'activate' && userPoints && (
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>Your balance</span>
-                          <span>{userPoints.skillPoints.toLocaleString()} SP</span>
+                          <span>{formatPoints(userPoints.skillPoints)} SP</span>
                         </div>
                       )}
                       {insufficientPoints && (

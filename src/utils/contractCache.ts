@@ -21,8 +21,8 @@ class ContractCacheManager {
   
   // Cache TTL settings (in milliseconds)
   private readonly DEFAULT_TTL = 60000; // 1 minute
-  private readonly PRICE_TTL = 60000; // 1 minute for prices (reduced frequency)
-  private readonly POOL_INFO_TTL = 60000; // 1 minute for pool info (used for pricing)
+  private readonly PRICE_TTL = 15000; // 15s for prices (fallback only — bulk prices come from backend)
+  private readonly POOL_INFO_TTL = 5000; // 5s for pool info (used for price impact in trade modals)
   private readonly STATIC_DATA_TTL = 600000; // 10 minutes for static data like player IDs
   
   // Rate limiting settings
@@ -88,7 +88,7 @@ class ContractCacheManager {
       case 'getBuyPrice':
       case 'getSellPrice':
       case 'getCurrentPrice':
-        return 15000; // 15s for trade quotes
+        return 5000; // 5s for trade quotes (fresh data for active trading)
       case 'getLaunchInfo':
       case 'getProgress':
       case 'getAllLaunchIds':
