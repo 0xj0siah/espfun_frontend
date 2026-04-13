@@ -145,7 +145,7 @@ export default function ContractExtensionModal({
           {/* Header */}
           <DialogHeader className="space-y-4">
             <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center gap-4">
                 <div className="relative">
                   <div
                     className="absolute inset-0 rounded-xl opacity-50 z-0"
@@ -169,7 +169,7 @@ export default function ContractExtensionModal({
                   <DialogDescription className="sr-only">
                     Extend contract for {player.name}
                   </DialogDescription>
-                  <div className="flex items-center space-x-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2">
                     <Badge variant="outline" className="flex items-center space-x-1">
                       <FileText className="w-3 h-3" />
                       <span>Contract</span>
@@ -185,14 +185,14 @@ export default function ContractExtensionModal({
           </DialogHeader>
 
           {/* Content */}
-          <div className="space-y-6 mt-6">
+          <div className="space-y-4 mt-4">
           {/* Current Status */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
           >
-            <Card className="p-4 border-2 border-dashed">
+            <Card className="p-4 border">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-muted-foreground">Current Status</span>
                 <Badge
@@ -227,7 +227,7 @@ export default function ContractExtensionModal({
             className="space-y-3"
           >
             <label className="text-sm font-medium">Number of Games to Add</label>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="icon"
@@ -298,7 +298,7 @@ export default function ContractExtensionModal({
             transition={{ delay: 0.2 }}
             className="flex items-center justify-between p-4 bg-accent rounded-lg border border-border"
           >
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
               <span className="text-sm font-medium">New Total</span>
             </div>
@@ -339,7 +339,7 @@ export default function ContractExtensionModal({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="flex space-x-3"
+            className="flex gap-3"
           >
             <Button
               variant="outline"
