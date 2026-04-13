@@ -196,12 +196,12 @@ export default function ContractExtensionModal({
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-muted-foreground">Current Status</span>
                 <Badge
-                  variant="secondary"
-                  className={`${
-                    contractStatus === 'expiring' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' :
-                    contractStatus === 'active' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800' :
-                    'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
-                  }`}
+                  variant={contractStatus === 'expiring' ? 'destructive' : 'secondary'}
+                  className={
+                    contractStatus === 'active' ? 'text-yellow-600 dark:text-yellow-400' :
+                    contractStatus === 'healthy' ? 'text-green-600 dark:text-green-400' :
+                    ''
+                  }
                 >
                   <Clock className="w-3 h-3 mr-1" />
                   {gamesRemaining} games left
@@ -211,9 +211,9 @@ export default function ContractExtensionModal({
               <Progress
                 value={Math.min((gamesRemaining / 10) * 100, 100)}
                 className={`h-2 ${
-                  contractStatus === 'expiring' ? '[&>[data-slot=progress-indicator]]:bg-red-500' :
+                  contractStatus === 'expiring' ? '[&>[data-slot=progress-indicator]]:bg-destructive' :
                   contractStatus === 'active' ? '[&>[data-slot=progress-indicator]]:bg-yellow-500' :
-                  '[&>[data-slot=progress-indicator]]:bg-green-500'
+                  '[&>[data-slot=progress-indicator]]:bg-primary'
                 }`}
               />
             </Card>
@@ -269,7 +269,7 @@ export default function ContractExtensionModal({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
           >
-            <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200">
+            <Card className="p-4 bg-card border">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Cost per game</span>
@@ -279,10 +279,10 @@ export default function ContractExtensionModal({
                   <span className="text-muted-foreground">Number of games</span>
                   <span className="font-medium">×{numberOfGames}</span>
                 </div>
-                <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
+                <div className="border-t border-border pt-2 mt-2">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">Total Cost</span>
-                    <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    <span className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                       {totalCost} USDC
                     </span>
                   </div>
@@ -296,7 +296,7 @@ export default function ContractExtensionModal({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+            className="flex items-center justify-between p-4 bg-accent rounded-lg border border-border"
           >
             <div className="flex items-center space-x-2">
               <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -317,14 +317,14 @@ export default function ContractExtensionModal({
                 transition={{ duration: 0.2 }}
               >
                 <Alert className={`${
-                  transactionStatus === 'success' ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' :
-                  transactionStatus === 'error' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' :
-                  'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+                  transactionStatus === 'success' ? 'bg-accent border-border' :
+                  transactionStatus === 'error' ? 'bg-destructive/10 border-destructive/20' :
+                  'bg-primary/10 border-primary/20'
                 }`}>
                   <AlertCircle className={`h-4 w-4 ${
                     transactionStatus === 'success' ? 'text-green-600 dark:text-green-400' :
-                    transactionStatus === 'error' ? 'text-red-600 dark:text-red-400' :
-                    'text-blue-600 dark:text-blue-400'
+                    transactionStatus === 'error' ? 'text-destructive' :
+                    'text-primary'
                   }`} />
                   <AlertDescription className="text-sm">
                     {statusMessage}
@@ -358,7 +358,7 @@ export default function ContractExtensionModal({
             <Button
               onClick={handleExtend}
               disabled={isLoading || numberOfGames < 5}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              className="flex-1 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700"
             >
               <FileText className="w-4 h-4 mr-2" />
               {isLoading ? 'Processing...' : `Extend Contract`}
