@@ -170,7 +170,7 @@ export default function ContractExtensionModal({
                     Extend contract for {player.name}
                   </DialogDescription>
                   <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline" className="flex items-center space-x-1">
+                    <Badge variant="outline" className="flex items-center gap-1">
                       <FileText className="w-3 h-3" />
                       <span>Contract</span>
                     </Badge>
