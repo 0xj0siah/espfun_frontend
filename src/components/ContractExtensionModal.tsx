@@ -11,6 +11,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Clock, TrendingUp, AlertCircle, X, Plus, Minus } from 'lucide-react';
 import { Player } from '../types/player';
 
+const modalVariants = {
+  visible: { opacity: 1, scale: 1 },
+  hidden: { opacity: 0, scale: 0.05 },
+};
+
 interface ContractExtensionModalProps {
   player: Player | null;
   isOpen: boolean;
@@ -113,13 +118,14 @@ export default function ContractExtensionModal({
       <DialogContent
         className="max-w-md border-0 shadow-2xl !animate-none origin-center"
         hideCloseButton
-        style={{
-          opacity: isModalContentVisible ? 1 : 0,
-          scale: isModalContentVisible ? '1' : '0.05',
-          transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
       >
-        <div className="relative">
+        <motion.div
+          className="relative"
+          variants={modalVariants}
+          initial="visible"
+          animate={isModalContentVisible ? "visible" : "hidden"}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+        >
           {/* Close button */}
           <Button
             variant="ghost"
@@ -184,7 +190,7 @@ export default function ContractExtensionModal({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.05 }}
           >
             <Card className="p-4 border-2 border-dashed">
               <div className="flex items-center justify-between mb-3">
@@ -217,7 +223,7 @@ export default function ContractExtensionModal({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.1 }}
             className="space-y-3"
           >
             <label className="text-sm font-medium">Number of Games to Add</label>
@@ -261,7 +267,7 @@ export default function ContractExtensionModal({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.15 }}
           >
             <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200">
               <div className="space-y-2">
@@ -289,7 +295,7 @@ export default function ContractExtensionModal({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
+            transition={{ delay: 0.2 }}
             className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
           >
             <div className="flex items-center space-x-2">
@@ -332,7 +338,7 @@ export default function ContractExtensionModal({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.25 }}
             className="flex space-x-3"
           >
             <Button
@@ -359,7 +365,7 @@ export default function ContractExtensionModal({
             </Button>
           </motion.div>
           </div>
-        </div>
+        </motion.div>
       </DialogContent>
     </Dialog>
   );
