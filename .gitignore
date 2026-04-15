@@ -108,3 +108,8 @@ stress-test-results/
 
 # Claude Code
 .claude/
+
+# Generated tooling
+.github/
+.superpowers/
+docs/superpowers/
