@@ -981,7 +981,7 @@ class ApiService {
           });
           return response.data;
         },
-        { ttl: 120000 }
+        { ttl: 120000, skipCache: true }
       );
     } catch (error) {
       console.error('Failed to get revenue history:', error);

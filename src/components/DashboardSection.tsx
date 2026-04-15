@@ -226,23 +226,23 @@ export default memo(function DashboardSection() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* TVL Chart */}
-        <Card className="p-6 lg:col-span-2 border-0 shadow-lg">
-          <h3 className="mb-4 flex items-center text-lg font-semibold">
+        <Card className="p-6 lg:col-span-2 border-0 shadow-lg flex flex-col min-h-[24rem]">
+          <h3 className="mb-4 flex items-center text-lg font-semibold shrink-0">
             <TrendingUp className="w-5 h-5 mr-2 text-green-500" />
             TVL Over Time
           </h3>
           {tvlLoading ? (
-            <Skeleton className="h-48 lg:h-64 w-full rounded-lg" />
+            <Skeleton className="flex-1 w-full rounded-lg" />
           ) : tvlError ? (
-            <div className="h-48 lg:h-64 flex items-center justify-center text-sm text-red-400">
+            <div className="flex-1 flex items-center justify-center text-sm text-red-400">
               Failed to load TVL data — check backend connection
             </div>
           ) : tvlChartData.length === 0 ? (
-            <div className="h-48 lg:h-64 flex items-center justify-center text-sm text-muted-foreground">
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               No TVL activity recorded yet
             </div>
           ) : (
-            <div style={{ height: '16rem' }}>
+            <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={tvlChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>

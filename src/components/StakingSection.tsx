@@ -11,7 +11,7 @@ import { Skeleton } from './ui/skeleton';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { motion } from 'motion/react';
 import { Coins, TrendingUp, Wallet, Info, CheckCircle, XCircle, Loader2, ExternalLink, ArrowDownToLine, ArrowUpFromLine, Gift } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useWalletTransactions } from '../hooks/useWalletTransactions';
 import { getPreferredWallet } from '../utils/walletPreference';
@@ -46,16 +46,36 @@ export default function StakingSection() {
   const isContractDeployed = checkContractDeployed('ESPStaking');
 
   // Real revenue data from backend
-  const { data: revenueTimeline, totalDistributed, loading: revenueLoading } = useRevenueHistory('daily', 30);
+  const { data: revenueTimeline, totalDistributed, loading: revenueLoading, error: revenueError } = useRevenueHistory('daily', 30);
   const { data: analytics } = useAnalyticsOverview();
 
-  // Format revenue timeline for chart
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const tickColor = isDark ? '#a1a1aa' : '#71717a';
+
+  // Format revenue timeline for chart (matching TVL chart pattern)
   const revenueData = useMemo(() => {
-    if (revenueTimeline.length === 0) return [];
-    return revenueTimeline.map((snap: any) => ({
-      date: new Date(snap.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      usdc: snap.totalFees,
-    }));
+    const tz = 'America/New_York';
+    let data = revenueTimeline.map((snap: any) => {
+      const d = new Date(snap.periodStart);
+      const isValid = !isNaN(d.getTime());
+      return {
+        date: isValid
+          ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: tz })
+          : '',
+        fullDate: isValid
+          ? d.toLocaleString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+              timeZone: tz,
+            })
+          : '',
+        usdc: Number(snap.totalFees) || 0,
+      };
+    });
+    // Duplicate single data point so Recharts draws a visible line + area
+    if (data.length === 1) {
+      data = [{ ...data[0], date: '' }, data[0]];
+    }
+    return data;
   }, [revenueTimeline]);
 
   // Input validation
@@ -278,10 +298,10 @@ export default function StakingSection() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ── Left Column: Action Card ─────────────────────────── */}
-        <Card className="p-6 lg:col-span-2 border-0 shadow-lg">
+        <Card className="p-6 lg:col-span-2 border-0 shadow-lg flex flex-col min-h-[24rem]">
           {!authenticated ? (
             // Wallet not connected
-            <div className="flex flex-col items-center justify-center py-16 space-y-4">
+            <div className="flex flex-col items-center justify-center flex-1 py-16 space-y-4">
               <div className="bg-accent/50 p-4 rounded-full">
                 <Wallet className="w-8 h-8 text-muted-foreground" />
               </div>
@@ -295,7 +315,7 @@ export default function StakingSection() {
             </div>
           ) : (
             // Stake / Unstake tabs
-            <Tabs defaultValue="stake" className="w-full">
+            <Tabs defaultValue="stake" className="w-full flex flex-col flex-1 min-h-0">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="stake" className="flex items-center gap-2">
                   <ArrowDownToLine className="w-4 h-4" />
@@ -449,8 +469,8 @@ export default function StakingSection() {
               )}
 
               {/* Daily Revenue Chart — visible on both tabs */}
-              <div className="pt-4">
-                <div className="flex items-center justify-between mb-2">
+              <div className="pt-4 flex flex-col flex-1 min-h-0">
+                <div className="flex items-center justify-between mb-2 shrink-0">
                   <p className="text-xs text-muted-foreground">{t('staking.dailyRevenue')}</p>
                   {analytics?.revenue?.allTime != null && (
                     <span className="text-xs text-primary font-medium">
@@ -458,61 +478,64 @@ export default function StakingSection() {
                     </span>
                   )}
                 </div>
-                <div className="h-48 lg:h-64 xl:h-72">
                 {revenueLoading ? (
-                  <Skeleton className="w-full h-full rounded-lg" />
+                  <Skeleton className="flex-1 w-full rounded-lg" />
+                ) : revenueError ? (
+                  <div className="flex-1 flex items-center justify-center text-sm text-red-400">
+                    Failed to load revenue data — check backend connection
+                  </div>
                 ) : revenueData.length === 0 ? (
-                  <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                  <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
                     No revenue data available yet
                   </div>
                 ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="opacity-10" />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 10, fill: 'currentColor' }}
-                      className="text-muted-foreground"
-                      tickLine={false}
-                      axisLine={false}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: 'currentColor' }}
-                      className="text-muted-foreground"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => `$${v}`}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--background))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
-                      labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="usdc"
-                      stroke="#7c3aed"
-                      strokeWidth={2}
-                      fill="url(#revenueGradient)"
-                      dot={false}
-                      activeDot={{ r: 4, fill: '#7c3aed' }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                  <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 11, fill: tickColor }}
+                          tickLine={false}
+                          axisLine={false}
+                          interval={revenueData.length <= 7 ? 0 : Math.ceil(revenueData.length / 6) - 1}
+                        />
+                        <YAxis
+                          tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
+                          domain={[0, (max: number) => max > 0 ? max * 1.1 : 10]}
+                          tick={{ fontSize: 11, fill: tickColor }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={60}
+                        />
+                        <RechartsTooltip
+                          formatter={(value: number) => [`$${Number(value).toFixed(2)}`, 'Revenue']}
+                          labelFormatter={(_label: any, payload: any) => payload?.[0]?.payload?.fullDate || _label}
+                          contentStyle={{
+                            backgroundColor: isDark ? 'hsl(240 10% 4%)' : 'hsl(0 0% 100%)',
+                            color: isDark ? '#e4e4e7' : '#18181b',
+                            border: isDark ? '1px solid hsl(240 4% 16%)' : '1px solid hsl(240 6% 90%)',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="usdc"
+                          stroke="#7c3aed"
+                          strokeWidth={2}
+                          fill="url(#revenueGradient)"
+                          dot={false}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 )}
-                </div>
               </div>
             </Tabs>
           )}

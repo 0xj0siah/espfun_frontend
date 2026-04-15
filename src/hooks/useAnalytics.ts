@@ -60,6 +60,7 @@ export function useRevenueHistory(period: 'hourly' | 'daily' = 'daily', days = 3
   const [data, setData] = useState<any[]>([]);
   const [totalDistributed, setTotalDistributed] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,9 +70,10 @@ export function useRevenueHistory(period: 'hourly' | 'daily' = 'daily', days = 3
         if (!cancelled) {
           setData(result.timeline || []);
           setTotalDistributed(result.totalDistributed || 0);
+          setError(null);
         }
-      } catch {
-        // silently fail
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || 'Failed to load revenue data');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -79,7 +81,7 @@ export function useRevenueHistory(period: 'hourly' | 'daily' = 'daily', days = 3
     return () => { cancelled = true; };
   }, [period, days]);
 
-  return { data, totalDistributed, loading };
+  return { data, totalDistributed, loading, error };
 }
 
 /** Fetches user's portfolio (requires auth). */
