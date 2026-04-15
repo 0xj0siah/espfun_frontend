@@ -1,16 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { parseUnits, formatUnits, encodeFunctionData } from 'viem';
-import { useSignTypedData } from '@privy-io/react-auth';
 import { getContractData } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
-import {
-  createEIP712Domain,
-  createBuyTokensTypedData,
-  validateSignatureParams,
-  createPlayerEIP712Domain,
-  createSellTokensTypedData,
-  validateSellSignatureParams,
-} from '../utils/signatures';
 import { apiService, type SellTokensRequest } from '../services/apiService';
 import { useWalletTransactions } from './useWalletTransactions';
 import { TradingPhase, type TransactionStatus } from '../types/trading';
@@ -117,7 +108,6 @@ export function usePlayerTrade({
   const [currencyTokenAddress, setCurrencyTokenAddress] = useState<string>('');
 
   // ── Privy hooks ──
-  const { signTypedData } = useSignTypedData();
   const { sendTransactionWithWallet } = useWalletTransactions();
 
   // ── Alert helpers ──
@@ -206,38 +196,6 @@ export function usePlayerTrade({
       return tusdcContract.address;
     }
   }, [currencyTokenAddress]);
-
-  const getCurrentNonce = useCallback(async (userAddress: string): Promise<number> => {
-    try {
-      const fdfPairContract = getContractData('FDFPair');
-      const usedNonce = await readContractCached({
-        address: fdfPairContract.address as `0x${string}`,
-        abi: fdfPairContract.abi as any,
-        functionName: 'usedNonces',
-        args: [userAddress],
-      });
-      return Number(usedNonce) + 1;
-    } catch (error) {
-      console.error('Error getting current nonce:', error);
-      return 1;
-    }
-  }, []);
-
-  const getCurrentSellNonce = useCallback(async (userAddress: string): Promise<number> => {
-    try {
-      const playerContract = getContractData('Player');
-      const currentNonce = await readContractCached({
-        address: playerContract.address as `0x${string}`,
-        abi: playerContract.abi as any,
-        functionName: 'getCurrentNonce',
-        args: [userAddress],
-      });
-      return Number(currentNonce) + 1;
-    } catch (error) {
-      console.error('Error getting current sell nonce:', error);
-      return 1;
-    }
-  }, []);
 
   // ── USDC approval ──
 
@@ -341,53 +299,24 @@ export function usePlayerTrade({
 
       const deadline = Math.floor(Date.now() / 1000) + 300;
 
-      // Try backend signature, fallback to local
-      let signature: string;
-      let nonce: number;
-      let transactionId: string | null = null;
+      // Get EIP-712 signature from backend (only the backend's TX_SIGNER is authorized on-chain)
+      if (!apiService.isAuthenticated()) {
+        throw new Error('Authentication required for FDFPair trades. Please log in first.');
+      }
 
-      try {
-        const hasAuthToken = apiService.isAuthenticated();
-        if (!hasAuthToken) throw new Error('No authentication token found');
+      const signatureResponse = await apiService.prepareSignature({
+        playerTokenIds: [playerTokenId.toString()],
+        amounts: [tokenAmountBigInt.toString()],
+        maxCurrencySpend: maxCurrencySpendBigInt.toString(),
+        deadline,
+      });
 
-        const signatureRequest = {
-          playerTokenIds: [playerTokenId.toString()],
-          amounts: [tokenAmountBigInt.toString()],
-          maxCurrencySpend: maxCurrencySpendBigInt.toString(),
-          deadline,
-        };
+      const signature = signatureResponse.signature;
+      const nonce = signatureResponse.txData.nonce;
+      const transactionId = signatureResponse.transactionId;
 
-        const signatureResponse = await apiService.prepareSignature(signatureRequest);
-        signature = signatureResponse.signature;
-        nonce = signatureResponse.txData.nonce;
-        transactionId = signatureResponse.transactionId;
-
-        if (!signature || !signature.startsWith('0x')) {
-          throw new Error(`Invalid signature format from backend: ${signature}`);
-        }
-      } catch (backendError) {
-        console.warn('Backend signature failed, falling back to local:', backendError);
-
-        nonce = await getCurrentNonce(user.wallet.address);
-
-        const signatureData = {
-          buyer: user.wallet.address,
-          playerTokenIds: [playerTokenId],
-          amounts: [tokenAmountBigInt.toString()],
-          maxCurrencySpend: maxCurrencySpendBigInt.toString(),
-          deadline,
-          nonce,
-        };
-
-        const domain = createEIP712Domain(fdfPairContract.address);
-        const typedData = createBuyTokensTypedData(domain, signatureData);
-        validateSignatureParams(signatureData);
-
-        const signResult = await signTypedData(typedData, {
-          uiOptions: { title: 'Sign Transaction', description: 'Sign to complete your purchase', buttonText: 'Sign' },
-        });
-
-        signature = extractSignature(signResult);
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format from backend: ${signature}`);
       }
 
       // Encode and send transaction
@@ -424,7 +353,7 @@ export function usePlayerTrade({
 
       updateAlertState('success', 'Successfully bought player tokens!', result.hash);
     },
-    [user, isAuthenticated, publicClient, approveUSDC, getCurrentNonce, signTypedData, sendTransactionWithWallet, updateAlertState],
+    [user, isAuthenticated, publicClient, approveUSDC, sendTransactionWithWallet, updateAlertState],
   );
 
   // ── Sell tokens (Player contract with EIP-712 signature) ──
@@ -474,57 +403,28 @@ export function usePlayerTrade({
 
       const deadline = Math.floor(Date.now() / 1000) + 300;
 
-      // Try backend signature, fallback to local
-      let signature: string;
-      let nonce: number;
-      let transactionId: string | null = null;
+      // Get EIP-712 signature from backend (only the backend's TX_SIGNER is authorized on-chain)
+      if (!apiService.isAuthenticated()) {
+        throw new Error('Authentication required for FDFPair trades. Please log in first.');
+      }
 
-      try {
-        const hasAuthToken = apiService.isAuthenticated();
-        if (!hasAuthToken) throw new Error('No authentication token found');
+      const signatureResponse = await apiService.prepareSellSignature({
+        playerTokenIds: [playerTokenId.toString()],
+        amounts: [tokenAmountBigInt.toString()],
+        minCurrencyToReceive: Number(minCurrencyBigInt),
+        deadline,
+      } as SellTokensRequest);
 
-        const signatureRequest: SellTokensRequest = {
-          playerTokenIds: [playerTokenId.toString()],
-          amounts: [tokenAmountBigInt.toString()],
-          minCurrencyToReceive: Number(minCurrencyBigInt),
-          deadline,
-        };
+      const signature = signatureResponse.signature;
+      const nonce = signatureResponse.txData?.nonce;
+      const transactionId = signatureResponse.transactionId;
 
-        const signatureResponse = await apiService.prepareSellSignature(signatureRequest);
-        signature = signatureResponse.signature;
-        nonce = signatureResponse.txData?.nonce;
-        transactionId = signatureResponse.transactionId;
+      if (nonce === undefined || nonce === null) {
+        throw new Error('Backend did not provide a nonce for sell transaction');
+      }
 
-        if (nonce === undefined || nonce === null) {
-          nonce = await getCurrentSellNonce(user.wallet.address);
-        }
-
-        if (!signature || !signature.startsWith('0x')) {
-          throw new Error(`Invalid signature format from backend: ${signature}`);
-        }
-      } catch (backendError) {
-        console.warn('Backend sell signature failed, falling back to local:', backendError);
-
-        nonce = await getCurrentSellNonce(user.wallet.address);
-
-        const signatureData = {
-          seller: user.wallet.address,
-          playerTokenIds: [playerTokenId],
-          amounts: [tokenAmountBigInt.toString()],
-          minCurrencyToReceive: minCurrencyBigInt.toString(),
-          deadline,
-          nonce,
-        };
-
-        const domain = createPlayerEIP712Domain(playerContract.address);
-        const typedData = createSellTokensTypedData(domain, signatureData);
-        validateSellSignatureParams(signatureData);
-
-        const signResult = await signTypedData(typedData, {
-          uiOptions: { title: 'Sign Sale', description: 'Sign to complete your sale', buttonText: 'Sign' },
-        });
-
-        signature = extractSignature(signResult);
+      if (!signature || !signature.startsWith('0x')) {
+        throw new Error(`Invalid signature format from backend: ${signature}`);
       }
 
       // Encode and send transaction
@@ -560,7 +460,7 @@ export function usePlayerTrade({
 
       updateAlertState('success', 'Successfully sold player tokens!', result.hash);
     },
-    [user, isAuthenticated, publicClient, getCurrentSellNonce, signTypedData, sendTransactionWithWallet, updateAlertState],
+    [user, isAuthenticated, publicClient, sendTransactionWithWallet, updateAlertState],
   );
 
   // ── Main confirm handler ──
@@ -730,28 +630,6 @@ export function usePlayerTrade({
 }
 
 // ─── Utilities ───
-
-/** Extract a hex signature string from various Privy signTypedData response formats */
-function extractSignature(signResult: unknown): string {
-  let signature: string;
-  if (typeof signResult === 'string') {
-    signature = signResult;
-  } else if (signResult && typeof signResult === 'object') {
-    signature =
-      (signResult as any).signature ||
-      (signResult as any).sig ||
-      (signResult as any).data ||
-      signResult.toString();
-  } else {
-    throw new Error('Invalid signature response');
-  }
-
-  if (!signature || !signature.startsWith('0x')) {
-    throw new Error(`Invalid signature format: ${signature}`);
-  }
-
-  return signature;
-}
 
 /** Map common contract/wallet errors to user-friendly messages */
 function parseTransactionError(error: unknown): string {

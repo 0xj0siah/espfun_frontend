@@ -1,6 +1,6 @@
 import { GridMatch } from '../types/grid';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.esp.fun';
 
 // Helper function to fetch upcoming matches from backend (which proxies GRID API with caching)
 export async function fetchUpcomingMatches(): Promise<GridMatch[]> {

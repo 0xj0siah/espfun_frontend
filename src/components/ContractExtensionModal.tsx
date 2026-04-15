@@ -11,11 +11,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Clock, TrendingUp, AlertCircle, X, Plus, Minus } from 'lucide-react';
 import { Player } from '../types/player';
 
-const modalVariants = {
-  visible: { opacity: 1, scale: 1 },
-  hidden: { opacity: 0, scale: 0.05 },
-};
-
 interface ContractExtensionModalProps {
   player: Player | null;
   isOpen: boolean;
@@ -118,14 +113,13 @@ export default function ContractExtensionModal({
       <DialogContent
         className="max-w-md border-0 shadow-2xl !animate-none origin-center"
         hideCloseButton
+        style={{
+          opacity: isModalContentVisible ? 1 : 0,
+          scale: isModalContentVisible ? '1' : '0.05',
+          transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), scale 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
-        <motion.div
-          className="relative"
-          variants={modalVariants}
-          initial="visible"
-          animate={isModalContentVisible ? "visible" : "hidden"}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        >
+        <div className="relative">
           {/* Close button */}
           <Button
             variant="ghost"
@@ -365,7 +359,7 @@ export default function ContractExtensionModal({
             </Button>
           </motion.div>
           </div>
-        </motion.div>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -10,6 +10,7 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { apiService } from '../services/apiService';
 import { toast } from 'sonner';
+import { getPreferredWallet } from '../utils/walletPreference';
 
 interface ReferralStats {
   totalReferred: number;
@@ -36,7 +37,7 @@ export default memo(function ReferralsSection() {
   const { wallets } = useWallets();
   const { isAuthenticated, authenticate, isAuthenticating } = useAuthentication();
 
-  const walletAddress = wallets[0]?.address;
+  const walletAddress = getPreferredWallet(wallets)?.address;
 
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [customCode, setCustomCode] = useState('');

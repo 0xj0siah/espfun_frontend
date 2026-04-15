@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
+import { apiService } from '../services/apiService';
 
 interface AuthContextType {
   globalAuthState: boolean;
@@ -38,6 +39,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsGloballyAuthenticating(false);
       lastAuthAttemptRef.current = 0;
     }
+  }, [authenticated]);
+
+  // Restore session from httpOnly cookie on page load (runs once here, not per-hook-instance)
+  useEffect(() => {
+    if (!authenticated || apiService.isAuthenticated()) return;
+
+    let cancelled = false;
+    apiService.restoreSession().then((userData) => {
+      if (!cancelled && userData) {
+        setGlobalAuthState(true);
+      }
+    });
+    return () => { cancelled = true; };
   }, [authenticated]);
 
   return (

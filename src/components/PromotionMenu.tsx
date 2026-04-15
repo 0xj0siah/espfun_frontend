@@ -90,8 +90,8 @@ export function PromotionMenu({ isOpen, onClose, player }: PromotionMenuProps) {
           apiService.getPromotionCost([playerId]),
           apiService.getCutValue([playerId])
         ]);
-        setPromotionCost(promoRes[playerId] || null);
-        setCutValue(cutRes[playerId] || null);
+        setPromotionCost(promoRes[playerId] ?? null);
+        setCutValue(cutRes[playerId] ?? null);
       } catch (error) {
         console.error('Error loading costs:', error);
       } finally {

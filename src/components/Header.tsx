@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { QRCodeSVG } from 'qrcode.react';
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useWalletTransactions } from "../hooks/useWalletTransactions";
+import { getPreferredWallet } from '../utils/walletPreference';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from './ui/drawer';
 import { Input } from './ui/input';
@@ -84,9 +85,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
   // Get the active wallet address (works for both embedded and external wallets)
   const getActiveWalletAddress = () => {
     if (!wallets || wallets.length === 0) return null;
-    
-    // Return the first connected wallet's address (embedded or external)
-    return wallets[0]?.address || null;
+    return getPreferredWallet(wallets)?.address || null;
   };
 
   const activeWalletAddress = getActiveWalletAddress();

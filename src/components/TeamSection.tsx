@@ -6,7 +6,6 @@ import { formatEther } from 'viem';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Progress } from './ui/progress';
 import { Skeleton } from './ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -928,124 +927,103 @@ export default function TeamSection({
                 {filteredOwnedPlayers.map((player, index) => {
                   // Deterministic placeholder (will be replaced with backend data later)
                   const gamesRemaining = player.gamesRemaining ?? ((player.id % 10) + 1);
-                  const contractStatus = gamesRemaining <= 3 ? 'expiring' : gamesRemaining <= 6 ? 'active' : 'healthy';
-                  const extensionPrice = (parseFloat(player.price) * 0.1).toFixed(4); // 10% of player price as extension cost
-                  
+                  const isExpiring = gamesRemaining <= 3;
+
                   return (
                     <motion.div
                       key={player.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
+                      onClick={() => {
+                        setSelectedContractPlayer({ ...player, gamesRemaining });
+                        setIsContractModalOpen(true);
+                      }}
+                      className="cursor-pointer group"
                     >
-                      <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl hover:ring-1 hover:ring-primary/10 transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40">
-                        {/* Status indicator */}
-                        <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
-                          contractStatus === 'expiring' ? 'bg-red-500 animate-pulse' :
-                          contractStatus === 'active' ? 'bg-yellow-500' :
-                          'bg-green-500'
-                        }`} />
-                        
-                        {/* Player Header */}
-                        <div className="flex items-start space-x-3 mb-4">
-                          <div className="relative">
-                            <div 
-                              className="absolute inset-0 rounded-xl opacity-50"
-                              style={{
-                                backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
-                                backgroundSize: 'contain',
-                                backgroundPosition: 'center',
-                                backgroundRepeat: 'no-repeat'
+                      <Card className="relative overflow-hidden p-4 border-0 shadow-lg hover:shadow-xl hover:ring-1 hover:ring-primary/10 transition-all duration-300 bg-gradient-to-br from-background via-accent/20 to-accent/40 group-hover:scale-105 active:scale-[0.98] active:shadow-inner">
+                        {/* Background gradient overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300" />
+
+                        {/* Content container */}
+                        <div className="relative z-10">
+                          {/* Header row with player info and shares badge */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3 flex-1">
+                              <div className="relative">
+                                {/* Team logo background */}
+                                <div
+                                  className="absolute inset-0 rounded-xl opacity-50 z-0"
+                                  style={{
+                                    backgroundImage: `url(${player.image.replace(/\/[^\/]*$/, '/logo.webp')})`,
+                                    backgroundSize: 'contain',
+                                    backgroundPosition: 'center',
+                                    backgroundRepeat: 'no-repeat'
+                                  }}
+                                />
+                                <ImageWithFallback
+                                  src={player.image}
+                                  alt={player.name}
+                                  className="relative z-10 w-14 h-14 rounded-xl object-contain shadow-md ring-2 ring-white/20 group-hover:ring-blue-200 transition-all duration-300 opacity-85"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-semibold text-foreground group-hover:text-blue-700 transition-colors duration-200 truncate">
+                                  {player.name}
+                                </h3>
+                                <p className="text-xs text-muted-foreground/80 truncate flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                                  {player.game} • {player.position}
+                                </p>
+                              </div>
+                            </div>
+                            {/* Shares badge */}
+                            <div className="flex flex-col items-end ml-3">
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200/50 px-3 py-1 shadow-sm font-medium"
+                              >
+                                {formatNumber(parseInt(formatShares(player.ownedShares || BigInt(0))))} {t('team.shares')}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Stats row */}
+                          <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                            <div className="flex items-center space-x-2">
+                              <Badge
+                                variant="outline"
+                                className="text-xs px-3 py-1 bg-background/50 border-border/40 hover:bg-accent/50 transition-colors font-medium"
+                              >
+                                {player.price}
+                              </Badge>
+                              {/* Games remaining indicator */}
+                              <div className="flex items-center space-x-1">
+                                {isExpiring && <AlertTriangle className="w-3 h-3 text-red-500" />}
+                                <span className={`text-xs font-medium ${isExpiring ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                  {gamesRemaining} games left
+                                </span>
+                              </div>
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-7 px-3"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedContractPlayer({ ...player, gamesRemaining });
+                                setIsContractModalOpen(true);
                               }}
-                            />
-                            <ImageWithFallback
-                              src={player.image}
-                              alt={player.name}
-                              className="relative w-14 h-14 rounded-xl object-contain shadow-md ring-2 ring-white/20"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold text-foreground truncate">
-                              {player.name}
-                            </h3>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {player.game} • {player.position}
-                            </p>
-                            <Badge
-                              variant="secondary"
-                              className="mt-1 text-xs"
                             >
-                              {formatNumber(parseInt(formatShares(player.ownedShares || BigInt(0))))} {t('team.shares')}
-                            </Badge>
+                              <FileText className="w-3 h-3 mr-1" />
+                              Extend
+                            </Button>
                           </div>
                         </div>
 
-                        {/* Contract Status */}
-                        <div className="space-y-3 pt-3 border-t border-border/30">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Games Remaining</span>
-                            <span className={`text-sm font-bold ${
-                              contractStatus === 'expiring' ? 'text-red-600' :
-                              contractStatus === 'active' ? 'text-yellow-600' :
-                              'text-green-600'
-                            }`}>
-                              {gamesRemaining} games
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Extension Cost</span>
-                            <span className="text-sm font-semibold">
-                              {extensionPrice} USDC
-                            </span>
-                          </div>
-
-                          {/* Progress Bar */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Contract Status</span>
-                              <span className={`font-bold flex items-center gap-1 ${
-                                contractStatus === 'expiring' ? 'text-red-600 dark:text-red-400' :
-                                contractStatus === 'active' ? 'text-yellow-600 dark:text-yellow-400' :
-                                'text-green-600 dark:text-green-400'
-                              }`}>
-                                {contractStatus === 'expiring' ? (
-                                  <><AlertTriangle className="w-3 h-3" /> Expiring Soon</>
-                                ) : contractStatus === 'active' ? 'Active' : 'Healthy'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Progress
-                                value={Math.min((gamesRemaining / 10) * 100, 100)}
-                                className={`h-2.5 flex-1 ${
-                                  contractStatus === 'expiring' ? '[&>[data-slot=progress-indicator]]:bg-red-500' :
-                                  contractStatus === 'active' ? '[&>[data-slot=progress-indicator]]:bg-yellow-500' :
-                                  '[&>[data-slot=progress-indicator]]:bg-green-500'
-                                }`}
-                              />
-                              <span className="text-xs font-medium tabular-nums w-7 text-right text-muted-foreground">
-                                {Math.round((gamesRemaining / 10) * 100)}%
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Extend Button */}
-                          <Button
-                            className={`w-full mt-2 text-white font-medium ${
-                              contractStatus === 'expiring'
-                                ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700'
-                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                            }`}
-                            size="sm"
-                            onClick={() => {
-                              setSelectedContractPlayer({ ...player, gamesRemaining });
-                              setIsContractModalOpen(true);
-                            }}
-                          >
-                            <FileText className="w-4 h-4 mr-2" />
-                            Extend Contract
-                          </Button>
-                        </div>
+                        {/* Hover effect border */}
+                        <div className="absolute inset-0 rounded-lg border-2 border-transparent group-hover:border-blue-200/50 transition-colors duration-300" />
                       </Card>
                     </motion.div>
                   );

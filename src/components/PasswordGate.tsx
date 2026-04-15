@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 const PASSWORD_STORAGE_KEY = 'espfun_access_granted';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.esp.fun';
 
 export function PasswordGate({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();

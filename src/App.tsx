@@ -4,7 +4,6 @@ import Header from './components/Header';
 import { useIsMobile } from './components/ui/use-mobile';
 import TeamSection from './components/TeamSection';
 import { PasswordGate } from './components/PasswordGate';
-import { useAuthentication } from './hooks/useAuthentication';
 import { AuthProvider } from './context/AuthContext';
 import { GameProvider } from './context/GameContext';
 import { PriceProvider } from './context/PriceContext';
@@ -30,9 +29,6 @@ export default function App() {
   const [advancedViewPlayer, setAdvancedViewPlayer] = useState<any>(null);
   const isMobile = useIsMobile();
 
-  // Authentication hook for JWT token validation
-  const { validateToken, isAuthenticated, hasAuthToken } = useAuthentication();
-
   // Detect ?ref= URL parameter and store for later use during login
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -45,23 +41,6 @@ export default function App() {
       window.history.replaceState({}, '', url.pathname + url.search);
     }
   }, []);
-
-  // Validate JWT token on page load
-  useEffect(() => {
-    const validateExistingToken = async () => {
-      if (hasAuthToken) {
-        try {
-          await validateToken();
-        } catch (error) {
-          // Token validation failed silently
-        }
-      }
-    };
-
-    // Small delay to ensure Privy is ready
-    const timer = setTimeout(validateExistingToken, 1000);
-    return () => clearTimeout(timer);
-  }, [validateToken, hasAuthToken]);
 
   const renderContent = () => {
     switch (activeTab) {

@@ -1,5 +1,6 @@
 import { useWallets, useSendTransaction } from '@privy-io/react-auth';
 import { useCallback } from 'react';
+import { getPreferredWallet } from '../utils/walletPreference';
 
 /**
  * Custom hook to handle transactions for both embedded and external wallets
@@ -14,9 +15,9 @@ export function useWalletTransactions() {
    * Determines if the active wallet is an embedded wallet
    */
   const isEmbeddedWallet = useCallback(() => {
-    const activeWallet = wallets[0];
+    const activeWallet = getPreferredWallet(wallets);
     if (!activeWallet) return false;
-    
+
     // Privy embedded wallets have walletClientType === 'privy'
     return activeWallet.walletClientType === 'privy';
   }, [wallets]);
@@ -25,7 +26,7 @@ export function useWalletTransactions() {
    * Get the active wallet address
    */
   const getActiveWalletAddress = useCallback(() => {
-    return wallets[0]?.address;
+    return getPreferredWallet(wallets)?.address;
   }, [wallets]);
 
   /**
@@ -45,8 +46,8 @@ export function useWalletTransactions() {
         showUI?: boolean; // Override default UI behavior
       }
     ) => {
-      const activeWallet = wallets[0];
-      
+      const activeWallet = getPreferredWallet(wallets);
+
       if (!activeWallet) {
         throw new Error('No wallet connected');
       }
@@ -98,7 +99,7 @@ export function useWalletTransactions() {
 
   return {
     wallets,
-    activeWallet: wallets[0],
+    activeWallet: getPreferredWallet(wallets),
     activeWalletAddress: getActiveWalletAddress(),
     isEmbeddedWallet: isEmbeddedWallet(),
     sendTransactionWithWallet,

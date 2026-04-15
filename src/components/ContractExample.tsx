@@ -2,12 +2,13 @@
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { getContractData, CONTRACT_ADDRESSES, NETWORK_CONFIG } from '../contracts';
 import { useWalletTransactions } from '../hooks/useWalletTransactions';
+import { getPreferredWallet } from '../utils/walletPreference';
 
 export function ContractInteractionExample() {
   const { user } = usePrivy();
   const { wallets } = useWallets();
   const { sendTransactionWithWallet, isEmbeddedWallet } = useWalletTransactions();
-  const wallet = wallets[0]; // Get the first wallet
+  const wallet = getPreferredWallet(wallets);
 
   // Example: Get Player contract data
   const playerContract = getContractData('Player');

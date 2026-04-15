@@ -35,7 +35,7 @@ export const authenticateWallet = async (
     if (error.message.includes('Failed to get authentication nonce') ||
         error.message.includes('Network Error') ||
         error.message.includes('ERR_NETWORK')) {
-      throw new Error('Backend server is not available. Enhanced features will use local signatures instead.');
+      throw new Error('Backend server is not available. FDFPair trading requires backend authentication.');
     }
 
     // Re-throw other authentication errors

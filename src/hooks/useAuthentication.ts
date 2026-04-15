@@ -4,9 +4,11 @@ import { authenticateWallet } from '../services/authService';
 import { apiService } from '../services/apiService';
 import { useAuthContext } from '../context/AuthContext';
 import { AUTH_COOLDOWN_MS } from '../constants/trading';
+import { getPreferredWallet, savePreferredWallet } from '../utils/walletPreference';
 
 export const useAuthentication = () => {
   const {
+    globalAuthState,
     setGlobalAuthState,
     isGloballyAuthenticating,
     setIsGloballyAuthenticating,
@@ -24,7 +26,7 @@ export const useAuthentication = () => {
 
   // Helper to detect if we're using an embedded wallet
   const isEmbeddedWallet = useCallback(() => {
-    const activeWallet = wallets[0];
+    const activeWallet = getPreferredWallet(wallets);
     if (!activeWallet) return false;
     return activeWallet.walletClientType === 'privy';
   }, [wallets]);
@@ -63,19 +65,13 @@ export const useAuthentication = () => {
     }
   }, [authenticated, user?.wallet?.address, lastWalletAddress, clearAuthentication]);
 
-  // Check authentication status when wallet connection changes
+  // Sync local auth state with apiService + context (picks up session restoration from AuthProvider)
   useEffect(() => {
-    const checkAuthStatus = () => {
-      const shouldBeAuthenticated = apiService.isAuthenticated() && authenticated;
-
-      // Only update state if it actually changed
-      if (shouldBeAuthenticated !== isAuthenticated) {
-        setIsAuthenticated(shouldBeAuthenticated);
-      }
-    };
-
-    checkAuthStatus();
-  }, [authenticated, isAuthenticated]);
+    const shouldBeAuthenticated = apiService.isAuthenticated() && authenticated;
+    if (shouldBeAuthenticated !== isAuthenticated) {
+      setIsAuthenticated(shouldBeAuthenticated);
+    }
+  }, [authenticated, isAuthenticated, globalAuthState]);
 
   // Handle JWT authentication
   const authenticate = useCallback(async () => {
@@ -122,7 +118,7 @@ export const useAuthentication = () => {
     setHasAttemptedAuth(true);
 
     try {
-      const activeWallet = wallets[0];
+      const activeWallet = getPreferredWallet(wallets);
       const isEmbedded = isEmbeddedWallet();
 
       // Use the correct address: activeWallet.address for external wallets, user.wallet.address for embedded
@@ -182,6 +178,7 @@ export const useAuthentication = () => {
       };
 
       await authenticateWallet(walletAddress, signer);
+      if (activeWallet) savePreferredWallet(activeWallet);
       setIsAuthenticated(true);
       setGlobalAuthState(true); // Update global auth state
       return true;
@@ -190,7 +187,7 @@ export const useAuthentication = () => {
       if (err.message.includes('Too many requests')) {
         setError('Too many authentication attempts. Please wait 10 seconds and try again.');
       } else if (err.message.includes('Backend server is not available')) {
-        setError('Backend server unavailable. The app will use local signatures instead.');
+        setError('Backend server unavailable. FDFPair trading requires backend authentication.');
       } else if (err.message.includes('Invalid signature')) {
         setError('Invalid signature. Please try again.');
       } else if (err.message.includes('rejected') || err.message.includes('denied')) {

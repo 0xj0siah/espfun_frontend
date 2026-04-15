@@ -14,6 +14,7 @@ import { Coins, TrendingUp, Wallet, Info, CheckCircle, XCircle, Loader2, Externa
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useWalletTransactions } from '../hooks/useWalletTransactions';
+import { getPreferredWallet } from '../utils/walletPreference';
 import { useStaking } from '../hooks/useStaking';
 import { usePublicClient } from '../hooks/usePublicClient';
 import { parseUnits, encodeFunctionData } from 'viem';
@@ -30,7 +31,7 @@ export default function StakingSection() {
   const { sendTransactionWithWallet } = useWalletTransactions();
   const publicClient = usePublicClient();
 
-  const walletAddress = wallets[0]?.address;
+  const walletAddress = getPreferredWallet(wallets)?.address;
   const staking = useStaking(walletAddress);
 
   // Form state

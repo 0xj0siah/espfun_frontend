@@ -3,7 +3,7 @@ import { parseUnits } from 'viem';
 import { requestCache } from '../utils/requestCache';
 import { retryWithBackoff, debounce } from '../utils/retryUtils';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.esp.fun';
 
 export interface BuyTokensRequest {
   playerTokenIds: string[];
@@ -82,6 +82,7 @@ class ApiService {
   private authErrorHandler?: (error: any) => void;
   private autoReAuthHandler?: () => Promise<boolean>;
   private isReAuthenticating = false;
+  private isRestoringSession = false;
 
   constructor() {
     // Set withCredentials globally so httpOnly cookies are sent with every request
@@ -96,6 +97,11 @@ class ApiService {
       (response) => response,
       async (error) => {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
+          // Don't trigger re-auth during silent session restoration
+          if (this.isRestoringSession) {
+            return Promise.reject(error);
+          }
+
           // Prevent multiple simultaneous reauthentication attempts
           if (this.isReAuthenticating) {
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -157,6 +163,26 @@ class ApiService {
     axios.post(`${API_BASE_URL}/api/auth/logout`).catch(() => {});
   }
 
+  // Attempt to restore session from httpOnly cookie (survives page refresh)
+  async restoreSession(): Promise<{ id: string; walletAddress: string } | null> {
+    this.isRestoringSession = true;
+    try {
+      // withCredentials is already true, so the httpOnly auth_token cookie is sent automatically
+      const response = await axios.get(`${API_BASE_URL}/api/users/profile`);
+      if (response.data && response.data.walletAddress) {
+        // Session cookie is valid — mark as authenticated (no JWT needed in-memory,
+        // the cookie will authenticate all subsequent requests)
+        this.token = 'session-restored';
+        return response.data;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      this.isRestoringSession = false;
+    }
+  }
+
   // Check if current token is valid by making a test request
   async validateToken(): Promise<boolean> {
     if (!this.token) {
@@ -188,10 +214,11 @@ class ApiService {
       'Content-Type': 'application/json',
     };
 
-    // Keep Authorization header as fallback alongside httpOnly cookie
-    if (this.token) {
+    // Send Authorization header when we have a real JWT (not cookie-restored sessions)
+    if (this.token && this.token !== 'session-restored') {
       headers.Authorization = `Bearer ${this.token}`;
     }
+    // When token is 'session-restored', the httpOnly cookie handles auth automatically
 
     return headers;
   }
@@ -506,7 +533,9 @@ class ApiService {
   async getPromotionCost(playerIds: string[], shares: number[] = []): Promise<{ [playerId: string]: number }> {
     // If no shares provided, default to 1 for each player to get per-share cost
     const sharesToSend = shares.length > 0 ? shares : playerIds.map(() => 1);
-    const cacheKey = `promotion-cost:${playerIds.sort().join(',')}-${sharesToSend.join(',')}`;
+    // Backend applies ethers.formatEther (÷1e18), so convert whole shares to wei
+    const sharesInWei = sharesToSend.map(s => parseUnits(s.toString(), 18).toString());
+    const cacheKey = `promotion-cost:${playerIds.sort().join(',')}-${sharesInWei.join(',')}`;
     const endpoint = 'players/promotion-cost';
 
     try {
@@ -517,9 +546,9 @@ class ApiService {
           const response = await retryWithBackoff(async () => {
             return axios.post(
               `${API_BASE_URL}/api/players/promotion-cost`,
-              { 
+              {
                 playerIds: playerIds.map(id => parseInt(id)),
-                shares: sharesToSend
+                shares: sharesInWei
               },
               { headers: this.getHeaders() }
             );
@@ -552,7 +581,9 @@ class ApiService {
   async getCutValue(playerIds: string[], shares: number[] = []): Promise<{ [playerId: string]: number }> {
     // If no shares provided, default to 1 for each player to get per-share value
     const sharesToSend = shares.length > 0 ? shares : playerIds.map(() => 1);
-    const cacheKey = `cut-value:${playerIds.sort().join(',')}-${sharesToSend.join(',')}`;
+    // Backend applies ethers.formatEther (÷1e18), so convert whole shares to wei
+    const sharesInWei = sharesToSend.map(s => parseUnits(s.toString(), 18).toString());
+    const cacheKey = `cut-value:${playerIds.sort().join(',')}-${sharesInWei.join(',')}`;
     const endpoint = 'players/cut-value';
 
     try {
@@ -563,9 +594,9 @@ class ApiService {
           const response = await retryWithBackoff(async () => {
             return axios.post(
               `${API_BASE_URL}/api/players/cut-value`,
-              { 
+              {
                 playerIds: playerIds.map(id => parseInt(id)),
-                shares: sharesToSend
+                shares: sharesInWei
               },
               { headers: this.getHeaders() }
             );
@@ -577,7 +608,7 @@ class ApiService {
           
           if (response.data.breakdown && Array.isArray(response.data.breakdown)) {
             response.data.breakdown.forEach((item: any) => {
-              result[item.playerId.toString()] = item.points || 0;
+              result[item.playerId.toString()] = item.points ?? 0;
             });
           } else if (response.data.cutValue !== undefined) {
             // Fallback: use cutValue for all requested players
@@ -603,7 +634,7 @@ class ApiService {
   async getPromotionCostForAmount(playerId: string, shares: number): Promise<number> {
     try {
       const response = await this.getPromotionCost([playerId], [shares]);
-      return response[playerId] || 0;
+      return response[playerId] ?? 0;
     } catch (error) {
       console.error('Failed to get promotion cost for amount:', error);
       throw error;
@@ -614,7 +645,7 @@ class ApiService {
   async getCutValueForAmount(playerId: string, shares: number): Promise<number> {
     try {
       const response = await this.getCutValue([playerId], [shares]);
-      return response[playerId] || 0;
+      return response[playerId] ?? 0;
     } catch (error) {
       console.error('Failed to get cut value for amount:', error);
       throw error;
