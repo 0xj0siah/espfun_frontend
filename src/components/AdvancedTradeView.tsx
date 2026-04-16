@@ -144,7 +144,7 @@ export default function AdvancedTradeView({ player, onBack }: AdvancedTradeViewP
     }
   }, [useFallback, livePrice, player.id]);
 
-  const explorerBase = 'https://sepolia.basescan.org/tx/';
+  const explorerBase = 'https://basescan.org/tx/';
 
   return (
     <div className={isMobile ? 'space-y-2 overflow-hidden w-full max-w-full' : 'space-y-4'}>

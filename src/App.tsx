@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import Header from './components/Header';
 import { useIsMobile } from './components/ui/use-mobile';
 import TeamSection from './components/TeamSection';
-import { PasswordGate } from './components/PasswordGate';
 import { AuthProvider } from './context/AuthContext';
 import { GameProvider } from './context/GameContext';
 import { PriceProvider } from './context/PriceContext';
@@ -64,7 +63,6 @@ export default function App() {
   };
 
   return (
-    <PasswordGate>
       <AuthProvider>
         <GameProvider>
         <PriceProvider>
@@ -132,6 +130,5 @@ export default function App() {
       </PriceProvider>
       </GameProvider>
       </AuthProvider>
-    </PasswordGate>
   );
 }

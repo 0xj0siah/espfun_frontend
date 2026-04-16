@@ -12,9 +12,6 @@ interface MobileSidebarProps {
 const tabs = [
   { id: 'Team', icon: Users, i18nKey: 'nav.team' },
   { id: 'Transfers', icon: ArrowLeftRight, i18nKey: 'nav.transfers' },
-  { id: 'Live Scores', icon: Radio, i18nKey: 'nav.liveScores' },
-  { id: 'Leaderboard', icon: Trophy, i18nKey: 'nav.leaderboard' },
-  { id: 'Pack Opening', icon: Package, i18nKey: 'nav.packOpening' },
   { id: 'Staking', icon: Coins, i18nKey: 'nav.staking' },
   { id: 'Referrals', icon: Share2, i18nKey: 'nav.referrals' },
   { id: 'Dashboard', icon: LayoutDashboard, i18nKey: 'nav.dashboard' },

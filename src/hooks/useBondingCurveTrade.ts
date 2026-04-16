@@ -3,6 +3,7 @@ import { parseUnits, encodeFunctionData } from 'viem';
 import { getContractData } from '../contracts';
 import { readContractCached } from '../utils/contractCache';
 import { useWalletTransactions } from './useWalletTransactions';
+import { apiService } from '../services/apiService';
 import { usePublicClient } from './usePublicClient';
 import type { TransactionStatus } from '../types/trading';
 
@@ -195,6 +196,9 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
 
         await publicClient.waitForTransactionReceipt({ hash: result.hash as `0x${string}` });
 
+        // Confirm with backend so it appears in recent trades + chart data immediately
+        apiService.confirmBondingCurveTrade(result.hash);
+
         updateStatus('success', 'Successfully bought tokens!', result.hash);
         return { hash: result.hash };
       } catch (err) {
@@ -269,6 +273,9 @@ export function useBondingCurveTrade(): BondingCurveTradeResult {
         updateStatus('pending', 'Waiting for confirmation...', result.hash);
 
         await publicClient.waitForTransactionReceipt({ hash: result.hash as `0x${string}` });
+
+        // Confirm with backend so it appears in recent trades + chart data immediately
+        apiService.confirmBondingCurveTrade(result.hash);
 
         updateStatus('success', 'Successfully sold tokens!', result.hash);
         return { hash: result.hash };

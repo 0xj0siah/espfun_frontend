@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useSignMessage, useWallets } from '@privy-io/react-auth';
 import { authenticateWallet } from '../services/authService';
 import { apiService } from '../services/apiService';
@@ -24,6 +24,20 @@ export const useAuthentication = () => {
   const { signMessage } = useSignMessage();
   const { wallets } = useWallets();
 
+  // Refs to break the dependency cycle — authenticate reads these without
+  // needing them in its dependency array, so it won't be re-created on every
+  // state change it itself causes.
+  const isAuthenticatingRef = useRef(false);
+  const isAuthenticatedRef = useRef(false);
+  const isGloballyAuthenticatingRef = useRef(false);
+  const lastAuthAttemptRef = useRef(0);
+
+  // Keep refs in sync
+  useEffect(() => { isAuthenticatingRef.current = isAuthenticating; }, [isAuthenticating]);
+  useEffect(() => { isAuthenticatedRef.current = isAuthenticated; }, [isAuthenticated]);
+  useEffect(() => { isGloballyAuthenticatingRef.current = isGloballyAuthenticating; }, [isGloballyAuthenticating]);
+  useEffect(() => { lastAuthAttemptRef.current = lastAuthAttempt; }, [lastAuthAttempt]);
+
   // Helper to detect if we're using an embedded wallet
   const isEmbeddedWallet = useCallback(() => {
     const activeWallet = getPreferredWallet(wallets);
@@ -31,13 +45,25 @@ export const useAuthentication = () => {
     return activeWallet.walletClientType === 'privy';
   }, [wallets]);
 
-  // Clear authentication
+  // Soft clear: reset in-memory auth state without destroying the backend cookie.
+  // Used for reauth flows, 401 recovery, and state flickers.
+  const softClearAuthentication = useCallback(() => {
+    apiService.resetInMemoryAuth();
+    setIsAuthenticated(false);
+    setError(null);
+    setHasAttemptedAuth(false);
+    setGlobalAuthState(false);
+    setIsGloballyAuthenticating(false);
+    setLastAuthAttempt(0);
+  }, [setGlobalAuthState, setIsGloballyAuthenticating, setLastAuthAttempt]);
+
+  // Hard clear: destroy both in-memory state AND backend cookie.
+  // Used ONLY for explicit user logout or wallet disconnect.
   const clearAuthentication = useCallback(() => {
     apiService.clearAuthToken();
     setIsAuthenticated(false);
     setError(null);
     setHasAttemptedAuth(false);
-    // Reset both local and global state
     setGlobalAuthState(false);
     setIsGloballyAuthenticating(false);
     setLastAuthAttempt(0);
@@ -83,25 +109,25 @@ export const useAuthentication = () => {
       return false;
     }
 
-    // Global rate limiting
+    // Global rate limiting — read from refs to avoid dependency churn
     const now = Date.now();
-    if (isGloballyAuthenticating) {
+    if (isGloballyAuthenticatingRef.current) {
       return false;
     }
 
-    if (now - lastAuthAttempt < AUTH_COOLDOWN_MS) {
-      const waitTime = Math.ceil((AUTH_COOLDOWN_MS - (now - lastAuthAttempt)) / 1000);
+    if (now - lastAuthAttemptRef.current < AUTH_COOLDOWN_MS) {
+      const waitTime = Math.ceil((AUTH_COOLDOWN_MS - (now - lastAuthAttemptRef.current)) / 1000);
       setError(`Please wait ${waitTime} seconds before trying again (backend rate limiting)`);
       return false;
     }
 
     // Prevent multiple simultaneous authentication attempts
-    if (isAuthenticating) {
+    if (isAuthenticatingRef.current) {
       return false;
     }
 
     // Check if already authenticated
-    if (isAuthenticated) {
+    if (isAuthenticatedRef.current) {
       return true;
     }
 
@@ -203,33 +229,36 @@ export const useAuthentication = () => {
       setIsAuthenticating(false);
       setIsGloballyAuthenticating(false);
     }
-  }, [authenticated, user?.wallet?.address, signMessage, wallets, isEmbeddedWallet, isAuthenticating, isAuthenticated, setGlobalAuthState, isGloballyAuthenticating, lastAuthAttempt, setIsGloballyAuthenticating, setLastAuthAttempt]);
+  }, [authenticated, user?.wallet?.address, signMessage, wallets, isEmbeddedWallet, setGlobalAuthState, setIsGloballyAuthenticating, setLastAuthAttempt]);
 
   // Validate current token
   const validateToken = useCallback(async (): Promise<boolean> => {
     try {
       const isValid = await apiService.validateToken();
       if (!isValid) {
-        clearAuthentication();
+        // apiService.validateToken already cleared the token on 401 —
+        // just sync local state here (soft clear to avoid double logout POST)
+        softClearAuthentication();
         setError('Your session has expired. Please authenticate again.');
       }
       return isValid;
     } catch (error) {
       return false;
     }
-  }, [clearAuthentication]);
+  }, [softClearAuthentication]);
 
-  // Force re-authentication
+  // Force re-authentication (preserves cookie — only clears in-memory state)
   const forceReAuth = useCallback(async (): Promise<boolean> => {
-    clearAuthentication();
+    softClearAuthentication();
     // Small delay to ensure cleanup is complete
     await new Promise(resolve => setTimeout(resolve, 100));
     return await authenticate();
-  }, [clearAuthentication, authenticate]);
+  }, [softClearAuthentication, authenticate]);
 
-  // Automatic reauthentication for API calls (doesn't show user errors)
+  // Automatic reauthentication for API calls (doesn't show user errors).
+  // Uses soft clear to preserve the cookie — if reauth fails, session restore can still work.
   const autoReAuth = useCallback(async (): Promise<boolean> => {
-    clearAuthentication();
+    softClearAuthentication();
     // Small delay to ensure cleanup is complete
     await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -238,28 +267,30 @@ export const useAuthentication = () => {
     } catch (error) {
       return false;
     }
-  }, [clearAuthentication, authenticate]);
+  }, [softClearAuthentication, authenticate]);
 
-  // Register auth error handler when component mounts
+  // Keep a stable ref so the apiService handler doesn't need to be re-registered
+  const autoReAuthRef = useRef(autoReAuth);
+  const softClearRef = useRef(softClearAuthentication);
+  useEffect(() => { autoReAuthRef.current = autoReAuth; }, [autoReAuth]);
+  useEffect(() => { softClearRef.current = softClearAuthentication; }, [softClearAuthentication]);
+
+  // Register auth error handler once on mount — uses refs so it never re-registers
   useEffect(() => {
-    const handleAuthError = (error: any) => {
-      // Clear authentication state when token becomes invalid
-      clearAuthentication();
+    apiService.setAuthErrorHandler(() => {
+      // Soft clear: session expired, but don't destroy the cookie — user can still
+      // restore via cookie on next page load if they don't explicitly re-auth now.
+      softClearRef.current();
       setError('Your session has expired. Please authenticate again.');
-    };
+    });
 
-    // Register the error handler with apiService
-    apiService.setAuthErrorHandler(handleAuthError);
+    apiService.setAutoReAuthHandler(() => autoReAuthRef.current());
 
-    // Register the auto reauthentication handler
-    apiService.setAutoReAuthHandler(autoReAuth);
-
-    // Cleanup on unmount
     return () => {
       apiService.setAuthErrorHandler(() => {});
       apiService.setAutoReAuthHandler(() => Promise.resolve(false));
     };
-  }, [clearAuthentication, autoReAuth]);
+  }, []); // stable — no deps, reads through refs
 
   return {
     isAuthenticated,

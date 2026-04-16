@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 // Replace this with any of the networks listed at https://github.com/wevm/viem/blob/main/src/chains/index.ts
-import {baseSepolia} from 'viem/chains';
+import {base} from 'viem/chains';
 import './index.css';
 import './i18n'; // Initialize i18n before rendering
 
@@ -32,8 +32,8 @@ root.render(
         // Allow users to connect external wallets (MetaMask, WalletConnect, etc.)
         loginMethods: ['wallet', 'email', 'sms'],
         // Configure supported chains
-        defaultChain: baseSepolia,
-        supportedChains: [baseSepolia],
+        defaultChain: base,
+        supportedChains: [base],
         // Customize appearance
         appearance: {
           theme: 'dark',

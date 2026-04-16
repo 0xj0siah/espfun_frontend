@@ -316,12 +316,12 @@ export default function StakingSection() {
           ) : (
             // Stake / Unstake tabs
             <Tabs defaultValue="stake" className="w-full flex flex-col flex-1 min-h-0">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="stake" className="flex items-center gap-2">
+              <TabsList className="grid w-full grid-cols-2 mb-6 h-11 bg-muted/60 dark:bg-muted/40 p-1 rounded-xl">
+                <TabsTrigger value="stake" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=inactive]:hover:bg-muted-foreground/10 transition-all">
                   <ArrowDownToLine className="w-4 h-4" />
                   Stake
                 </TabsTrigger>
-                <TabsTrigger value="unstake" className="flex items-center gap-2">
+                <TabsTrigger value="unstake" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=inactive]:hover:bg-muted-foreground/10 transition-all">
                   <ArrowUpFromLine className="w-4 h-4" />
                   Unstake
                 </TabsTrigger>
@@ -373,7 +373,8 @@ export default function StakingSection() {
                 <Button
                   onClick={handleStake}
                   disabled={isTxPending || !stakeAmount || !isContractDeployed || !!stakeError}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  variant="ghost"
+                  className="w-full h-11 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
                 >
                   {isTxPending && txState !== 'unstaking' ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{statusMessage}</>
@@ -430,7 +431,8 @@ export default function StakingSection() {
                 <Button
                   onClick={handleUnstake}
                   disabled={isTxPending || !unstakeAmount || !isContractDeployed || !!unstakeError}
-                  className="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white"
+                  variant="ghost"
+                  className="w-full h-11 text-base font-semibold bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
                 >
                   {isTxPending && txState === 'unstaking' ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{statusMessage}</>
@@ -507,7 +509,7 @@ export default function StakingSection() {
                         />
                         <YAxis
                           tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
-                          domain={[0, (max: number) => max > 0 ? max * 1.1 : 10]}
+                          domain={[0, 'auto']}
                           tick={{ fontSize: 11, fill: tickColor }}
                           tickLine={false}
                           axisLine={false}

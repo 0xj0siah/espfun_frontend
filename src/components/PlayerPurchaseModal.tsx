@@ -1049,6 +1049,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
     try {
       if (tradingPhase === TradingPhase.BondingCurve) {
         // ═══ BONDING CURVE TRADING (no signatures needed) ═══
+        let txResult: { hash: string } | undefined;
         if (action === 'buy') {
           // For bonding curve buy: user specifies USDC, quote gives token amount
           const tokenAmount = quote.amountToReceive > 0n
@@ -1056,7 +1057,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
             : (parseFloat(usdcAmount) / currentPrice).toString();
           const maxSpend = (parseFloat(usdcAmount) * (1 + slippage / 100)).toString();
 
-          await bondingCurveTrade.buy({
+          txResult = await bondingCurveTrade.buy({
             playerId: player.id,
             tokenAmount,
             maxCurrencySpend: maxSpend,
@@ -1070,7 +1071,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
               )
             : (parseFloat(usdcAmount) * currentPrice * (1 - slippage / 100)).toString();
 
-          await bondingCurveTrade.sell({
+          txResult = await bondingCurveTrade.sell({
             playerId: player.id,
             tokenAmount: usdcAmount,
             minCurrencyToReceive: minReceive,
@@ -1081,7 +1082,7 @@ export default function PlayerPurchaseModal({ player, isOpen, onClose, onPurchas
         refreshPhase();
         refreshTokenBalance();
         await updateBalanceAfterTransaction();
-        updateAlertState('success', `Successfully ${action === 'buy' ? 'bought' : 'sold'} tokens!`, bondingCurveTrade.transactionHash);
+        updateAlertState('success', `Successfully ${action === 'buy' ? 'bought' : 'sold'} tokens!`, txResult?.hash || bondingCurveTrade.transactionHash);
         refreshPrices().catch(() => {});
         if (player) fetchPoolInfo([player.id]).catch(() => {});
 

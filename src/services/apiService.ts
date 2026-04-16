@@ -82,7 +82,10 @@ class ApiService {
   private authErrorHandler?: (error: any) => void;
   private autoReAuthHandler?: () => Promise<boolean>;
   private isReAuthenticating = false;
+  private reAuthPromise: Promise<boolean> | null = null;
   private isRestoringSession = false;
+  // Prevents 401 interceptor from destroying the cookie before session restore completes
+  private isInitialized = false;
 
   constructor() {
     // Set withCredentials globally so httpOnly cookies are sent with every request
@@ -97,42 +100,56 @@ class ApiService {
       (response) => response,
       async (error) => {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
-          // Don't trigger re-auth during silent session restoration
-          if (this.isRestoringSession) {
+          const config = error.config as any;
+
+          // Don't retry a request that already retried after reauth
+          if (config?._retried) {
             return Promise.reject(error);
           }
 
-          // Prevent multiple simultaneous reauthentication attempts
-          if (this.isReAuthenticating) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return axios(error.config!);
+          // Don't trigger re-auth during silent session restoration or before init completes
+          if (this.isRestoringSession || !this.isInitialized) {
+            return Promise.reject(error);
+          }
+
+          // If a reauth is already in-flight, wait for it instead of starting another
+          if (this.isReAuthenticating && this.reAuthPromise) {
+            const success = await this.reAuthPromise;
+            if (success) {
+              config._retried = true;
+              return axios(config);
+            }
+            return Promise.reject(error);
           }
 
           this.isReAuthenticating = true;
 
-          try {
-            this.clearAuthToken();
+          this.reAuthPromise = (async () => {
+            try {
+              // Soft clear only — preserve the httpOnly cookie for fallback
+              this.resetInMemoryAuth();
 
-            if (this.autoReAuthHandler) {
-              const reAuthSuccess = await this.autoReAuthHandler();
-              if (reAuthSuccess) {
-                return axios(error.config!);
-              } else {
-                if (this.authErrorHandler) {
-                  this.authErrorHandler(error);
-                }
+              if (this.autoReAuthHandler) {
+                return await this.autoReAuthHandler();
               }
-            } else {
-              if (this.authErrorHandler) {
-                this.authErrorHandler(error);
-              }
+              return false;
+            } catch {
+              return false;
+            } finally {
+              this.isReAuthenticating = false;
+              this.reAuthPromise = null;
             }
-          } catch (reAuthError) {
+          })();
+
+          const reAuthSuccess = await this.reAuthPromise;
+
+          if (reAuthSuccess) {
+            config._retried = true;
+            return axios(config);
+          } else {
             if (this.authErrorHandler) {
               this.authErrorHandler(error);
             }
-          } finally {
-            this.isReAuthenticating = false;
           }
         }
         return Promise.reject(error);
@@ -152,15 +169,31 @@ class ApiService {
 
   setAuthToken(token: string) {
     this.token = token;
+    this.isInitialized = true;
     // Token also stored as httpOnly cookie by the backend — in-memory copy is for state tracking only
     requestCache.clear();
   }
 
+  // Soft clear: wipe in-memory state only, preserve the httpOnly cookie.
+  // Use for reauth flows, state flickers, and 401 recovery.
+  resetInMemoryAuth() {
+    this.token = null;
+    requestCache.clear();
+  }
+
+  // Hard clear: destroy both in-memory state AND the backend cookie.
+  // Use ONLY for explicit user logout.
   clearAuthToken() {
     this.token = null;
     requestCache.clear();
     // Tell the backend to clear the httpOnly cookie
     axios.post(`${API_BASE_URL}/api/auth/logout`).catch(() => {});
+  }
+
+  // Mark the service as initialized (session restore complete).
+  // After this, the 401 interceptor is allowed to trigger reauth.
+  markInitialized() {
+    this.isInitialized = true;
   }
 
   // Attempt to restore session from httpOnly cookie (survives page refresh)
@@ -180,6 +213,8 @@ class ApiService {
       return null;
     } finally {
       this.isRestoringSession = false;
+      // Session restore is done — 401 interceptor can now safely trigger reauth
+      this.isInitialized = true;
     }
   }
 
@@ -795,6 +830,25 @@ class ApiService {
         }
       }
       throw new Error('Failed to get series state from backend');
+    }
+  }
+
+  // ── Bonding Curve Trade Confirmation ──
+
+  /**
+   * Confirm a bonding curve trade with the backend so it appears in recent trades
+   * and generates chart data immediately (same pattern as FDFPair confirm).
+   */
+  async confirmBondingCurveTrade(txHash: string): Promise<void> {
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/bonding-curve/confirm-trade`,
+        { txHash },
+        { headers: this.getHeaders() }
+      );
+    } catch (error) {
+      // Non-fatal — the fee indexer will eventually pick it up
+      console.warn('Failed to confirm bonding curve trade with backend:', error);
     }
   }
 

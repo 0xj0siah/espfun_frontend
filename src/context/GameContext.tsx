@@ -6,7 +6,7 @@ interface GameContextType {
 }
 
 const GameContext = createContext<GameContextType>({
-  selectedGame: 'CS2',
+  selectedGame: 'LoL',
   setSelectedGame: () => {},
 });
 
@@ -14,7 +14,7 @@ export const useGameContext = () => useContext(GameContext);
 
 export const GameProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedGame, setSelectedGame] = useState(() => {
-    return localStorage.getItem('selectedGame') || 'CS2';
+    return localStorage.getItem('selectedGame') || 'LoL';
   });
 
   const handleSetSelectedGame = (game: string) => {

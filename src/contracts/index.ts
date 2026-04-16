@@ -29,16 +29,16 @@ export {
 
 // Contract addresses — override via VITE_CONTRACT_* env vars for different deployments
 export const CONTRACT_ADDRESSES = {
-  FeeManager: import.meta.env.VITE_CONTRACT_FEE_MANAGER || '0x5a354beb8ddA64A72D30b48980b56b989410448f',
-  Player: import.meta.env.VITE_CONTRACT_PLAYER || '0xb316ace8422975c644E723Cc391Db33e14c05460',
-  DevelopmentPlayers: import.meta.env.VITE_CONTRACT_DEV_PLAYERS || '0xF57a67090fE0B6746c7285FEfE00cd188649393c',
-  PlayerContracts: import.meta.env.VITE_CONTRACT_PLAYER_CONTRACTS || '0xB62dccd11348bfA2Ba29e0c50Da85b1804A6f9d2',
-  PlayerPack: import.meta.env.VITE_CONTRACT_PLAYER_PACK || '0x6351A397a17718Ba614b1dffF183557aca55F24A',
-  FDFPair: import.meta.env.VITE_CONTRACT_FDF_PAIR || '0xF41Ab3e0dE047E53e9D75ebCfc65D0ac727C7B59',
-  TUSDC: import.meta.env.VITE_CONTRACT_TUSDC || '0xEc25C405ec25BB24Ad004198D1B3111e8de808f8',
-  ESPStaking: import.meta.env.VITE_CONTRACT_ESP_STAKING || '0x9c288d1c0279a6b2404D483a0c0563C5981Ea845',
-  ESP: import.meta.env.VITE_CONTRACT_ESP || '0x11AD735D35d9baD6e7489D8Bc2295F0E32d26CE7',
-  BondingCurve: import.meta.env.VITE_CONTRACT_BONDING_CURVE || '0x20b8685651082943D7d8A2cceB41430664a5274F',
+  FeeManager: import.meta.env.VITE_CONTRACT_FEE_MANAGER || '0xAF0eD1A19083a23B88B82f6ceda6f5FC6896384C',
+  Player: import.meta.env.VITE_CONTRACT_PLAYER || '0x6aDb9ab8c994E2a7ebCa508c9eC3738d1c46252b',
+  DevelopmentPlayers: import.meta.env.VITE_CONTRACT_DEV_PLAYERS || '0xcEe2b94Bf384755d3B288270d3DECCcdA459aB1e',
+  PlayerContracts: import.meta.env.VITE_CONTRACT_PLAYER_CONTRACTS || '0xeD44a192B10941B6536FD68A4164b8e39d20E12C',
+  PlayerPack: import.meta.env.VITE_CONTRACT_PLAYER_PACK || '0x7e16F401e69877EB6a9798fBb674043400671d08',
+  FDFPair: import.meta.env.VITE_CONTRACT_FDF_PAIR || '0x84aec88fcA92E58f5aD00e922C648b51749CD777',
+  TUSDC: import.meta.env.VITE_CONTRACT_TUSDC || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  ESPStaking: import.meta.env.VITE_CONTRACT_ESP_STAKING || '0xf1a251b501481c379cF51bA5EAaCbE1A23Ef06Ca',
+  ESP: import.meta.env.VITE_CONTRACT_ESP || '0x626494A7CD08D31e7554B2dF8F7e7Cb1bffdC70C',
+  BondingCurve: import.meta.env.VITE_CONTRACT_BONDING_CURVE || '0x6989C402C70481B3A8D74936f808f93B404A5D47',
 } as const;
 
 // Type definitions for the contracts
@@ -100,12 +100,11 @@ export function isContractDeployed(contractName: ContractName): boolean {
   return CONTRACT_ADDRESSES[contractName] !== ZERO_ADDRESS;
 }
 
-// Network configuration (Base Sepolia)
-// TODO: Align Privy chain config in main.tsx with NETWORK_CONFIG
+// Network configuration (Base Mainnet)
 export const NETWORK_CONFIG = {
-  chainId: 84532,
-  name: 'Base Sepolia',
+  chainId: 8453,
+  name: 'Base',
   nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-  rpcUrl: 'https://sepolia.base.org',
-  blockExplorer: 'https://sepolia.basescan.org',
+  rpcUrl: 'https://mainnet.base.org',
+  blockExplorer: 'https://basescan.org',
 } as const;

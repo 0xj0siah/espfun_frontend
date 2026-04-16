@@ -32,18 +32,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     lastAuthAttemptRef.current = time;
   }, []);
 
-  // Reset auth state when wallet disconnects
+  // Reset auth state when wallet genuinely disconnects (not on initial load or flickers).
+  // Only reset if we were previously authenticated — prevents clobbering session restore
+  // during the Privy initialization window.
+  const wasAuthenticatedRef = useRef(false);
   useEffect(() => {
-    if (!authenticated) {
+    if (authenticated) {
+      wasAuthenticatedRef.current = true;
+    } else if (wasAuthenticatedRef.current) {
+      // Wallet was connected and is now disconnected — genuine disconnect
+      wasAuthenticatedRef.current = false;
       setGlobalAuthState(false);
       setIsGloballyAuthenticating(false);
       lastAuthAttemptRef.current = 0;
     }
   }, [authenticated]);
 
-  // Restore session from httpOnly cookie on page load (runs once here, not per-hook-instance)
+  // Restore session from httpOnly cookie on page load (runs once on mount).
+  // Does NOT wait for Privy — the cookie is validated independently by the backend.
+  // Once Privy loads and `authenticated` becomes true, the sync effect in
+  // useAuthentication will pick up the restored session.
   useEffect(() => {
-    if (!authenticated || apiService.isAuthenticated()) return;
+    if (apiService.isAuthenticated()) return;
 
     let cancelled = false;
     apiService.restoreSession().then((userData) => {
@@ -52,7 +62,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
     return () => { cancelled = true; };
-  }, [authenticated]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AuthContext.Provider value={{

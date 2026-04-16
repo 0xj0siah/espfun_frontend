@@ -31,7 +31,7 @@ interface HeaderProps {
 }
 
 // Tab IDs remain constant (used as internal state keys); display names come from i18n
-const navItems = ['Team', 'Transfers', 'Live Scores', 'Leaderboard', 'Pack Opening', 'Staking', 'Dashboard'] as const;
+const navItems = ['Team', 'Transfers', 'Staking', 'Dashboard'] as const;
 const navI18nKeys: Record<string, string> = {
   'Team': 'nav.team',
   'Transfers': 'nav.transfers',
@@ -312,19 +312,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
               </Alert>
             )}
 
-            {/* Game Selector */}
-            <Select value={selectedGame} onValueChange={setSelectedGame}>
-              <SelectTrigger className="w-24 md:w-44 bg-accent/50 border-0 shadow-sm">
-                <SelectValue placeholder={t('header.selectGame')} />
-              </SelectTrigger>
-              <SelectContent>
-                {games.map((game) => (
-                  <SelectItem key={game.value} value={game.value}>
-                    {game.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Game Selector — hidden while defaulting to LoL */}
 
             {/* Dark Mode Toggle */}
             <Button
